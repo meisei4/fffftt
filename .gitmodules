@@ -1,0 +1,16 @@
+[submodule "raylib_desktop"]
+	path = raylib_desktop
+	url = https://github.com/raysan5/raylib.git
+	branch = master
+[submodule "raylib_dc"]
+	path = raylib_dc
+	url = https://github.com/raylib4Consoles/raylib.git
+	branch = work
+[submodule "GLdc"]
+	path = GLdc
+	url = https://github.com/Kazade/GLdc.git
+	branch = master
+[submodule "sh4zam"]
+	path = sh4zam
+	url = https://github.com/gyrovorbis/sh4zam.git
+	branch = complex
