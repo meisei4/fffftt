@@ -113,9 +113,9 @@ int main(void) {
         }
 
         apply_blackman_window(&fft_data, fft_input_samples);
-        float fft_start = (float)GetTime();
+        uint64_t fft_start = GetTimeNanoTest();
         shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)FFT_WINDOW_SIZE);
-        fft_compute_ms = ((float)GetTime() - fft_start) * 1000.0f;
+        fft_compute_ms = fft_elapsed_ms(fft_start);
 
         clean_up_fft(&fft_data);
 

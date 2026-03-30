@@ -5,6 +5,11 @@
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <stdint.h>
+
+#ifdef PLATFORM_DREAMCAST
+#include <dc/perfctr.h>
+#endif
 
 #define MONO 1
 #define STEREO_CHANNEL_COUNT 2
@@ -117,6 +122,18 @@ typedef struct FFTData {
     int history_pos;
     float tapback_pos;
 } FFTData;
+
+static inline uint64_t GetTimeNanoTest(void) {
+#ifdef PLATFORM_DREAMCAST
+    return perf_cntr_timer_ns();
+#else
+    return (uint64_t)(GetTime() * 1000000000.0);
+#endif
+}
+
+static inline float fft_elapsed_ms(uint64_t start_ns) {
+    return (float)(GetTimeNanoTest() - start_ns) * 0.000001f;
+}
 
 void apply_blackman_window(FFTData *fft_data, float *audio_samples);
 void cooley_tukey_fft_slow(FFTComplex *spectrum);

@@ -1,4 +1,5 @@
 #include "audio_spectrum_analyzer.h"
+#include "../fftw_1997/fftw.h"
 #include "raymath.h"
 #include <math.h>
 
@@ -10,6 +11,18 @@ void apply_blackman_window(FFTData* fft_data, float* audio_samples) {
 
         fft_data->work_buffer[i].real = sample * blackman_weight;
         fft_data->work_buffer[i].imaginary = 0.0f;
+    }
+}
+
+void apply_blackman_window_fftw_complex(fftw_complex* fft_input, float* audio_samples) {
+    for (int i = 0; i < FFT_WINDOW_SIZE; i++) {
+        float x = (2.0f * PI * i) / (FFT_WINDOW_SIZE - 1.0f);
+        float blackman_weight = BLACKMAN_A - BLACKMAN_B * cosf(x) + BLACKMAN_C * cosf(2.0f * x);
+        float sample = audio_samples[i];
+        float windowed_sample = sample * blackman_weight;
+
+        fft_input[i].re = (fftw_real)windowed_sample;
+        fft_input[i].im = 0.0;
     }
 }
 
@@ -59,21 +72,38 @@ void cooley_tukey_fft_slow(FFTComplex* spectrum) {
     }
 }
 
+static void update_spectrum_bin(FFTData* fft_data, float* smoothed_spectrum, int bin, float real, float imaginary) {
+    float linear_magnitude = sqrtf(real * real + imaginary * imaginary) / FFT_WINDOW_SIZE;
+    float smoothed_magnitude =
+        SMOOTHING_TIME_CONSTANT * fft_data->prev_magnitudes[bin] + (1.0f - SMOOTHING_TIME_CONSTANT) * linear_magnitude;
+    float db = logf(fmaxf(smoothed_magnitude, MIN_LOG_MAGNITUDE)) * DB_TO_LINEAR_SCALE;
+    float normalized = (db - MIN_DECIBELS) * INVERSE_DECIBEL_RANGE;
+    float clamped_magnitude = Clamp(normalized, 0.0f, 1.0f);
+
+    fft_data->prev_magnitudes[bin] = smoothed_magnitude;
+    smoothed_spectrum[bin] = clamped_magnitude;
+}
+
 void clean_up_fft(FFTData* fft_data) {
     float* smoothed_spectrum = fft_data->fft_history[fft_data->history_pos];
 
     for (int bin = 0; bin < BUFFER_SIZE; bin++) {
         float re = fft_data->work_buffer[bin].real;
         float im = fft_data->work_buffer[bin].imaginary;
-        float linear_magnitude = sqrtf(re * re + im * im) / FFT_WINDOW_SIZE;
-        float smoothed_magnitude = SMOOTHING_TIME_CONSTANT * fft_data->prev_magnitudes[bin] +
-                                   (1.0f - SMOOTHING_TIME_CONSTANT) * linear_magnitude;
-        float db = logf(fmaxf(smoothed_magnitude, MIN_LOG_MAGNITUDE)) * DB_TO_LINEAR_SCALE;
-        float normalized = (db - MIN_DECIBELS) * INVERSE_DECIBEL_RANGE;
-        float clamped_magnitude = Clamp(normalized, 0.0f, 1.0f);
+        update_spectrum_bin(fft_data, smoothed_spectrum, bin, re, im);
+    }
 
-        fft_data->prev_magnitudes[bin] = smoothed_magnitude;
-        smoothed_spectrum[bin] = clamped_magnitude;
+    fft_data->history_pos = (fft_data->history_pos + 1) % FFT_HISTORY_FRAME_COUNT;
+    fft_data->frame_index++;
+}
+
+void clean_up_fftw_complex(FFTData* fft_data, fftw_complex* fft_output) {
+    float* smoothed_spectrum = fft_data->fft_history[fft_data->history_pos];
+
+    for (int bin = 0; bin < BUFFER_SIZE; bin++) {
+        float re = (float)fft_output[bin].re;
+        float im = (float)fft_output[bin].im;
+        update_spectrum_bin(fft_data, smoothed_spectrum, bin, re, im);
     }
 
     fft_data->history_pos = (fft_data->history_pos + 1) % FFT_HISTORY_FRAME_COUNT;

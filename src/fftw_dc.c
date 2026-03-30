@@ -1,12 +1,17 @@
 #include "audio_spectrum_analyzer.h"
-#include <sndwav.h>
+#include "fftw.h"
 #include <dc/sound/sound.h>
 #include <dc/sound/stream.h>
 #include <math.h>
+#include <sndwav.h>
 #include <stdlib.h>
 #include <string.h>
 
-static const char* domain = "COOL-DC";
+static const char* domain = "FFTW-DC";
+static const int fftw_plan_flags = FFTW_ESTIMATE;
+
+void apply_blackman_window_fftw_complex(fftw_complex* fft_input, float* audio_samples);
+void clean_up_fftw_complex(FFTData* fft_data, fftw_complex* fft_output);
 
 static wav_stream_hnd_t wav_stream = -1;
 static int16_t src_pcm_queue[DC_STREAM_QUEUE_CAPACITY] = {0};
@@ -54,14 +59,23 @@ static void tap_filter(wav_stream_hnd_t stream_handle,
 int main(void) {
     FFTData fft_data = {0};
     float fft_compute_ms = 0.0f;
+    fftw_plan fftw_plan_state;
+    fftw_complex* fftw_input;
+    fftw_complex* fftw_output;
 
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     float start_time = (float)GetTime();
     FFT_PROFILE_DEFINE(fft_profile_data);
+
     fft_data.tapback_pos = TAPBACK_POS_DEFAULT;
-    fft_data.work_buffer = RL_CALLOC(FFT_WINDOW_SIZE, sizeof(FFTComplex));
     fft_data.prev_magnitudes = RL_CALLOC(BUFFER_SIZE, sizeof(float));
     fft_data.fft_history = RL_CALLOC(FFT_HISTORY_FRAME_COUNT, sizeof(float[BUFFER_SIZE]));
+
+    fftw_input = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * FFT_WINDOW_SIZE);
+    fftw_output = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * FFT_WINDOW_SIZE);
+
+    fftw_plan_state =
+        fftw_create_plan_specific(FFT_WINDOW_SIZE, FFTW_FORWARD, fftw_plan_flags, fftw_input, 1, fftw_output, 1);
 
     snd_init();
     wav_init();
@@ -111,12 +125,12 @@ int main(void) {
                 (float)dst_pcm_ring[ring_index] / PCM_SAMPLE_MAX_F;
         }
 
-        apply_blackman_window(&fft_data, fft_input_samples);
+        apply_blackman_window_fftw_complex(fftw_input, fft_input_samples);
         uint64_t fft_start = GetTimeNanoTest();
-        cooley_tukey_fft_slow(fft_data.work_buffer);
+        fftw_one(fftw_plan_state, fftw_input, fftw_output);
         fft_compute_ms = fft_elapsed_ms(fft_start);
 
-        clean_up_fft(&fft_data);
+        clean_up_fftw_complex(&fft_data, fftw_output);
 
         FFT_PROFILE_SAMPLE(fft_profile_data, domain, fft_compute_ms, (float)GetTime() - start_time, &fft_data);
 
@@ -131,9 +145,11 @@ int main(void) {
     wav_shutdown();
     snd_stream_shutdown();
     snd_shutdown();
+    fftw_destroy_plan(fftw_plan_state);
+    fftw_free(fftw_input);
+    fftw_free(fftw_output);
     RL_FREE(fft_data.fft_history);
     RL_FREE(fft_data.prev_magnitudes);
-    RL_FREE(fft_data.work_buffer);
     CloseWindow();
     return 0;
 }

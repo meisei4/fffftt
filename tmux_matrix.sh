@@ -15,6 +15,7 @@ build_targets=(
   cool-gl11
   fftw-gl11
   cool-dc
+  fftw-dc
   sh4zam-butterfly
 )
 
@@ -23,6 +24,7 @@ targets=(
   "cool-gl11|$project_root/bin/cool_gl11|$log_directory/cool-gl11.log"
   "fftw-gl11|$project_root/bin/fftw_gl11|$log_directory/fftw-gl11.log"
   "cool-dc|$project_root/bin/cool_dc|$log_directory/cool-dc.log"
+  "fftw-dc|$project_root/bin/fftw_dc|$log_directory/fftw-dc.log"
   "sh4zam-butterfly|$project_root/bin/sh4zam_butterfly|$log_directory/sh4zam-butterfly.log"
 )
 

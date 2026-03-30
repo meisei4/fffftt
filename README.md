@@ -36,6 +36,11 @@ make cool-dc # -> out: build/dc/cool_dc/cool_dc.elf + run: ./bin/cool_dc
 make fftw-gl11 # -> then run: ./bin/fftw_gl11
 ```
 
+```bash
+# [KOS]
+make fftw-dc # -> out: build/dc/fftw_dc/fftw_dc.elf + run: ./bin/fftw_dc
+```
+
 ## sh4zam butterfly shenanigans:
 
 ```bash
