@@ -57,7 +57,10 @@ typedef struct FFTProfileData {
 
 #define FFT_PROFILE_INIT() ((FFTProfileData){-1, 0, 0.0f, 0.0f, 0.0f})
 #define FFT_PROFILE_DEFINE(name) FFTProfileData name = FFT_PROFILE_INIT()
+#define FFT_PROFILE_SAMPLE(profile_data, domain, fft_compute_ms, elapsed_s, fft_data) ((void)0)
 
+#ifdef FFT_ENABLE_PROFILE
+#undef FFT_PROFILE_SAMPLE
 #define FFT_PROFILE_SAMPLE(profile_data, domain, fft_compute_ms, elapsed_s, fft_data)                        \
     do {                                                                                                      \
         FFTProfileData* fftprof_profile = &(profile_data);                                                    \
@@ -106,6 +109,7 @@ typedef struct FFTProfileData {
             fftprof_profile->dur_sum_ms = 0.0f;                                                               \
         }                                                                                                     \
     } while (0)
+#endif // FFT_ENABLE_PROFILE
 
 typedef struct FFTComplex {
     float real;

@@ -16,6 +16,7 @@ int main(void) {
     float fft_compute_ms = 0.0f;
     float audio_samples[FFT_WINDOW_SIZE] = {0};
 
+    SetTraceLogLevel(LOG_WARNING); // TODO: note this should be commented out for testing logs on
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     float start_time = (float)GetTime();
     FFT_PROFILE_DEFINE(fft_profile_data);
