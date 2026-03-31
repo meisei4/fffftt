@@ -10,7 +10,7 @@
 
 #ifdef PLATFORM_DREAMCAST
 #include <dc/perfctr.h>
-#endif
+#endif // PLATFORM_DREAMCAST
 
 #define MONO 1
 #define STEREO_CHANNEL_COUNT 2
@@ -126,7 +126,7 @@ static inline uint64_t time_nanoseconds(void) {
     return perf_cntr_timer_ns();
 #else
     return (uint64_t)(GetTime() * 1000000000.0);
-#endif
+#endif // PLATFORM_DREAMCAST
 }
 
 static inline float elapsed_milliseconds(uint64_t start_ns) {
@@ -140,4 +140,4 @@ void clean_up_fft(FFTData *fft_data);
 void clean_up_fftw_complex(FFTData *fft_data, fftw_complex *fft_output);
 void render_frame(FFTData *fft_data);
 
-#endif
+#endif // AUDIO_SPECTRUM_ANALYZER_H

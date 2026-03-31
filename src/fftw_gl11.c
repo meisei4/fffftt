@@ -44,14 +44,16 @@ int main(void) {
         while (IsAudioStreamProcessed(audio_stream)) {
             for (int i = 0; i < AUDIO_STREAM_RING_BUFFER_SIZE; i++) {
                 chunk_samples[i] = wav_pcm16[wav_cursor];
-                if (++wav_cursor >= wav.frameCount)
+                if (++wav_cursor >= wav.frameCount) {
                     wav_cursor = 0;
+                }
             }
 
             UpdateAudioStream(audio_stream, chunk_samples, AUDIO_STREAM_RING_BUFFER_SIZE);
 
-            for (int i = 0; i < FFT_WINDOW_SIZE; i++)
+            for (int i = 0; i < FFT_WINDOW_SIZE; i++) {
                 audio_samples[i] = (float)chunk_samples[FFT_WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
+            }
         }
 
         apply_blackman_window(&fft_data, audio_samples);

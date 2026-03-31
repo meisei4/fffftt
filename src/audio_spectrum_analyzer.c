@@ -56,15 +56,13 @@ void cooley_tukey_fft_slow(FFTComplex* spectrum) {
                 FFTComplex odd = spectrum[i + k + len / 2];
                 FFTComplex twiddled_odd = {odd.real * twiddle_cur.real - odd.imaginary * twiddle_cur.imaginary,
                                            odd.real * twiddle_cur.imaginary + odd.imaginary * twiddle_cur.real};
-                float twiddle_real_next =
-                    twiddle_cur.real * twiddle_unit.real - twiddle_cur.imaginary * twiddle_unit.imaginary;
+                float twiddle_real_next = twiddle_cur.real * twiddle_unit.real - twiddle_cur.imaginary * twiddle_unit.imaginary;
 
                 spectrum[i + k].real = even.real + twiddled_odd.real;
                 spectrum[i + k].imaginary = even.imaginary + twiddled_odd.imaginary;
                 spectrum[i + k + len / 2].real = even.real - twiddled_odd.real;
                 spectrum[i + k + len / 2].imaginary = even.imaginary - twiddled_odd.imaginary;
-                twiddle_cur.imaginary =
-                    twiddle_cur.real * twiddle_unit.imaginary + twiddle_cur.imaginary * twiddle_unit.real;
+                twiddle_cur.imaginary = twiddle_cur.real * twiddle_unit.imaginary + twiddle_cur.imaginary * twiddle_unit.real;
                 twiddle_cur.real = twiddle_real_next;
             }
         }
@@ -73,8 +71,7 @@ void cooley_tukey_fft_slow(FFTComplex* spectrum) {
 
 static void update_spectrum_bin(FFTData* fft_data, float* smoothed_spectrum, int bin, float real, float imaginary) {
     float linear_magnitude = sqrtf(real * real + imaginary * imaginary) / FFT_WINDOW_SIZE;
-    float smoothed_magnitude =
-        SMOOTHING_TIME_CONSTANT * fft_data->prev_magnitudes[bin] + (1.0f - SMOOTHING_TIME_CONSTANT) * linear_magnitude;
+    float smoothed_magnitude = SMOOTHING_TIME_CONSTANT * fft_data->prev_magnitudes[bin] + (1.0f - SMOOTHING_TIME_CONSTANT) * linear_magnitude;
     float db = logf(fmaxf(smoothed_magnitude, MIN_LOG_MAGNITUDE)) * DB_TO_LINEAR_SCALE;
     float normalized = (db - MIN_DECIBELS) * INVERSE_DECIBEL_RANGE;
     float clamped_magnitude = Clamp(normalized, 0.0f, 1.0f);
@@ -112,8 +109,7 @@ void clean_up_fftw_complex(FFTData* fft_data, fftw_complex* fft_output) {
 void render_frame(FFTData* fft_data) {
     float frames_since_tapback = floorf(fft_data->tapback_pos / ((float)FFT_WINDOW_SIZE / EFFECTIVE_SAMPLE_RATE));
     frames_since_tapback = Clamp(frames_since_tapback, 0.0f, (float)(FFT_HISTORY_FRAME_COUNT - 1));
-    int history_position =
-        (fft_data->history_pos - 1 - (int)frames_since_tapback + FFT_HISTORY_FRAME_COUNT) % FFT_HISTORY_FRAME_COUNT;
+    int history_position = (fft_data->history_pos - 1 - (int)frames_since_tapback + FFT_HISTORY_FRAME_COUNT) % FFT_HISTORY_FRAME_COUNT;
     float cell_width = (float)SCREEN_WIDTH / (float)BUFFER_SIZE;
 
     for (int bin = 0; bin < BUFFER_SIZE; bin++) {
@@ -122,10 +118,13 @@ void render_frame(FFTData* fft_data) {
         int column_width = (x_1 - x_0) - 1;
         float amplitude = fft_data->fft_history[history_position][bin];
 
-        if (column_width < MIN_SPECTRUM_COLUMN_WIDTH)
+        if (column_width < MIN_SPECTRUM_COLUMN_WIDTH) {
             column_width = MIN_SPECTRUM_COLUMN_WIDTH;
-        if (amplitude <= 0.0f)
+        }
+
+        if (amplitude <= 0.0f) {
             continue;
+        }
 
         int column_height = (int)ceilf(amplitude * (float)SCREEN_HEIGHT);
         DrawRectangle(x_0, SCREEN_HEIGHT - column_height, column_width, column_height, WHITE);

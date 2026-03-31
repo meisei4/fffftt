@@ -34,9 +34,9 @@ int main(void) {
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
-        if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_MIDDLE_RIGHT) &&
-            IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))
+        if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_MIDDLE_RIGHT) && IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
             break;
+        }
 
         while (IsAudioStreamProcessed(audio_stream)) {
             for (int i = 0; i < AUDIO_STREAM_RING_BUFFER_SIZE; i++) {

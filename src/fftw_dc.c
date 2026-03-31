@@ -31,8 +31,7 @@ int main(void) {
     fftw_input = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * FFT_WINDOW_SIZE);
     fftw_output = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * FFT_WINDOW_SIZE);
 
-    fftw_plan_state =
-        fftw_create_plan_specific(FFT_WINDOW_SIZE, FFTW_FORWARD, fftw_plan_flags, fftw_input, 1, fftw_output, 1);
+    fftw_plan_state = fftw_create_plan_specific(FFT_WINDOW_SIZE, FFTW_FORWARD, fftw_plan_flags, fftw_input, 1, fftw_output, 1);
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_STREAM_RING_BUFFER_SIZE);
@@ -44,9 +43,9 @@ int main(void) {
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
-        if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_MIDDLE_RIGHT) &&
-            IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))
+        if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_MIDDLE_RIGHT) && IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
             break;
+        }
 
         while (IsAudioStreamProcessed(audio_stream)) {
             for (int i = 0; i < AUDIO_STREAM_RING_BUFFER_SIZE; i++) {

@@ -1,3 +1,13 @@
+Key:
+`fast math` (this one is convoluted because these assume you have the fast math flags on by default for kos build flags <- which you need to manually do... This part "UNDO"s the flags if you have them set up manually in your environment is the point)
+  - `on` = comment out [Makefile:17](./Makefile#L17)
+  - `off` = uncomment [Makefile:17](./Makefile#L17)
+
+`period`
+  - `2048` = comment out [Makefile:22](./Makefile#L22)
+  - `1024` = uncomment [Makefile:22](./Makefile#L22)
+
+
 +------------------------------------------------------------------------------------------+
 | COOL-DC                                                                                  |
 +----------+--------+-----------+-------------+-------------+--------+-------------+-------+
@@ -15,11 +25,15 @@
 | platform | period | fast math | buffer size | min ms      | max ms | avg ms      | audio |
 +----------+--------+-----------+-------------+-------------+--------+-------------+-------+
 | Flycast  | 2048   | off       | 4096        | 0.685       | 3.190  | 0.687-0.762 | OK    |
+| Flycast  | 2048   | on        | 4096        | 0.844       | 2.769  | 0.847-0.944 | OK    |
 | Flycast  | 1024   | off       | 2048        | 0.685       | 1.669  | 0.703-0.758 | OK    |
+| Flycast  | 1024   | on        | 2048        | 0.844       | 1.801  | 0.846-0.916 | OK    |
 | Real HW  | 2048   | off       | 4096        | 1.879-1.881 | 5.286  | 1.892-2.232 | Bad   |
+| Real HW  | 2048   | on        | 4096        | 2.274-2.292 | 5.650  | 2.289-2.717 | Mixed*|
 | Real HW  | 1024   | off       | 2048        | 1.879-1.885 | 3.726  | 1.891-2.122 | Bad   |
 | Real HW  | 1024   | on        | 2048        | 2.274-2.296 | 4.125  | 2.296-2.536 | Bad   |
 +----------+--------+-----------+-------------+-------------+--------+-------------+-------+
+* `Real HW / 2048 / fast math on / fftw-dc`: was mostly smooth playback with about 3 late-run skips happening near the end...
 
 +------------------------------------------------------------------------------------------+
 | SH4ZAM-BUTTERFLY                                                                         |
@@ -31,3 +45,5 @@
 | Real HW  | 2048   | n/a       | 4096        | 0.711-0.728 | 4.096  | 0.713-0.836 | Bad   |
 | Real HW  | 1024   | n/a       | 2048        | 0.711-0.712 | 2.531  | 0.715-0.864 | Bad   |
 +----------+--------+-----------+-------------+-------------+--------+-------------+-------+
+
+
