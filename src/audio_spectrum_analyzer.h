@@ -2,6 +2,7 @@
 #define AUDIO_SPECTRUM_ANALYZER_H
 
 #include "raylib.h"
+#include "../fftw_1997/fftw.h"
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -9,7 +10,7 @@
 
 #ifdef PLATFORM_DREAMCAST
 #include <dc/perfctr.h>
-#endif
+#endif // PLATFORM_DREAMCAST
 
 #define MONO 1
 #define STEREO_CHANNEL_COUNT 2
@@ -21,8 +22,6 @@
 #define SECONDS_PER_MINUTE 60
 #define MILLISECONDS_PER_MINUTE (MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE)
 #define AUDIO_STREAM_RING_BUFFER_SIZE (FFT_WINDOW_SIZE * STEREO_CHANNEL_COUNT)
-#define DC_STREAM_QUEUE_BLOCK_COUNT 64 // callback jitter slack for stable FFT-window assembly
-#define DC_STREAM_QUEUE_CAPACITY (FFT_WINDOW_SIZE * DC_STREAM_QUEUE_BLOCK_COUNT)
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 #define FFT_WINDOW_DURATION_MILLISECONDS ((FFT_WINDOW_SIZE * MILLISECONDS_PER_SECOND) / SAMPLE_RATE)
@@ -44,7 +43,6 @@
 #define BLACKMAN_B 0.5f
 #define BLACKMAN_C 0.08f
 #define MIN_LOG_MAGNITUDE 1e-40f
-#define WAV_MAX_VOLUME 255
 #define COLOR_CHANNEL_MAX 255
 #define TAPBACK_POS_DEFAULT 0.01f
 #define MIN_SPECTRUM_COLUMN_WIDTH 1
@@ -59,7 +57,10 @@ typedef struct FFTProfileData {
 
 #define FFT_PROFILE_INIT() ((FFTProfileData){-1, 0, 0.0f, 0.0f, 0.0f})
 #define FFT_PROFILE_DEFINE(name) FFTProfileData name = FFT_PROFILE_INIT()
+#define FFT_PROFILE_SAMPLE(profile_data, domain, fft_compute_ms, elapsed_s, fft_data) ((void)0)
 
+#ifdef FFT_ENABLE_PROFILE
+#undef FFT_PROFILE_SAMPLE
 #define FFT_PROFILE_SAMPLE(profile_data, domain, fft_compute_ms, elapsed_s, fft_data)                        \
     do {                                                                                                      \
         FFTProfileData* fftprof_profile = &(profile_data);                                                    \
@@ -108,6 +109,7 @@ typedef struct FFTProfileData {
             fftprof_profile->dur_sum_ms = 0.0f;                                                               \
         }                                                                                                     \
     } while (0)
+#endif // FFT_ENABLE_PROFILE
 
 typedef struct FFTComplex {
     float real;
@@ -123,21 +125,23 @@ typedef struct FFTData {
     float tapback_pos;
 } FFTData;
 
-static inline uint64_t GetTimeNanoTest(void) {
+static inline uint64_t time_nanoseconds(void) {
 #ifdef PLATFORM_DREAMCAST
     return perf_cntr_timer_ns();
 #else
     return (uint64_t)(GetTime() * 1000000000.0);
-#endif
+#endif // PLATFORM_DREAMCAST
 }
 
-static inline float fft_elapsed_ms(uint64_t start_ns) {
-    return (float)(GetTimeNanoTest() - start_ns) * 0.000001f;
+static inline float elapsed_milliseconds(uint64_t start_ns) {
+    return (float)(time_nanoseconds() - start_ns) * 0.000001f;
 }
 
 void apply_blackman_window(FFTData *fft_data, float *audio_samples);
+void apply_blackman_window_fftw_complex(fftw_complex *fft_input, float *audio_samples);
 void cooley_tukey_fft_slow(FFTComplex *spectrum);
 void clean_up_fft(FFTData *fft_data);
+void clean_up_fftw_complex(FFTData *fft_data, fftw_complex *fft_output);
 void render_frame(FFTData *fft_data);
 
-#endif
+#endif // AUDIO_SPECTRUM_ANALYZER_H

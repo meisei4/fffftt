@@ -5,9 +5,22 @@ BIN_DIR := bin
 SRC_DIR := src
 FFTW_1997_DIR := fftw_1997
 ROMDISK_DIR := $(SRC_DIR)/romdisk
-FFTW_PRECISION_CFLAGS :=
+############################ TOGGLES!!!!!!!!########################
+############################ FLOAT PRECISION ####################### 
 # This will not work as i expect, need to figure out whats happening
-# FFTW_PRECISION_CFLAGS := -DFFTW_ENABLE_FLOAT
+# FFT_FLAGS += -DFFTW_ENABLE_FLOAT
+
+############################ NUMERIC OPTIMIZATION OFF ##############
+# Faster? idk whats happening here tbh
+FFT_FLAGS += -fno-fast-math -ffp-contract=off
+
+############################ FFT PROFILING ######################
+#FFT_FLAGS += -DFFT_ENABLE_PROFILE
+
+############################ PERIOD ################################ 
+ALT_AUDIO_DEVICE_PERIOD_FRAMES_KOS_CFLAGS :=
+PERIOD_FRAMES := 1024 # Uncomment  below linefor 1024-period testing!
+#ALT_AUDIO_DEVICE_PERIOD_FRAMES_KOS_CFLAGS := KOS_CFLAGS="$(KOS_CFLAGS) -DAUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES=$(PERIOD_FRAMES)"
 
 COMMON_SOURCE := $(SRC_DIR)/audio_spectrum_analyzer.c
 GL33_SOURCE := $(SRC_DIR)/cool_gl33.c
@@ -90,7 +103,7 @@ cool-gl33: $(GL33_RAYLIB_DIR)/libraylib.a
 
 fftw-gl11: $(GL11_RAYLIB_DIR)/libraylib.a
 	mkdir -p $(BIN_DIR)
-	$(CC) -std=c99 -O2 -Wall -Wextra -DPLATFORM_DESKTOP -I$(GL11_RAYLIB_DIR) -I$(FFTW_1997_DIR) $(FFTW_PRECISION_CFLAGS) $(FFTW_SOURCE) $(COMMON_SOURCE) $(FFTW_1997_SOURCES) $(GL11_RAYLIB_DIR)/libraylib.a -lm $(DESKTOP_LIBS) -o $(FFTW_BIN)
+	$(CC) -std=c99 -O2 -Wall -Wextra -DPLATFORM_DESKTOP -I$(GL11_RAYLIB_DIR) -I$(FFTW_1997_DIR) $(FFT_FLAGS) $(FFTW_SOURCE) $(COMMON_SOURCE) $(FFTW_1997_SOURCES) $(GL11_RAYLIB_DIR)/libraylib.a -lm $(DESKTOP_LIBS) -o $(FFTW_BIN)
 
 cool-gl11: $(GL11_RAYLIB_DIR)/libraylib.a
 	mkdir -p $(BIN_DIR)
@@ -98,7 +111,7 @@ cool-gl11: $(GL11_RAYLIB_DIR)/libraylib.a
 
 $(DC_RAYLIB_DIR)/libraylib.a:
 	$(MAKE) -C $(RAYLIB_DC_SRC) clean
-	$(MAKE) -C $(RAYLIB_DC_SRC) all PLATFORM=PLATFORM_DREAMCAST GRAPHICS=GRAPHICS_API_OPENGL_11
+	$(MAKE) -C $(RAYLIB_DC_SRC) all PLATFORM=PLATFORM_DREAMCAST GRAPHICS=GRAPHICS_API_OPENGL_11 $(ALT_AUDIO_DEVICE_PERIOD_FRAMES_KOS_CFLAGS)
 	mkdir -p $(DC_RAYLIB_DIR)
 	cp -f $(RAYLIB_DC_SRC)/libraylib.a $(RAYLIB_DC_SRC)/raylib.h $(RAYLIB_DC_SRC)/raymath.h $(RAYLIB_DC_SRC)/rlgl.h $(DC_RAYLIB_DIR)/
 
@@ -106,15 +119,10 @@ $(SH4_RAYLIB_DIR)/libraylib.a: $(DC_RAYLIB_DIR)/libraylib.a
 	mkdir -p $(SH4_RAYLIB_DIR)
 	cp -f $(DC_RAYLIB_DIR)/libraylib.a $(DC_RAYLIB_DIR)/raylib.h $(DC_RAYLIB_DIR)/raymath.h $(DC_RAYLIB_DIR)/rlgl.h $(SH4_RAYLIB_DIR)/
 
-# Slow?
-FFTW_DC_CFLAGS_TEST ?=
-
-# Fast? idk whats happening here tbh
-FFTW_DC_CFLAGS_TEST := -fno-fast-math -ffp-contract=off
 
 $(DC_FFTW_TARGET_DIR)/fftw_1997_%.o: $(FFTW_1997_DIR)/%.c
 	mkdir -p $(DC_FFTW_TARGET_DIR)
-	kos-cc -I$(FFTW_1997_DIR) $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFTW_DC_CFLAGS_TEST) $(FFTW_PRECISION_CFLAGS) -std=gnu2x -c $< -o $@
+	kos-cc -I$(FFTW_1997_DIR) $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $< -o $@
 
 cool-dc: $(DC_RAYLIB_DIR)/libraylib.a
 	mkdir -p $(BIN_DIR) $(DC_TARGET_DIR)
@@ -124,9 +132,9 @@ cool-dc: $(DC_RAYLIB_DIR)/libraylib.a
 	$(KOS_CC) -o $(DC_TARGET_DIR)/romdisk.o -r $(DC_TARGET_DIR)/romdisk_tmp.o \
 	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
 	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
-	kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) -std=gnu2x -c $(COMMON_SOURCE) -o $(DC_TARGET_DIR)/common.o
-	kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) -std=gnu2x -c $(DC_SOURCE) -o $(DC_TARGET_DIR)/dc.o
-	kos-cc -o $(DC_TARGET) $(DC_TARGET_DIR)/dc.o $(DC_TARGET_DIR)/common.o $(DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm
+	kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(COMMON_SOURCE) -o $(DC_TARGET_DIR)/common.o
+	kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(DC_SOURCE) -o $(DC_TARGET_DIR)/dc.o
+	kos-cc -o $(DC_TARGET) $(DC_TARGET_DIR)/dc.o $(DC_TARGET_DIR)/common.o $(DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
 	$(call WRITE_BIN,build/dc/cool_dc/cool_dc.elf,$(DC_LAUNCHER))
 	rm -f $(DC_TARGET_DIR)/romdisk_tmp.c $(DC_TARGET_DIR)/romdisk_tmp.o
 
@@ -138,9 +146,9 @@ fftw-dc: $(DC_RAYLIB_DIR)/libraylib.a $(DC_FFTW_1997_OBJS)
 	$(KOS_CC) -o $(DC_FFTW_TARGET_DIR)/romdisk.o -r $(DC_FFTW_TARGET_DIR)/romdisk_tmp.o \
 	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
 	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
-	kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(FFTW_1997_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFTW_DC_CFLAGS_TEST) -std=gnu2x -c $(COMMON_SOURCE) -o $(DC_FFTW_TARGET_DIR)/common.o
-	kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(FFTW_1997_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFTW_DC_CFLAGS_TEST) $(FFTW_PRECISION_CFLAGS) -std=gnu2x -c $(FFTW_DC_SOURCE) -o $(DC_FFTW_TARGET_DIR)/fftw_dc.o
-	kos-cc -o $(DC_FFTW_TARGET) $(DC_FFTW_TARGET_DIR)/fftw_dc.o $(DC_FFTW_TARGET_DIR)/common.o $(DC_FFTW_1997_OBJS) $(DC_FFTW_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm
+	kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(FFTW_1997_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(COMMON_SOURCE) -o $(DC_FFTW_TARGET_DIR)/common.o
+	kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(FFTW_1997_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(FFTW_DC_SOURCE) -o $(DC_FFTW_TARGET_DIR)/fftw_dc.o
+	kos-cc -o $(DC_FFTW_TARGET) $(DC_FFTW_TARGET_DIR)/fftw_dc.o $(DC_FFTW_TARGET_DIR)/common.o $(DC_FFTW_1997_OBJS) $(DC_FFTW_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
 	$(call WRITE_BIN,$(DC_FFTW_TARGET),$(DC_FFTW_LAUNCHER))
 	rm -f $(DC_FFTW_TARGET_DIR)/romdisk_tmp.c $(DC_FFTW_TARGET_DIR)/romdisk_tmp.o
 
@@ -152,10 +160,10 @@ sh4zam-butterfly: $(SH4_RAYLIB_DIR)/libraylib.a
 	$(KOS_CC) -o $(SH4_TARGET_DIR)/romdisk.o -r $(SH4_TARGET_DIR)/romdisk_tmp.o \
 	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
 	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
-	kos-cc -iquote sh4zam/include -I$(SH4_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) -std=gnu2x -c $(COMMON_SOURCE) -o $(SH4_TARGET_DIR)/common.o
-	kos-cc -iquote sh4zam/include -I$(SH4_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) -std=gnu2x -c $(SH4_SOURCE) -o $(SH4_TARGET_DIR)/sh4.o
+	kos-cc -iquote sh4zam/include -I$(SH4_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(COMMON_SOURCE) -o $(SH4_TARGET_DIR)/common.o
+	kos-cc -iquote sh4zam/include -I$(SH4_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(SH4_SOURCE) -o $(SH4_TARGET_DIR)/sh4.o
 	kos-cc -iquote sh4zam/include -DPLATFORM_DREAMCAST $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) -std=gnu2x -c $(SH4ZAM_COMPLEX_SOURCE) -o $(SH4_TARGET_DIR)/shz_complex.o
-	kos-cc -o $(SH4_TARGET) $(SH4_TARGET_DIR)/sh4.o $(SH4_TARGET_DIR)/common.o $(SH4_TARGET_DIR)/shz_complex.o $(SH4_TARGET_DIR)/romdisk.o $(SH4_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm
+	kos-cc -o $(SH4_TARGET) $(SH4_TARGET_DIR)/sh4.o $(SH4_TARGET_DIR)/common.o $(SH4_TARGET_DIR)/shz_complex.o $(SH4_TARGET_DIR)/romdisk.o $(SH4_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
 	$(call WRITE_BIN,build/sh4/sh4zam_butterfly/sh4zam_butterfly.elf,$(SH4_LAUNCHER))
 	rm -f $(SH4_TARGET_DIR)/romdisk_tmp.c $(SH4_TARGET_DIR)/romdisk_tmp.o
 

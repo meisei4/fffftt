@@ -52,14 +52,16 @@ int main(void) {
         while (IsAudioStreamProcessed(audio_stream)) {
             for (int i = 0; i < AUDIO_STREAM_RING_BUFFER_SIZE; i++) {
                 chunk_samples[i] = wav_pcm16[wav_cursor];
-                if (++wav_cursor >= wav.frameCount)
+                if (++wav_cursor >= wav.frameCount) {
                     wav_cursor = 0;
+                }
             }
 
             UpdateAudioStream(audio_stream, chunk_samples, AUDIO_STREAM_RING_BUFFER_SIZE);
 
-            for (int i = 0; i < FFT_WINDOW_SIZE; i++)
+            for (int i = 0; i < FFT_WINDOW_SIZE; i++) {
                 audio_samples[i] = (float)chunk_samples[FFT_WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
+            }
         }
 
         apply_blackman_window(&fft_data, audio_samples);
@@ -73,13 +75,11 @@ int main(void) {
 
         float frames_since_tapback = floorf(fft_data.tapback_pos / ((float)FFT_WINDOW_SIZE / EFFECTIVE_SAMPLE_RATE));
         frames_since_tapback = fminf(fmaxf(frames_since_tapback, 0.0f), (float)(FFT_HISTORY_FRAME_COUNT - 1));
-        int history_position =
-            (fft_data.history_pos - 1 - (int)frames_since_tapback + FFT_HISTORY_FRAME_COUNT) % FFT_HISTORY_FRAME_COUNT;
+        int history_position = (fft_data.history_pos - 1 - (int)frames_since_tapback + FFT_HISTORY_FRAME_COUNT) % FFT_HISTORY_FRAME_COUNT;
 
         for (int bin = 0; bin < BUFFER_SIZE; bin++) {
             float amplitude = fft_data.fft_history[history_position][bin];
-            float normalized_amplitude =
-                fminf(fmaxf(roundf(amplitude * (float)COLOR_CHANNEL_MAX), 0.0f), (float)COLOR_CHANNEL_MAX);
+            float normalized_amplitude = fminf(fmaxf(roundf(amplitude * (float)COLOR_CHANNEL_MAX), 0.0f), (float)COLOR_CHANNEL_MAX);
             fft_pixels[bin] = (Color){(unsigned char)normalized_amplitude, 0, 0, COLOR_CHANNEL_MAX};
         }
         UpdateTexture(fft_texture, fft_image.data);
