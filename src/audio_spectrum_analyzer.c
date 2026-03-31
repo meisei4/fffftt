@@ -1,5 +1,4 @@
 #include "audio_spectrum_analyzer.h"
-#include "../fftw_1997/fftw.h"
 #include "raymath.h"
 #include <math.h>
 
