@@ -22,6 +22,34 @@ ALT_AUDIO_DEVICE_PERIOD_FRAMES_KOS_CFLAGS :=
 PERIOD_FRAMES := 1024 # Uncomment  below linefor 1024-period testing!
 #ALT_AUDIO_DEVICE_PERIOD_FRAMES_KOS_CFLAGS := KOS_CFLAGS="$(KOS_CFLAGS) -DAUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES=$(PERIOD_FRAMES)"
 
+GL33_RAYLIB_DIR := $(BUILD_DIR)/gl33/raylib
+GL11_RAYLIB_DIR := $(BUILD_DIR)/gl11/raylib
+DC_RAYLIB_DIR := $(BUILD_DIR)/dc/raylib
+SH4_RAYLIB_DIR := $(BUILD_DIR)/sh4/raylib
+DC_TARGET_DIR := $(BUILD_DIR)/dc/cool_dc
+SH4_TARGET_DIR := $(BUILD_DIR)/sh4/sh4zam_butterfly
+DC_FFTW_TARGET_DIR := $(BUILD_DIR)/dc/fftw_dc
+AUDIO_ONLY_WAV_TARGET_DIR := $(BUILD_DIR)/dc/audio_only_wav_dc
+AUDIO_ONLY_MP3_TARGET_DIR := $(BUILD_DIR)/dc/audio_only_mp3_dc
+# COTTERZ_DC_TARGET_DIR := $(BUILD_DIR)/dc/cotterz_dc
+
+GL33_BIN := $(BIN_DIR)/cool_gl33
+FFTW_BIN := $(BIN_DIR)/fftw_gl11
+GL11_BIN := $(BIN_DIR)/cool_gl11
+DC_LAUNCHER := $(BIN_DIR)/cool_dc
+SH4_LAUNCHER := $(BIN_DIR)/sh4zam_butterfly
+DC_FFTW_LAUNCHER := $(BIN_DIR)/fftw_dc
+AUDIO_ONLY_WAV_LAUNCHER := $(BIN_DIR)/audio_only_wav_dc
+AUDIO_ONLY_MP3_LAUNCHER := $(BIN_DIR)/audio_only_mp3_dc
+# COTTERZ_DC_LAUNCHER := $(BIN_DIR)/cotterz_dc
+
+DC_TARGET := $(DC_TARGET_DIR)/cool_dc.elf
+SH4_TARGET := $(SH4_TARGET_DIR)/sh4zam_butterfly.elf
+DC_FFTW_TARGET := $(DC_FFTW_TARGET_DIR)/fftw_dc.elf
+AUDIO_ONLY_WAV_TARGET := $(AUDIO_ONLY_WAV_TARGET_DIR)/audio_only_wav_dc.elf
+AUDIO_ONLY_MP3_TARGET := $(AUDIO_ONLY_MP3_TARGET_DIR)/audio_only_mp3_dc.elf
+# COTTERZ_DC_TARGET := $(COTTERZ_DC_TARGET_DIR)/cotterz_dc.elf
+
 COMMON_SOURCE := $(SRC_DIR)/audio_spectrum_analyzer.c
 GL33_SOURCE := $(SRC_DIR)/cool_gl33.c
 FFTW_SOURCE := $(SRC_DIR)/fftw_gl11.c
@@ -31,25 +59,10 @@ DC_SOURCE := $(SRC_DIR)/cool_dc.c
 SH4_SOURCE := $(SRC_DIR)/sh4zam_butterfly.c
 SH4ZAM_COMPLEX_SOURCE := sh4zam/source/shz_complex.c
 FFTW_1997_SOURCES := $(wildcard $(FFTW_1997_DIR)/*.c)
-
-GL33_RAYLIB_DIR := $(BUILD_DIR)/gl33/raylib
-GL11_RAYLIB_DIR := $(BUILD_DIR)/gl11/raylib
-DC_RAYLIB_DIR := $(BUILD_DIR)/dc/raylib
-SH4_RAYLIB_DIR := $(BUILD_DIR)/sh4/raylib
-DC_TARGET_DIR := $(BUILD_DIR)/dc/cool_dc
-DC_FFTW_TARGET_DIR := $(BUILD_DIR)/dc/fftw_dc
-SH4_TARGET_DIR := $(BUILD_DIR)/sh4/sh4zam_butterfly
-
-GL33_BIN := $(BIN_DIR)/cool_gl33
-FFTW_BIN := $(BIN_DIR)/fftw_gl11
-GL11_BIN := $(BIN_DIR)/cool_gl11
-DC_LAUNCHER := $(BIN_DIR)/cool_dc
-DC_FFTW_LAUNCHER := $(BIN_DIR)/fftw_dc
-SH4_LAUNCHER := $(BIN_DIR)/sh4zam_butterfly
-DC_TARGET := $(DC_TARGET_DIR)/cool_dc.elf
-DC_FFTW_TARGET := $(DC_FFTW_TARGET_DIR)/fftw_dc.elf
-SH4_TARGET := $(SH4_TARGET_DIR)/sh4zam_butterfly.elf
-DC_FFTW_1997_OBJS := $(patsubst $(FFTW_1997_DIR)/%.c,$(DC_FFTW_TARGET_DIR)/fftw_1997_%.o,$(FFTW_1997_SOURCES))
+FFTW_1997_OBJS := $(patsubst $(FFTW_1997_DIR)/%.c,$(DC_FFTW_TARGET_DIR)/fftw_1997_%.o,$(FFTW_1997_SOURCES))
+AUDIO_ONLY_WAV_SOURCE := $(SRC_DIR)/audio_only_wav_dc.c
+AUDIO_ONLY_MP3_SOURCE := $(SRC_DIR)/audio_only_mp3_dc.c
+# COTTERZ_DC_SOURCE := $(SRC_DIR)/cotterz_dc.c
 
 RAYLIB_DESKTOP_SRC := raylib_desktop/src
 RAYLIB_DC_SRC := raylib_dc/src
@@ -57,7 +70,7 @@ RAYLIB_DC_SRC := raylib_dc/src
 KOS_PORTS_INCLUDE := -I$(KOS_PORTS)/include
 FMT ?= $(shell command -v clang-format 2>/dev/null || { [ -x /usr/bin/clang-format ] && echo /usr/bin/clang-format; } || { [ -x /opt/homebrew/bin/clang-format ] && echo /opt/homebrew/bin/clang-format; } || { [ -x /Library/Developer/CommandLineTools/usr/bin/clang-format ] && echo /Library/Developer/CommandLineTools/usr/bin/clang-format; } || echo clang-format)
 FMT_STYLE ?= .clang-format
-FMT_SOURCES := $(COMMON_SOURCE) $(GL33_SOURCE) $(FFTW_SOURCE) $(FFTW_DC_SOURCE) $(GL11_SOURCE) $(DC_SOURCE) $(SH4_SOURCE)
+FMT_SOURCES := $(COMMON_SOURCE) $(GL33_SOURCE) $(FFTW_SOURCE) $(FFTW_DC_SOURCE) $(GL11_SOURCE) $(DC_SOURCE) $(SH4_SOURCE) $(AUDIO_ONLY_WAV_SOURCE) $(AUDIO_ONLY_MP3_SOURCE) # $(COTTERZ_DC_SOURCE)
 
 UNAME_S := $(shell uname -s 2>/dev/null || echo Unknown)
 CC ?= cc
@@ -78,10 +91,10 @@ define WRITE_BIN
 	chmod +x $(2)
 endef
 
-.PHONY: help all cool-gl33 fftw-gl11 cool-gl11 cool-dc fftw-dc sh4zam-butterfly fmt clean-all
+.PHONY: help all cool-gl33 fftw-gl11 cool-gl11 cool-dc sh4zam-butterfly fftw-dc audio-only-wav-dc audio-only-mp3-dc cotterz-dc fmt clean-all
 
 help:
-	$(error PLEASE DEFINE A TARGET: make cool-gl33 | make cool-gl11 | make fftw-gl11 | make cool-dc | make fftw-dc | make sh4zam-butterfly | make fmt | make clean-all)
+	$(error PLEASE DEFINE A TARGET: make cool-gl33 | make cool-gl11 | make fftw-gl11 | make cool-dc | make sh4zam-butterfly | make fftw-dc | make audio-only-wav-dc | make audio-only-mp3-dc | make cotterz-dc | make fmt | make clean-all)
 
 all: help
 
@@ -138,20 +151,6 @@ cool-dc: $(DC_RAYLIB_DIR)/libraylib.a
 	$(call WRITE_BIN,build/dc/cool_dc/cool_dc.elf,$(DC_LAUNCHER))
 	rm -f $(DC_TARGET_DIR)/romdisk_tmp.c $(DC_TARGET_DIR)/romdisk_tmp.o
 
-fftw-dc: $(DC_RAYLIB_DIR)/libraylib.a $(DC_FFTW_1997_OBJS)
-	mkdir -p $(BIN_DIR) $(DC_FFTW_TARGET_DIR)
-	$(KOS_GENROMFS) -f $(DC_FFTW_TARGET_DIR)/romdisk.img -d $(ROMDISK_DIR) -v -x .gitignore -x .DS_Store -x Thumbs.db
-	$(KOS_BASE)/utils/bin2c/bin2c $(DC_FFTW_TARGET_DIR)/romdisk.img $(DC_FFTW_TARGET_DIR)/romdisk_tmp.c romdisk
-	$(KOS_CC) $(KOS_CFLAGS) -o $(DC_FFTW_TARGET_DIR)/romdisk_tmp.o -c $(DC_FFTW_TARGET_DIR)/romdisk_tmp.c
-	$(KOS_CC) -o $(DC_FFTW_TARGET_DIR)/romdisk.o -r $(DC_FFTW_TARGET_DIR)/romdisk_tmp.o \
-	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
-	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
-	kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(FFTW_1997_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(COMMON_SOURCE) -o $(DC_FFTW_TARGET_DIR)/common.o
-	kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(FFTW_1997_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(FFTW_DC_SOURCE) -o $(DC_FFTW_TARGET_DIR)/fftw_dc.o
-	kos-cc -o $(DC_FFTW_TARGET) $(DC_FFTW_TARGET_DIR)/fftw_dc.o $(DC_FFTW_TARGET_DIR)/common.o $(DC_FFTW_1997_OBJS) $(DC_FFTW_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
-	$(call WRITE_BIN,$(DC_FFTW_TARGET),$(DC_FFTW_LAUNCHER))
-	rm -f $(DC_FFTW_TARGET_DIR)/romdisk_tmp.c $(DC_FFTW_TARGET_DIR)/romdisk_tmp.o
-
 sh4zam-butterfly: $(SH4_RAYLIB_DIR)/libraylib.a
 	mkdir -p $(BIN_DIR) $(SH4_TARGET_DIR)
 	$(KOS_GENROMFS) -f $(SH4_TARGET_DIR)/romdisk.img -d $(ROMDISK_DIR) -v -x .gitignore -x .DS_Store -x Thumbs.db
@@ -167,13 +166,74 @@ sh4zam-butterfly: $(SH4_RAYLIB_DIR)/libraylib.a
 	$(call WRITE_BIN,build/sh4/sh4zam_butterfly/sh4zam_butterfly.elf,$(SH4_LAUNCHER))
 	rm -f $(SH4_TARGET_DIR)/romdisk_tmp.c $(SH4_TARGET_DIR)/romdisk_tmp.o
 
+fftw-dc: $(DC_RAYLIB_DIR)/libraylib.a $(FFTW_1997_OBJS)
+	mkdir -p $(BIN_DIR) $(DC_FFTW_TARGET_DIR)
+	$(KOS_GENROMFS) -f $(DC_FFTW_TARGET_DIR)/romdisk.img -d $(ROMDISK_DIR) -v -x .gitignore -x .DS_Store -x Thumbs.db
+	$(KOS_BASE)/utils/bin2c/bin2c $(DC_FFTW_TARGET_DIR)/romdisk.img $(DC_FFTW_TARGET_DIR)/romdisk_tmp.c romdisk
+	$(KOS_CC) $(KOS_CFLAGS) -o $(DC_FFTW_TARGET_DIR)/romdisk_tmp.o -c $(DC_FFTW_TARGET_DIR)/romdisk_tmp.c
+	$(KOS_CC) -o $(DC_FFTW_TARGET_DIR)/romdisk.o -r $(DC_FFTW_TARGET_DIR)/romdisk_tmp.o \
+	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
+	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
+	kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(FFTW_1997_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(COMMON_SOURCE) -o $(DC_FFTW_TARGET_DIR)/common.o
+	kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(FFTW_1997_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(FFTW_DC_SOURCE) -o $(DC_FFTW_TARGET_DIR)/fftw_dc.o
+	kos-cc -o $(DC_FFTW_TARGET) $(DC_FFTW_TARGET_DIR)/fftw_dc.o $(DC_FFTW_TARGET_DIR)/common.o $(FFTW_1997_OBJS) $(DC_FFTW_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
+	$(call WRITE_BIN,$(DC_FFTW_TARGET),$(DC_FFTW_LAUNCHER))
+	rm -f $(DC_FFTW_TARGET_DIR)/romdisk_tmp.c $(DC_FFTW_TARGET_DIR)/romdisk_tmp.o
+
+audio-only-wav-dc:
+	$(MAKE) -C $(RAYLIB_DC_SRC) clean
+	$(MAKE) -C $(RAYLIB_DC_SRC) all PLATFORM=PLATFORM_DREAMCAST GRAPHICS=GRAPHICS_API_OPENGL_11 $(ALT_AUDIO_DEVICE_PERIOD_FRAMES_KOS_CFLAGS)
+	mkdir -p $(BIN_DIR) $(AUDIO_ONLY_WAV_TARGET_DIR)
+	$(KOS_GENROMFS) -f $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk.img -d $(ROMDISK_DIR) -v -x .gitignore -x .DS_Store -x Thumbs.db
+	$(KOS_BASE)/utils/bin2c/bin2c $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk.img $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk_tmp.c romdisk
+	$(KOS_CC) $(KOS_CFLAGS) -o $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk_tmp.o -c $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk_tmp.c
+	$(KOS_CC) -o $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk.o -r $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk_tmp.o \
+	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
+	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
+	kos-cc -I$(RAYLIB_DC_SRC) -I$(SRC_DIR) -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) -std=gnu2x -c $(AUDIO_ONLY_WAV_SOURCE) -o $(AUDIO_ONLY_WAV_TARGET_DIR)/audio_only_wav_dc.o
+	kos-cc -o $(AUDIO_ONLY_WAV_TARGET) $(AUDIO_ONLY_WAV_TARGET_DIR)/audio_only_wav_dc.o $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk.o $(RAYLIB_DC_SRC)/libraylib.a -lGL -lkosutils -lm -lpthread
+	$(call WRITE_BIN,$(AUDIO_ONLY_WAV_TARGET),$(AUDIO_ONLY_WAV_LAUNCHER))
+	rm -f $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk_tmp.c $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk_tmp.o
+
+audio-only-mp3-dc:
+	$(MAKE) -C $(RAYLIB_DC_SRC) clean
+	$(MAKE) -C $(RAYLIB_DC_SRC) all PLATFORM=PLATFORM_DREAMCAST GRAPHICS=GRAPHICS_API_OPENGL_11 $(ALT_AUDIO_DEVICE_PERIOD_FRAMES_KOS_CFLAGS)
+	mkdir -p $(BIN_DIR) $(AUDIO_ONLY_MP3_TARGET_DIR)
+	$(KOS_GENROMFS) -f $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk.img -d $(ROMDISK_DIR) -v -x .gitignore -x .DS_Store -x Thumbs.db
+	$(KOS_BASE)/utils/bin2c/bin2c $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk.img $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk_tmp.c romdisk
+	$(KOS_CC) $(KOS_CFLAGS) -o $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk_tmp.o -c $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk_tmp.c
+	$(KOS_CC) -o $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk.o -r $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk_tmp.o \
+	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
+	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
+	kos-cc -I$(RAYLIB_DC_SRC) -I$(SRC_DIR) -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) -std=gnu2x -c $(AUDIO_ONLY_MP3_SOURCE) -o $(AUDIO_ONLY_MP3_TARGET_DIR)/audio_only_mp3_dc.o
+	kos-cc -o $(AUDIO_ONLY_MP3_TARGET) $(AUDIO_ONLY_MP3_TARGET_DIR)/audio_only_mp3_dc.o $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk.o $(RAYLIB_DC_SRC)/libraylib.a -lGL -lkosutils -lm -lpthread
+	$(call WRITE_BIN,$(AUDIO_ONLY_MP3_TARGET),$(AUDIO_ONLY_MP3_LAUNCHER))
+	rm -f $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk_tmp.c $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk_tmp.o
+
+# cotterz-dc: $(DC_RAYLIB_DIR)/libraylib.a
+# 	mkdir -p $(BIN_DIR) $(COTTERZ_DC_TARGET_DIR) $(COTTERZ_DC_TARGET_DIR)/romdisk
+# 	cp -f $(SRC_DIR)/resources/shadertoy_electronebulae_one_fourth_22050hz_pcm16_mono.wav $(COTTERZ_DC_TARGET_DIR)/romdisk/
+# 	$(KOS_GENROMFS) -f $(COTTERZ_DC_TARGET_DIR)/romdisk.img -d $(COTTERZ_DC_TARGET_DIR)/romdisk -v -x .gitignore -x .DS_Store -x Thumbs.db
+# 	$(KOS_BASE)/utils/bin2c/bin2c $(COTTERZ_DC_TARGET_DIR)/romdisk.img $(COTTERZ_DC_TARGET_DIR)/romdisk_tmp.c romdisk
+# 	$(KOS_CC) $(KOS_CFLAGS) -o $(COTTERZ_DC_TARGET_DIR)/romdisk_tmp.o -c $(COTTERZ_DC_TARGET_DIR)/romdisk_tmp.c
+# 	$(KOS_CC) -o $(COTTERZ_DC_TARGET_DIR)/romdisk.o -r $(COTTERZ_DC_TARGET_DIR)/romdisk_tmp.o \
+# 	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
+# 	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
+# 	kos-cc -iquote sh4zam/include -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(COMMON_SOURCE) -o $(COTTERZ_DC_TARGET_DIR)/common.o
+# 	kos-cc -iquote sh4zam/include -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(COTTERZ_DC_SOURCE) -o $(COTTERZ_DC_TARGET_DIR)/cotterz_dc.o
+# 	kos-cc -iquote sh4zam/include -DPLATFORM_DREAMCAST $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) -std=gnu2x -c $(SH4ZAM_COMPLEX_SOURCE) -o $(COTTERZ_DC_TARGET_DIR)/shz_complex.o
+# 	kos-cc -o $(COTTERZ_DC_TARGET) $(COTTERZ_DC_TARGET_DIR)/cotterz_dc.o $(COTTERZ_DC_TARGET_DIR)/common.o $(COTTERZ_DC_TARGET_DIR)/shz_complex.o $(COTTERZ_DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lm -lpthread
+# 	$(call WRITE_BIN,$(COTTERZ_DC_TARGET),$(COTTERZ_DC_LAUNCHER))
+# 	rm -f $(COTTERZ_DC_TARGET_DIR)/romdisk_tmp.c $(COTTERZ_DC_TARGET_DIR)/romdisk_tmp.o
+# 	rm -rf $(COTTERZ_DC_TARGET_DIR)/romdisk
+
 fmt:
 	@F="$(FMT)"; (command -v "$$F" >/dev/null 2>&1 || [ -x "$$F" ]) || { echo "clang-format not found. Install it or set FMT=path/to/clang-format"; exit 1; }
 	@if [ -f "$(FMT_STYLE)" ]; then $(FMT) -style=file:$(FMT_STYLE) -i $(FMT_SOURCES); else $(FMT) -i $(FMT_SOURCES); fi
 
 clean-all:
 	rm -rf $(BUILD_DIR)
-	rm -f $(GL33_BIN) $(FFTW_BIN) $(GL11_BIN) $(DC_LAUNCHER) $(DC_FFTW_LAUNCHER) $(SH4_LAUNCHER)
+	rm -f $(GL33_BIN) $(FFTW_BIN) $(GL11_BIN) $(DC_LAUNCHER) $(SH4_LAUNCHER) $(DC_FFTW_LAUNCHER) $(AUDIO_ONLY_WAV_LAUNCHER) $(AUDIO_ONLY_MP3_LAUNCHER) $(COTTERZ_DC_LAUNCHER) $(DC_TARGET) $(SH4_TARGET) $(DC_FFTW_TARGET) $(AUDIO_ONLY_WAV_TARGET) $(AUDIO_ONLY_MP3_TARGET) $(COTTERZ_DC_TARGET)
 	rm -rf logs/*
 	$(MAKE) -C $(RAYLIB_DESKTOP_SRC) clean || true
 	$(MAKE) -C $(RAYLIB_DC_SRC) clean || true

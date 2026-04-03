@@ -47,6 +47,22 @@ make fftw-dc # -> out: build/dc/fftw_dc/fftw_dc.elf + run: ./bin/fftw_dc
 # [KOS + sh4zam]
 make sh4zam-butterfly # -> out: build/sh4/sh4zam_butterfly/sh4zam_butterfly.elf + run: ./bin/sh4zam_butterfly
 ```
+
+## audio only (miniaudio stuff)
+```bash
+# [KOS]
+make audio-only-wav-dc # -> then run: ./bin/audio_only_wav_dc
+make audio-only-mp3-dc # -> then run:  ./bin/audio_only_mp3_dc
+```
+
+## SHADERTOY PORTS (WIP):
+
+### [Cotterzz: Visualiser - Picking out notes](https://www.shadertoy.com/view/tcG3Rm):
+```bash
+# [KOS]
+make cotterz-dc # -> out: build/dc/cotterz_dc/cotterz_dc.elf + run: ./bin/cotterz_dc
+```
+
 ---
 #### flycast:
 
@@ -57,6 +73,7 @@ make sh4zam-butterfly # -> out: build/sh4/sh4zam_butterfly/sh4zam_butterfly.elf 
 * `tmux_matrix.sh` is a rough helper for building multiple targets, launching each one in its own tmux session, and capturing logs side by side under `logs/`.
 * builds `cool-gl33`, `cool-gl11`, `fftw-gl11`, `cool-dc`, and `sh4zam-butterfly` and then lanches them all at once, I want to learn tmux with this if ican so just a beginner idea for now, unreliable i think currently
 
+* `tmux_audio_only_matrix.sh` builds `audio-only-wav-dc` and `audio-only-mp3-dc` for both 1024 and 2048 period sizes (4 total targets)
 
 #### misc info:
 
@@ -80,14 +97,14 @@ make sh4zam-butterfly # -> out: build/sh4/sh4zam_butterfly/sh4zam_butterfly.elf 
     Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 22050 Hz, 1 channels, s16, 352 kb/s
   ```
 
-  - `country_44100hz_mp3_128kbps_stereo.mp3` (identical mp3 as core raylib examples)
+  - `country_44100hz_128kbps_stereo.mp3` (identical mp3 as core raylib examples)
     - [raylib4Dreamcast/blob/main/samples/audio/audio_music_stream/romdisk/country.mp3](https://github.com/raylib4Consoles/raylib4Dreamcast/blob/main/samples/audio/audio_music_stream/romdisk/country.mp3)
     - [raylib/blob/master/examples/audio/resources/country.mp3](https://github.com/raysan5/raylib/blob/master/examples/audio/resources/country.mp3)
 
   ```bash
-  [ ~/fffftt]$ ffprobe src/romdisk/country_44100hz_mp3_128kbps_stereo.mp3
+  [ ~/fffftt]$ ffprobe src/romdisk/country_44100hz_128kbps_stereo.mp3
   [...]
-  Input #0, mp3, from 'src/romdisk/country_44100hz_mp3_128kbps_stereo.mp3':
+  Input #0, mp3, from 'src/romdisk/country_44100hz_128kbps_stereo.mp3':
     Duration: 00:01:33.56, start: 0.025057, bitrate: 128 kb/s
     Stream #0:0: Audio: mp3 (mp3float), 44100 Hz, stereo, fltp, 128 kb/s, start 0.025057
       Metadata:

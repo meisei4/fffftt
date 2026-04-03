@@ -61,4 +61,29 @@ Key:
 | REAL_HW  | 1024   | ON        | OFF     | WARN  | 2048        | N/A         | N/A    | N/A         | MIXED*|
 +----------+--------+-----------+---------+-------+-------------+-------------+--------+-------------+-------+
 ```
-› * `REAL_HW / 1024 / ON/OFF / WARN / sh4zam-butterfly`: some crackles/skips, but somehow noticebly less than `cool-dc` and `fftw-dc`??? MAYBE???? very hard to tell
+> * `REAL_HW / 1024 / ON/OFF / WARN / sh4zam-butterfly`: some crackles/skips, but somehow noticebly less than `cool-dc` and `fftw-dc`??? MAYBE???? very hard to tell
+```
++------------------------------------------------------------------------------------------------------------+
+| AUDIO-ONLY-DC                                                                                              |
++------------+--------+----------+---------+------------------------------------------------------+----------+
+| platform   | mode   | period   | trace   | ffprobe                                              | audio    |
++------------+--------+----------+---------+------------------------------------------------------+----------+
+| FLYCAST    | WAV    | 2048     | INFO    | wav/22050/mono/s16le                                 | GOOD     |
+| FLYCAST    | WAV    | 1024     | INFO    | wav/22050/mono/s16le                                 | GOOD     |
+| FLYCAST    | MP3    | 2048     | INFO    | mp3/44100/stereo/128k                                | GOOD     |
+| FLYCAST    | MP3    | 1024     | INFO    | mp3/44100/stereo/128k                                | BAD      |
+| FLYCAST    | WAV    | 2048     | WARN    | wav/22050/mono/s16le                                 | GOOD     |
+| FLYCAST    | WAV    | 1024     | WARN    | wav/22050/mono/s16le                                 | GOOD     |
+| FLYCAST    | MP3    | 2048     | WARN    | mp3/44100/stereo/128k                                | GOOD     |
+| FLYCAST    | MP3    | 1024     | WARN    | mp3/44100/stereo/128k                                | BAD      |
+| REAL_HW    | MP3    | 2048     | WARN    | mp3/44100/stereo/128k                                | TODO*    |
+| REAL_HW    | MP3    | 1024     | WARN    | mp3/44100/stereo/128k                                | TODO*    |
+| REAL_HW    | MP3    | 2048     | INFO    | mp3/44100/stereo/128k                                | GOOD     |
+| REAL_HW    | MP3    | 1024     | INFO    | mp3/44100/stereo/128k                                | BAD+SLOW |
+| REAL_HW    | WAV    | 2048     | WARN    | wav/22050/mono/s16le                                 | TODO*    |
+| REAL_HW    | WAV    | 2048     | INFO    | wav/22050/mono/s16le                                 | GOOD     |
+| REAL_HW    | WAV    | 1024     | WARN    | wav/22050/mono/s16le                                 | TODO*    |
+| REAL_HW    | WAV    | 1024     | INFO    | wav/22050/mono/s16le                                 | GOOD     |
++------------+--------+----------+---------+------------------------------------------------------+----------+
+```
+> *TODO: nothing to even log here, but set up to allow the toggle, untested 
