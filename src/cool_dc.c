@@ -26,7 +26,7 @@ int main(void) {
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_STREAM_RING_BUFFER_SIZE);
-    wav = LoadWave("/rd/country_22050hz_pcm16_mono.wav");
+    wav = LoadWave("/rd/shadertoy_experiment_22050hz_pcm16_mono.wav"); //TODO: just for the README.md comparison with shadertoy capture
 
     WaveFormat(&wav, SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
     audio_stream = LoadAudioStream(SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);

@@ -4,14 +4,60 @@ submodule init: (this project uses submodules as an experiment with dependency f
 
 ```bash
 git clone --recurse-submodules https://github.com/meisei4/fffftt.git
-```
-
-otherwise:
-```bash
+# otherwise:
 git clone https://github.com/meisei4/fffftt.git
 cd fffftt
 git submodule update --init --recursive
 ```
+
+## SHADERTOY PORTS (WIP):
+
+### 1. [meisei4: basic fft visualizer](https://www.shadertoy.com/view/t3jGzm):
+- This just uses cool-dc now to target the shadertoy media asset of "experiment":  
+- https://shadertoyunofficial.wordpress.com/2019/07/23/shadertoy-media-files/ -> `#Musics:` -> `- Experiment`  
+- https://www.shadertoy.com/media/a/29de534ed5e4a6a224d2dfffab240f2e19a9d95f5e39de8898e850efdb2a99de.mp3
+
+<table>
+  <tr>
+    <th>DC (var fps..)</th>
+    <th>Shadertoy (120fps..)</th>
+  </tr>
+  <tr>
+    <td>
+      <video src="./docs/fft-dc-640x480-60.mp4" controls muted playsinline width="100%"></video>
+    </td>
+    <td>
+      <video src="./docs/fft-shadertoy-dc-parity-640x480-60.mp4" controls muted playsinline width="100%"></video>
+    </td>
+  </tr>
+</table>
+
+---
+
+### 2. [Cotterzz: Visualiser - Picking out notes](https://www.shadertoy.com/view/tcG3Rm):
+```bash
+# [KOS]
+make picking-out-notes-dc # -> out: build/dc/picking_out_notes_dc/picking_out_notes_dc.elf + run: ./bin/picking_out_notes_dc
+```
+
+<table>
+  <tr>
+    <th>DC (var fps..)</th>
+    <th>Shadertoy (120 fps..)</th>
+  </tr>
+  <tr>
+    <td>
+      <video src="./docs/picking-out-notes-dc-640x480-60.mp4" controls muted playsinline width="100%"></video>
+    </td>
+    <td>
+      <video src="./docs/picking-out-notes-shadertoy-dc-parity-640x480-60.mp4" controls muted playsinline width="100%"></video>
+    </td>
+  </tr>
+</table>
+
+
+--- 
+# FFT TESTS
 
 ## cooley tukey lame cool:
 
@@ -53,14 +99,6 @@ make sh4zam-butterfly # -> out: build/sh4/sh4zam_butterfly/sh4zam_butterfly.elf 
 # [KOS]
 make audio-only-wav-dc # -> then run: ./bin/audio_only_wav_dc
 make audio-only-mp3-dc # -> then run:  ./bin/audio_only_mp3_dc
-```
-
-## SHADERTOY PORTS (WIP):
-
-### [Cotterzz: Visualiser - Picking out notes](https://www.shadertoy.com/view/tcG3Rm):
-```bash
-# [KOS]
-make cotterz-dc # -> out: build/dc/cotterz_dc/cotterz_dc.elf + run: ./bin/cotterz_dc
 ```
 
 ---
@@ -122,7 +160,7 @@ make cotterz-dc # -> out: build/dc/cotterz_dc/cotterz_dc.elf + run: ./bin/cotter
 
 #### TODO:
 
-* mp3 <-> fft path and playback test with miniaudio
+* add waveform visualization + more shadertoy ports
 * integrate `GLdc` git submodule as an actual local version like the other submodules
 * probably alot probably nothing idk
 
