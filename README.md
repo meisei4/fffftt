@@ -16,7 +16,6 @@ git submodule update --init --recursive
 - This just uses cool-dc now to target the shadertoy media asset of "experiment":  
 - https://shadertoyunofficial.wordpress.com/2019/07/23/shadertoy-media-files/ -> `#Musics:` -> `- Experiment`  
 - https://www.shadertoy.com/media/a/29de534ed5e4a6a224d2dfffab240f2e19a9d95f5e39de8898e850efdb2a99de.mp3
-
 <table>
   <tr>
     <th>DC (var fps..)</th>
@@ -24,14 +23,13 @@ git submodule update --init --recursive
   </tr>
   <tr>
     <td>
-      <video src="./docs/fft-dc-640x480-60.mp4" controls muted playsinline width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/afb82de8-e7eb-408b-a098-4f7deeb20b51" controls muted playsinline width="100%"></video>
     </td>
     <td>
-      <video src="./docs/fft-shadertoy-dc-parity-640x480-60.mp4" controls muted playsinline width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/de3515d9-4d13-4d0c-bcdb-51aa4b9da37a" controls muted playsinline width="100%"></video>
     </td>
   </tr>
 </table>
-
 ---
 
 ### 2. [Cotterzz: Visualiser - Picking out notes](https://www.shadertoy.com/view/tcG3Rm):
@@ -39,22 +37,20 @@ git submodule update --init --recursive
 # [KOS]
 make picking-out-notes-dc # -> out: build/dc/picking_out_notes_dc/picking_out_notes_dc.elf + run: ./bin/picking_out_notes_dc
 ```
-
 <table>
   <tr>
     <th>DC (var fps..)</th>
-    <th>Shadertoy (120 fps..)</th>
+    <th>Shadertoy (120fps..)</th>
   </tr>
   <tr>
     <td>
-      <video src="./docs/picking-out-notes-dc-640x480-60.mp4" controls muted playsinline width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/c44f8ca0-7b23-4970-acec-50e3f2022368" controls muted playsinline width="100%"></video>
     </td>
     <td>
-      <video src="./docs/picking-out-notes-shadertoy-dc-parity-640x480-60.mp4" controls muted playsinline width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/1db9ec0d-8410-4718-b934-bb7bee2a63b7" controls muted playsinline width="100%"></video>
     </td>
   </tr>
 </table>
-
 
 --- 
 # FFT TESTS
