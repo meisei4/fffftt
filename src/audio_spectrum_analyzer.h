@@ -13,15 +13,15 @@
 #endif // PLATFORM_DREAMCAST
 
 #define MONO 1
-#define STEREO 2
 #define SAMPLE_RATE 22050
 #define FFT_WINDOW_SIZE 1024
-#define BUFFER_SIZE 512
+#define BUFFER_SIZE 512 // fft.glsl#L15 const float NUM_OF_BINS = 512.0;
 #define PER_SAMPLE_BIT_DEPTH 16
 #define MILLISECONDS_PER_SECOND 1000
 #define SECONDS_PER_MINUTE 60
 #define MILLISECONDS_PER_MINUTE (MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE)
-#define AUDIO_STREAM_RING_BUFFER_SIZE (FFT_WINDOW_SIZE * STEREO)
+#define AUDIO_STREAM_FRAME_COUNT 2
+#define AUDIO_STREAM_RING_BUFFER_SIZE (FFT_WINDOW_SIZE * AUDIO_STREAM_FRAME_COUNT)
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 #define FFT_WINDOW_DURATION_MILLISECONDS ((FFT_WINDOW_SIZE * MILLISECONDS_PER_SECOND) / SAMPLE_RATE)
@@ -142,6 +142,14 @@ void apply_blackman_window_fftw_complex(fftw_complex *fft_input, float *audio_sa
 void cooley_tukey_fft_slow(FFTComplex *spectrum);
 void clean_up_fft(FFTData *fft_data);
 void clean_up_fftw_complex(FFTData *fft_data, fftw_complex *fft_output);
-void render_frame(FFTData *fft_data);
+void render_fft_frame(FFTData *fft_data);
+
+#define WAVEFORM_WINDOW_SIZE 1024
+#define WAVEFORM_BUFFER_SIZE 512 // waveform.glsl#L2 #define total_waveform_buffer_size_in_samples 512.0
+#define WAVEFORM_AUDIO_STREAM_RING_BUFFER_SIZE (WAVEFORM_WINDOW_SIZE * AUDIO_STREAM_FRAME_COUNT)
+#define LINE_WIDTH 1.0f // waveform.glsl#L7 #define LINE_WIDTH 1.0
+
+void update_waveform_data(float* waveform_data, float* audio_samples);
+void render_waveform_frame(float* waveform_data);
 
 #endif // AUDIO_SPECTRUM_ANALYZER_H

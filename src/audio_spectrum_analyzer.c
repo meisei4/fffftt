@@ -106,27 +106,73 @@ void clean_up_fftw_complex(FFTData* fft_data, fftw_complex* fft_output) {
     fft_data->frame_index++;
 }
 
-void render_frame(FFTData* fft_data) {
+void render_fft_frame(FFTData* fft_data) {
     float frames_since_tapback = floorf(fft_data->tapback_pos / ((float)FFT_WINDOW_SIZE / EFFECTIVE_SAMPLE_RATE));
     frames_since_tapback = Clamp(frames_since_tapback, 0.0f, (float)(FFT_HISTORY_FRAME_COUNT - 1));
-    int history_position = (fft_data->history_pos - 1 - (int)frames_since_tapback + FFT_HISTORY_FRAME_COUNT) % FFT_HISTORY_FRAME_COUNT;
-    float cell_width = (float)SCREEN_WIDTH / (float)BUFFER_SIZE;
+    int history_frame_index = (fft_data->history_pos - 1 - (int)frames_since_tapback + FFT_HISTORY_FRAME_COUNT) % FFT_HISTORY_FRAME_COUNT;
+    float* fft_frame = fft_data->fft_history[history_frame_index];
 
-    for (int bin = 0; bin < BUFFER_SIZE; bin++) {
-        int x_0 = (int)floorf((float)bin * cell_width);
-        int x_1 = (int)ceilf((float)(bin + 1) * cell_width);
-        int column_width = (x_1 - x_0) - 1;
-        float amplitude = fft_data->fft_history[history_position][bin];
+    float cell_width = (float)SCREEN_WIDTH / (float)BUFFER_SIZE;    // fft.glsl#L19 float cellWidth = iResolution.x / NUM_OF_BINS;
+    for (int bin_index = 0; bin_index < BUFFER_SIZE; bin_index++) { // fft.glsl#L20 float binIndex = floor(fragCoord.x / cellWidth);
+        int bin_x_min = (int)floorf((float)bin_index * cell_width); //????? fft.glsl#L21 float localX = mod(fragCoord.x, cellWidth);
+        int bin_x_max = (int)ceilf((float)(bin_index + 1) * cell_width);
+        int bar_width = (bin_x_max - bin_x_min) - 1; // fft.glsl#L22 float barWidth = cellWidth - 1.0;
 
-        if (column_width < MIN_SPECTRUM_COLUMN_WIDTH) {
-            column_width = MIN_SPECTRUM_COLUMN_WIDTH;
+        if (bar_width < MIN_SPECTRUM_COLUMN_WIDTH) {
+            bar_width = MIN_SPECTRUM_COLUMN_WIDTH;
         }
 
+        float amplitude = fft_frame[bin_index]; // fft.glsl#L28 float amplitude = texture(iChannel0, sampleCoord).r;
         if (amplitude <= 0.0f) {
             continue;
         }
 
-        int column_height = (int)ceilf(amplitude * (float)SCREEN_HEIGHT);
-        DrawRectangle(x_0, SCREEN_HEIGHT - column_height, column_width, column_height, WHITE);
+        int bar_y = (int)ceilf(amplitude * (float)SCREEN_HEIGHT); // fft.glsl#L29 float barY = 1.0 - fragTexCoord.y;
+        // fft.glsl#L30 if (barY < amplitude) color = WHITE;
+        DrawRectangle(bin_x_min, SCREEN_HEIGHT - bar_y, bar_width, bar_y, WHITE);
+    }
+}
+
+void update_waveform_data(float* waveform_data, float* audio_samples) {
+    int sample_stride = WAVEFORM_WINDOW_SIZE / WAVEFORM_BUFFER_SIZE;
+
+    for (int i = 0; i < WAVEFORM_BUFFER_SIZE; i++) {
+        float sample_value = audio_samples[i * sample_stride];
+        float normalized_sample = 0.5f * (1.0f + sample_value);
+        waveform_data[i] = Clamp(normalized_sample, 0.0f, 1.0f);
+        // ShaderToy parity path:
+        // int waveform_u8 = (int)Clamp(128.0f * (1.0f + sample_value), 0.0f, 255.0f);
+        // waveform_data[i] = (float)waveform_u8 / 255.0f;
+    }
+}
+
+void render_waveform_frame(float* waveform_data) {
+    // waveform.glsl#L11 float cell_width = iResolution.x / total_waveform_buffer_size_in_samples;
+    float sample_column_width = (float)SCREEN_WIDTH / (float)WAVEFORM_BUFFER_SIZE;
+    int line_thickness_px = (int)floorf(LINE_WIDTH + 0.5f); // waveform.glsl#L7 #define LINE_WIDTH 1.0
+    // waveform.glsl#L12 float sample_index = floor(frag_coord.x / cell_width);
+    for (int sample_index = 0; sample_index < WAVEFORM_BUFFER_SIZE; sample_index++) {
+        int sample_x_min = (int)floorf((float)sample_index * sample_column_width);
+        // waveform.glsl#L13 float sample_x = (sample_index + 0.5) / total_waveform_buffer_size_in_samples;
+        int sample_x_max = (int)floorf((float)(sample_index + 1) * sample_column_width);
+
+        if (sample_x_max <= sample_x_min) {
+            sample_x_max = sample_x_min + 1;
+        }
+
+        float sample_value = waveform_data[sample_index];
+        // waveform.glsl#L16 float line_y = floor(sample_value * (iResolution.y - 1.0) + 0.5);
+        int line_y = (int)floorf(sample_value * (float)(SCREEN_HEIGHT - 1) + 0.5f);
+
+        int line_y_min = line_y - (line_thickness_px - 1) / 2;
+        int line_y_max = line_y_min + line_thickness_px;
+
+        line_y_min = Clamp(line_y_min, 0, SCREEN_HEIGHT);
+        line_y_max = Clamp(line_y_max, 0, SCREEN_HEIGHT);
+
+        if (line_y_max > line_y_min) {
+            // waveform.glsl#L19 vec4 color = mix(BLACK, WHITE, line);
+            DrawRectangle(sample_x_min, line_y_min, sample_x_max - sample_x_min, line_y_max - line_y_min, WHITE);
+        }
     }
 }

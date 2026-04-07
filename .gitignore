@@ -4,6 +4,9 @@ bin/
 logs/
 *.log
 
+.bear/
+*.idx
+
 # General
 .DS_Store
 

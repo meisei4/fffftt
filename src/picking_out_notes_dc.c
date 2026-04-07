@@ -99,6 +99,7 @@ static void picking_out_the_notes(const FFTData* fft_data) {
                     float dy = fabsf(local_y - .5);       // #L35 abs(fract(to) - .5)
                     float dist = fmaxf(dx, dy);           // #L38 dist = max(D.x, D.y)
 
+                    //TODO: LOOK INTO USING shz_smoothstepf AND FULL REVIEW OF SHADER STUFF WITH sh4zam maths ofc!!!
                     float t = Clamp(((f * f * f * f) - dist * 2.) / .01, 0., 1.); // #L48 smoothstep
                     float bright = t * t * (3. - 2. * t);                         // #L48 t*t*(3.-2.*t)
                     if (bright > 0.) {                                            // #L50 O = bright *

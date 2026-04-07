@@ -75,7 +75,7 @@ int main(void) {
 
         BeginDrawing();
         ClearBackground(BLACK);
-        render_frame(&fft_data);
+        render_fft_frame(&fft_data);
         EndDrawing();
     }
 
