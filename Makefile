@@ -43,6 +43,7 @@ AUDIO_ONLY_WAV_TARGET_DIR := $(BUILD_DIR)/dc/audio_only_wav_dc
 AUDIO_ONLY_MP3_TARGET_DIR := $(BUILD_DIR)/dc/audio_only_mp3_dc
 PICKING_OUT_NOTES_DC_TARGET_DIR := $(BUILD_DIR)/dc/picking_out_notes_dc
 WAVEFORM_DC_TARGET_DIR := $(BUILD_DIR)/dc/waveform_dc
+WAVEFORM_SANDBOX_DC_TARGET_DIR := $(BUILD_DIR)/dc/waveform_sandbox_dc
 
 GL33_BIN := $(BIN_DIR)/cool_gl33
 FFTW_BIN := $(BIN_DIR)/fftw_gl11
@@ -54,6 +55,7 @@ AUDIO_ONLY_WAV_LAUNCHER := $(BIN_DIR)/audio_only_wav_dc
 AUDIO_ONLY_MP3_LAUNCHER := $(BIN_DIR)/audio_only_mp3_dc
 PICKING_OUT_NOTES_DC_LAUNCHER := $(BIN_DIR)/picking_out_notes_dc
 WAVEFORM_DC_LAUNCHER := $(BIN_DIR)/waveform_dc
+WAVEFORM_SANDBOX_DC_LAUNCHER := $(BIN_DIR)/waveform_sandbox_dc
 
 DC_TARGET := $(DC_TARGET_DIR)/cool_dc.elf
 SH4_TARGET := $(SH4_TARGET_DIR)/sh4zam_butterfly.elf
@@ -62,6 +64,7 @@ AUDIO_ONLY_WAV_TARGET := $(AUDIO_ONLY_WAV_TARGET_DIR)/audio_only_wav_dc.elf
 AUDIO_ONLY_MP3_TARGET := $(AUDIO_ONLY_MP3_TARGET_DIR)/audio_only_mp3_dc.elf
 PICKING_OUT_NOTES_DC_TARGET := $(PICKING_OUT_NOTES_DC_TARGET_DIR)/picking_out_notes_dc.elf
 WAVEFORM_DC_TARGET := $(WAVEFORM_DC_TARGET_DIR)/waveform_dc.elf
+WAVEFORM_SANDBOX_DC_TARGET := $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/waveform_sandbox_dc.elf
 
 COMMON_SOURCE := $(SRC_DIR)/audio_spectrum_analyzer.c
 GL33_SOURCE := $(SRC_DIR)/cool_gl33.c
@@ -77,6 +80,7 @@ AUDIO_ONLY_WAV_SOURCE := $(SRC_DIR)/audio_only_wav_dc.c
 AUDIO_ONLY_MP3_SOURCE := $(SRC_DIR)/audio_only_mp3_dc.c
 PICKING_OUT_NOTES_DC_SOURCE := $(SRC_DIR)/picking_out_notes_dc.c
 WAVEFORM_DC_SOURCE := $(SRC_DIR)/waveform_dc.c
+WAVEFORM_SANDBOX_DC_SOURCE := $(SRC_DIR)/waveform_sandbox_dc.c
 
 RAYLIB_DESKTOP_SRC := raylib_desktop/src
 RAYLIB_DC_SRC := raylib_dc/src
@@ -84,7 +88,7 @@ RAYLIB_DC_SRC := raylib_dc/src
 KOS_PORTS_INCLUDE := -I$(KOS_PORTS)/include
 FMT ?= $(shell command -v clang-format 2>/dev/null || { [ -x /usr/bin/clang-format ] && echo /usr/bin/clang-format; } || { [ -x /opt/homebrew/bin/clang-format ] && echo /opt/homebrew/bin/clang-format; } || { [ -x /Library/Developer/CommandLineTools/usr/bin/clang-format ] && echo /Library/Developer/CommandLineTools/usr/bin/clang-format; } || echo clang-format)
 FMT_STYLE ?= .clang-format
-FMT_SOURCES := $(COMMON_SOURCE) $(GL33_SOURCE) $(FFTW_SOURCE) $(FFTW_DC_SOURCE) $(GL11_SOURCE) $(SH4_SOURCE) $(AUDIO_ONLY_WAV_SOURCE) $(AUDIO_ONLY_MP3_SOURCE) $(PICKING_OUT_NOTES_DC_SOURCE) $(WAVEFORM_DC_SOURCE)
+FMT_SOURCES := $(COMMON_SOURCE) $(GL33_SOURCE) $(FFTW_SOURCE) $(FFTW_DC_SOURCE) $(GL11_SOURCE) $(SH4_SOURCE) $(AUDIO_ONLY_WAV_SOURCE) $(AUDIO_ONLY_MP3_SOURCE) $(PICKING_OUT_NOTES_DC_SOURCE) $(WAVEFORM_DC_SOURCE) $(WAVEFORM_SANDBOX_DC_SOURCE)
 
 UNAME_S := $(shell uname -s 2>/dev/null || echo Unknown)
 CC ?= cc
@@ -105,10 +109,9 @@ define WRITE_BIN
 	chmod +x $(2)
 endef
 
-.PHONY: help all cool-gl33 fftw-gl11 cool-gl11 cool-dc sh4zam-butterfly fftw-dc audio-only-wav-dc audio-only-mp3-dc picking-out-notes-dc waveform-dc fmt clean-all fixdb
-
+.PHONY: help all cool-gl33 fftw-gl11 cool-gl11 cool-dc sh4zam-butterfly fftw-dc audio-only-wav-dc audio-only-mp3-dc picking-out-notes-dc waveform-dc waveform-sandbox-dc fmt clean-all fixdb
 help:
-	$(error PLEASE DEFINE A TARGET: make cool-gl33 | make cool-gl11 | make fftw-gl11 | make cool-dc | make sh4zam-butterfly | make fftw-dc | make audio-only-wav-dc | make audio-only-mp3-dc | make picking-out-notes-dc | make waveform-dc | make fmt | make clean-all | make fixdb)
+	$(error PLEASE DEFINE A TARGET: make cool-gl33 | make cool-gl11 | make fftw-gl11 | make cool-dc | make sh4zam-butterfly | make fftw-dc | make audio-only-wav-dc | make audio-only-mp3-dc | make picking-out-notes-dc | make waveform-dc | make waveform-sandbox-dc | make fmt | make clean-all | make fixdb)
 
 fixdb:
 	@echo "Fixing compilation database for CLion..."
@@ -285,6 +288,24 @@ waveform-dc: $(DC_RAYLIB_DIR)/libraylib.a
 	rm -rf $(WAVEFORM_DC_TARGET_DIR)/romdisk
 	@$(MAKE) fixdb
 
+waveform-sandbox-dc: $(DC_RAYLIB_DIR)/libraylib.a
+	@rm -f $(DB_OUT)
+	mkdir -p $(BIN_DIR) $(WAVEFORM_SANDBOX_DC_TARGET_DIR) $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk
+	cp -f $(SRC_DIR)/resources/shadertoy_experiment_22050hz_pcm16_mono.wav $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk/
+	$(KOS_GENROMFS) -f $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk.img -d $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk -v -x .gitignore -x .DS_Store -x Thumbs.db
+	$(KOS_BASE)/utils/bin2c/bin2c $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk.img $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk_tmp.c romdisk
+	$(KOS_CC) $(KOS_CFLAGS) -o $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk_tmp.o -c $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk_tmp.c
+	$(KOS_CC) -o $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk.o -r $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk_tmp.o \
+	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
+	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
+	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(COMMON_SOURCE) -o $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/common.o
+	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(WAVEFORM_SANDBOX_DC_SOURCE) -o $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/waveform_sandbox_dc.o
+	kos-cc -o $(WAVEFORM_SANDBOX_DC_TARGET) $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/waveform_sandbox_dc.o $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/common.o $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
+	$(call WRITE_BIN,$(WAVEFORM_SANDBOX_DC_TARGET),$(WAVEFORM_SANDBOX_DC_LAUNCHER))
+	rm -f $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk_tmp.c $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk_tmp.o
+	rm -rf $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk
+	@$(MAKE) fixdb
+
 fmt:
 	@F="$(FMT)"; (command -v "$$F" >/dev/null 2>&1 || [ -x "$$F" ]) || { echo "clang-format not found. Install it or set FMT=path/to/clang-format"; exit 1; }
 	@if [ -f "$(FMT_STYLE)" ]; then $(FMT) -style=file:$(FMT_STYLE) -i $(FMT_SOURCES); else $(FMT) -i $(FMT_SOURCES); fi
@@ -292,7 +313,6 @@ fmt:
 clean-all:
 	rm -f $(DB_OUT) $(COMPILE_DB_BACKUP)
 	rm -rf $(BUILD_DIR)
-	rm -f $(GL33_BIN) $(FFTW_BIN) $(GL11_BIN) $(DC_LAUNCHER) $(SH4_LAUNCHER) $(DC_FFTW_LAUNCHER) $(AUDIO_ONLY_WAV_LAUNCHER) $(AUDIO_ONLY_MP3_LAUNCHER) $(PICKING_OUT_NOTES_DC_LAUNCHER) $(WAVEFORM_DC_LAUNCHER) $(DC_TARGET) $(SH4_TARGET) $(DC_FFTW_TARGET) $(AUDIO_ONLY_WAV_TARGET) $(AUDIO_ONLY_MP3_TARGET) $(PICKING_OUT_NOTES_DC_TARGET) $(WAVEFORM_DC_TARGET)
-	rm -rf logs/*
+	rm -f $(GL33_BIN) $(FFTW_BIN) $(GL11_BIN) $(DC_LAUNCHER) $(SH4_LAUNCHER) $(DC_FFTW_LAUNCHER) $(AUDIO_ONLY_WAV_LAUNCHER) $(AUDIO_ONLY_MP3_LAUNCHER) $(PICKING_OUT_NOTES_DC_LAUNCHER) $(WAVEFORM_DC_LAUNCHER) $(WAVEFORM_SANDBOX_DC_LAUNCHER) $(DC_TARGET) $(SH4_TARGET) $(DC_FFTW_TARGET) $(AUDIO_ONLY_WAV_TARGET) $(AUDIO_ONLY_MP3_TARGET) $(PICKING_OUT_NOTES_DC_TARGET) $(WAVEFORM_DC_TARGET) $(WAVEFORM_SANDBOX_DC_TARGET)	rm -rf logs/*
 	$(MAKE) -C $(RAYLIB_DESKTOP_SRC) clean || true
 	$(MAKE) -C $(RAYLIB_DC_SRC) clean || true

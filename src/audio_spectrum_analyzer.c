@@ -133,21 +133,8 @@ void render_fft_frame(FFTData* fft_data) {
     }
 }
 
-void update_waveform_data(float* waveform_data, float* audio_samples) {
+void render_waveform_frame(float* audio_samples) {
     int sample_stride = WAVEFORM_WINDOW_SIZE / WAVEFORM_BUFFER_SIZE;
-
-    for (int i = 0; i < WAVEFORM_BUFFER_SIZE; i++) {
-        float sample_value = audio_samples[i * sample_stride];
-        float normalized_sample = 0.5f * (1.0f + sample_value);
-        waveform_data[i] = Clamp(normalized_sample, 0.0f, 1.0f);
-        // ShaderToy parity path:
-        // int waveform_u8 = (int)Clamp(128.0f * (1.0f + sample_value), 0.0f, 255.0f);
-        // waveform_data[i] = (float)waveform_u8 / 255.0f;
-    }
-}
-
-void render_waveform_frame(float* waveform_data) {
-    // waveform.glsl#L11 float cell_width = iResolution.x / total_waveform_buffer_size_in_samples;
     float sample_column_width = (float)SCREEN_WIDTH / (float)WAVEFORM_BUFFER_SIZE;
     int line_thickness_px = (int)floorf(LINE_WIDTH + 0.5f); // waveform.glsl#L7 #define LINE_WIDTH 1.0
     // waveform.glsl#L12 float sample_index = floor(frag_coord.x / cell_width);
@@ -160,9 +147,11 @@ void render_waveform_frame(float* waveform_data) {
             sample_x_max = sample_x_min + 1;
         }
 
-        float sample_value = waveform_data[sample_index];
+        float sample_value = audio_samples[sample_index * sample_stride];
+        float normalized_sample = 0.5f * (1.0f + sample_value);
+        normalized_sample = Clamp(normalized_sample, 0.0f, 1.0f);
         // waveform.glsl#L16 float line_y = floor(sample_value * (iResolution.y - 1.0) + 0.5);
-        int line_y = (int)floorf(sample_value * (float)(SCREEN_HEIGHT - 1) + 0.5f);
+        int line_y = (int)floorf(normalized_sample * (float)(SCREEN_HEIGHT - 1) + 0.5f);
 
         int line_y_min = line_y - (line_thickness_px - 1) / 2;
         int line_y_max = line_y_min + line_thickness_px;

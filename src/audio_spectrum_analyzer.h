@@ -147,9 +147,8 @@ void render_fft_frame(FFTData *fft_data);
 #define WAVEFORM_WINDOW_SIZE 1024
 #define WAVEFORM_BUFFER_SIZE 512 // waveform.glsl#L2 #define total_waveform_buffer_size_in_samples 512.0
 #define WAVEFORM_AUDIO_STREAM_RING_BUFFER_SIZE (WAVEFORM_WINDOW_SIZE * AUDIO_STREAM_FRAME_COUNT)
-#define LINE_WIDTH 1.0f // waveform.glsl#L7 #define LINE_WIDTH 1.0
+#define LINE_WIDTH 5.0f // waveform.glsl#L7 #define LINE_WIDTH 1.0
 
-void update_waveform_data(float* waveform_data, float* audio_samples);
-void render_waveform_frame(float* waveform_data);
+void render_waveform_frame(float* audio_samples);
 
 #endif // AUDIO_SPECTRUM_ANALYZER_H
