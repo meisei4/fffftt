@@ -15,6 +15,8 @@ static const char* domain = "SOUND-ENVELOPE-GL33";
 #define ISOMETRIC_GRID_CENTER_X (0.5f * (-(float)(LANE_COUNT - 1) * LANE_SPACING + (float)(LANE_POINT_COUNT - 1)))
 #define ISOMETRIC_GRID_CENTER_Y (0.25f * ((float)(LANE_POINT_COUNT - 1) + (float)(LANE_COUNT - 1) * LANE_SPACING))
 #define FRONT_LANE_SMOOTHING 0.4f
+//TODO: shader distance threshold value, fundamentally different from a fixed-function raster unit. like ENVELOPE_LINE_WIDTH_RASTER_PIXELS
+#define ENVELOPE_LINE_WIDTH_DISTANCE_PIXELS 0.5f
 
 #define AUDIO_TEXTURE_ROW_COUNT 2
 
@@ -25,6 +27,7 @@ static void update_audio_texture_pixels(Color* audio_texture_pixels);
 int main(void) {
     int16_t chunk_samples[WAVEFORM_AUDIO_STREAM_RING_BUFFER_SIZE] = {0};
 
+    SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
     InitAudioDevice();
@@ -47,16 +50,15 @@ int main(void) {
     int buffer_iresolution_loc = GetShaderLocation(buffer_a, "iResolution");
     int buffer_ichannel0_loc = GetShaderLocation(buffer_a, "iChannel0");
     int buffer_ichannel1_loc = GetShaderLocation(buffer_a, "iChannel1");
-    int buffer_uadvancehistory_loc = GetShaderLocation(buffer_a, "uAdvanceHistory");
-    int buffer_ufrontlanesmoothing_loc = GetShaderLocation(buffer_a, "uFrontLaneSmoothing");
+    int buffer_u_front_lane_smoothing_loc = GetShaderLocation(buffer_a, "u_front_lane_smoothing");
 
     int image_iresolution_loc = GetShaderLocation(image, "iResolution");
     int image_ichannel0_loc = GetShaderLocation(image, "iChannel0");
-    int image_uamplitudescale_loc = GetShaderLocation(image, "u_amplitude_scale");
-    int image_urowspacing_loc = GetShaderLocation(image, "u_row_spacing");
-    int image_uisometriczoom_loc = GetShaderLocation(image, "u_isometric_zoom");
-    int image_ugridcenter_loc = GetShaderLocation(image, "u_grid_center");
-    int image_ulinerenderwidth_loc = GetShaderLocation(image, "u_line_render_width");
+    int image_u_amplitude_scale_loc = GetShaderLocation(image, "u_amplitude_scale");
+    int image_u_lane_spacing_loc = GetShaderLocation(image, "u_lane_spacing");
+    int image_u_isometric_zoom_loc = GetShaderLocation(image, "u_isometric_zoom");
+    int image_u_grid_center_loc = GetShaderLocation(image, "u_grid_center");
+    int image_u_line_width_distance_pixels_loc = GetShaderLocation(image, "u_line_width_distance_pixels");
 
     RenderTexture2D feed = LoadRenderTexture(LANE_POINT_COUNT, LANE_COUNT);
     RenderTexture2D back = LoadRenderTexture(LANE_POINT_COUNT, LANE_COUNT);
@@ -66,15 +68,11 @@ int main(void) {
         ISOMETRIC_GRID_CENTER_X,
         ISOMETRIC_GRID_CENTER_Y,
     };
-    const float image_line_render_width = 0.75f;
 
-    SetTargetFPS(60);
+    SetTargetFPS(15); //TODO: in shadertoy this is controlled by browser config, e.g. in firefox at URL:`about:config` search: `layout.frame_rate`
 
     while (!WindowShouldClose()) {
-        bool audio_window_advanced = false;
-
         while (IsAudioStreamProcessed(stream)) {
-            audio_window_advanced = true;
             for (int i = 0; i < WAVEFORM_AUDIO_STREAM_RING_BUFFER_SIZE; i++) {
                 chunk_samples[i] = pcm_data[wave_cursor];
                 if (++wave_cursor >= wave.frameCount) {
@@ -94,7 +92,6 @@ int main(void) {
 
         float buffer_resolution[3] = {(float)LANE_POINT_COUNT, (float)LANE_COUNT, 1.0f};
         float image_resolution[3] = {(float)SCREEN_WIDTH, (float)SCREEN_HEIGHT, 1.0f};
-        int advance_history = audio_window_advanced ? 1 : 0;
 
         BeginTextureMode(*cur_render_texture);
         ClearBackground(BLACK);
@@ -102,8 +99,7 @@ int main(void) {
         SetShaderValue(buffer_a, buffer_iresolution_loc, buffer_resolution, SHADER_UNIFORM_VEC3);
         SetShaderValueTexture(buffer_a, buffer_ichannel0_loc, prev_render_texture->texture);
         SetShaderValueTexture(buffer_a, buffer_ichannel1_loc, audio_texture);
-        SetShaderValue(buffer_a, buffer_uadvancehistory_loc, &advance_history, SHADER_UNIFORM_INT);
-        SetShaderValue(buffer_a, buffer_ufrontlanesmoothing_loc, &(float){FRONT_LANE_SMOOTHING}, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(buffer_a, buffer_u_front_lane_smoothing_loc, &(float){FRONT_LANE_SMOOTHING}, SHADER_UNIFORM_FLOAT);
         DrawRectangle(0, 0, LANE_POINT_COUNT, LANE_COUNT, WHITE);
         EndShaderMode();
         EndTextureMode();
@@ -113,11 +109,11 @@ int main(void) {
         BeginShaderMode(image);
         SetShaderValue(image, image_iresolution_loc, image_resolution, SHADER_UNIFORM_VEC3);
         SetShaderValueTexture(image, image_ichannel0_loc, cur_render_texture->texture);
-        SetShaderValue(image, image_uamplitudescale_loc, &(float){AMPLITUDE_Y_SCALE}, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(image, image_urowspacing_loc, &(float){LANE_SPACING}, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(image, image_uisometriczoom_loc, &(float){ISOMETRIC_ZOOM}, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(image, image_ugridcenter_loc, image_grid_center, SHADER_UNIFORM_VEC2);
-        SetShaderValue(image, image_ulinerenderwidth_loc, &image_line_render_width, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(image, image_u_amplitude_scale_loc, &(float){AMPLITUDE_Y_SCALE}, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(image, image_u_lane_spacing_loc, &(float){LANE_SPACING}, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(image, image_u_isometric_zoom_loc, &(float){ISOMETRIC_ZOOM}, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(image, image_u_grid_center_loc, image_grid_center, SHADER_UNIFORM_VEC2);
+        SetShaderValue(image, image_u_line_width_distance_pixels_loc, &(float){ENVELOPE_LINE_WIDTH_DISTANCE_PIXELS}, SHADER_UNIFORM_FLOAT);
         DrawRectangle(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, WHITE);
         EndShaderMode();
         EndDrawing();

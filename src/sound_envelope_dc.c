@@ -16,12 +16,11 @@ static const char* domain = "SOUND-ENVELOPE-DC";
 #define ISOMETRIC_ZOOM 3.0f
 #define ISOMETRIC_GRID_CENTER_X (0.5f * (-(float)(LANE_COUNT - 1) * LANE_SPACING + (float)(LANE_POINT_COUNT - 1)))
 #define ISOMETRIC_GRID_CENTER_Y (0.25f * ((float)(LANE_POINT_COUNT - 1) + (float)(LANE_COUNT - 1) * LANE_SPACING))
-#define ENVELOPE_LINE_WIDTH 2.0f
+#define ENVELOPE_LINE_WIDTH_RASTER_PIXELS 2.0f
 #define FRONT_LANE_SMOOTHING 0.4f
 
 static Vector3 envelope_mesh_vertices[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float lane_point_samples[LANE_COUNT][LANE_POINT_COUNT] = {0};
-static float next_lane_point_samples[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float waveform_window_samples[WAVEFORM_WINDOW_SIZE] = {0};
 
 static void update_envelope_mesh_vertices(void);
@@ -69,9 +68,9 @@ int main(void) {
         BeginDrawing();
         ClearBackground(BLACK);
 
-        rlSetLineWidth(ENVELOPE_LINE_WIDTH);
-        for (int lane_index = 0; lane_index < LANE_COUNT; lane_index++) {
-            rlEnableStatePointer(GL_VERTEX_ARRAY, envelope_mesh_vertices[lane_index]);
+        rlSetLineWidth(ENVELOPE_LINE_WIDTH_RASTER_PIXELS); //TODO: this is on custom branch...? i think raylib_dc needs support investigation
+        for (int i = 0; i < LANE_COUNT; i++) {
+            rlEnableStatePointer(GL_VERTEX_ARRAY, envelope_mesh_vertices[i]);
             rlDrawVertexArrayCustom(0, LANE_POINT_COUNT, GL_LINE_STRIP);
         }
 
@@ -86,9 +85,9 @@ int main(void) {
 }
 
 static void update_envelope_mesh_vertices(void) {
-    for (int i = LANE_COUNT - 2; i >= 0; i--) {
+    for (int i = LANE_COUNT - 1; i > 0; i--) {
         for (int j = 0; j < LANE_POINT_COUNT; j++) {
-            next_lane_point_samples[i + 1][j] = lane_point_samples[i][j];
+            lane_point_samples[i][j] = lane_point_samples[i - 1][j];
         }
     }
 
@@ -98,15 +97,7 @@ static void update_envelope_mesh_vertices(void) {
             amplitude_sum += fabsf(waveform_window_samples[i * WAVEFORM_SAMPLES_PER_LANE_POINT + j]);
         }
 
-        float cur_lane_point_sample = lane_point_samples[0][i];
-        next_lane_point_samples[0][i] = cur_lane_point_sample + (amplitude_sum / (float)WAVEFORM_SAMPLES_PER_LANE_POINT - cur_lane_point_sample);
-        next_lane_point_samples[0][i] *= FRONT_LANE_SMOOTHING;
-    }
-
-    for (int i = 0; i < LANE_COUNT; i++) {
-        for (int j = 0; j < LANE_POINT_COUNT; j++) {
-            lane_point_samples[i][j] = next_lane_point_samples[i][j];
-        }
+        lane_point_samples[0][i] = (amplitude_sum / (float)WAVEFORM_SAMPLES_PER_LANE_POINT) * FRONT_LANE_SMOOTHING;
     }
 
     for (int i = 0; i < LANE_COUNT; i++) {
