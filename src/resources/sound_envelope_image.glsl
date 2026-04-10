@@ -20,10 +20,11 @@ out vec4 finalColor;
 #define WHITE vec4(1.0, 1.0, 1.0, 1.0)
 #define BLACK vec4(0.0, 0.0, 0.0, 1.0)
 
-const float line_render_width = 0.75;
-const float amplitude_scale = 120.0;
-const float row_spacing = 9.0;
-const float isometric_zoom = 3.0;
+uniform float u_line_render_width;
+uniform float u_amplitude_scale;
+uniform float u_row_spacing;
+uniform float u_isometric_zoom;
+uniform vec2 u_grid_center;
 
 float get_envelope_from_buffer(int history_row, int bin_index) {
     float texture_v = 1.0 - (float(history_row) + 0.5) / float(NUMBER_OF_HISTORY_ROWS);
@@ -31,45 +32,31 @@ float get_envelope_from_buffer(int history_row, int bin_index) {
     return texture(iChannel0, vec2(texture_u, texture_v)).r;
 }
 
-vec2 project_envelope(vec3 envelope_coordinate) {
+vec2 compute_grid_position(vec3 envelope_coordinate) {
     float bin_index = envelope_coordinate.x;
     float envelope_value = envelope_coordinate.y;
     float history_row = envelope_coordinate.z;
 
-    float effective_row = history_row * row_spacing;
+    float effective_row = history_row * u_row_spacing;
     float proj_x = bin_index - effective_row;
-    float proj_y = (bin_index + effective_row) * 0.5 - envelope_value * amplitude_scale;
+    float proj_y = (bin_index + effective_row) * 0.5 - envelope_value * u_amplitude_scale;
 
-    return vec2(proj_x, proj_y) * isometric_zoom;
-}
-
-vec2 compute_envelope_grid_center() {
-    float max_bin = float(NUMBER_OF_BINS - 1);
-    float max_row = float(NUMBER_OF_HISTORY_ROWS - 1);
-
-    vec2 p0 = project_envelope(vec3(0.0, 0.0, 0.0));
-    vec2 p1 = project_envelope(vec3(max_bin, 0.0, 0.0));
-    vec2 p2 = project_envelope(vec3(0.0, 1.0, max_row));
-    vec2 p3 = project_envelope(vec3(max_bin, 1.0, max_row));
-
-    vec2 min_corner = min(min(p0, p1), min(p2, p3));
-    vec2 max_corner = max(max(p0, p1), max(p2, p3));
-
-    return (min_corner + max_corner) * 0.5;
+    return vec2(proj_x, proj_y);
 }
 
 vec2 project_centered_envelope(vec3 envelope_coordinate) {
-    vec2 raw_projected_coordinate = project_envelope(envelope_coordinate);
-    vec2 grid_center = compute_envelope_grid_center();
-    vec2 screen_center = iResolution.xy * 0.5;
-    return raw_projected_coordinate + (screen_center - grid_center);
+    vec2 grid_position = compute_grid_position(envelope_coordinate);
+    float x = 0.5 * iResolution.x + (grid_position.x - u_grid_center.x) * u_isometric_zoom;
+    float y = 0.5 * iResolution.y + (grid_position.y - u_grid_center.y) * u_isometric_zoom;
+    return vec2(x, y);
 }
 
 float distance_to_line(vec2 p, vec2 a, vec2 b) {
     vec2 ab = b - a;
     float denom = dot(ab, ab);
     float t = 0.0;
-    if (denom > 0.0) t = clamp(dot(p - a, ab) / denom, 0.0, 1.0);
+    if (denom > 0.0)
+        t = clamp(dot(p - a, ab) / denom, 0.0, 1.0);
     vec2 q = a + t * ab;
     return distance(p, q);
 }
@@ -93,7 +80,7 @@ void mainImage(out vec4 frag_color, in vec2 frag_coord) {
         }
     }
 
-    float intensity = 1.0 - smoothstep(line_render_width, line_render_width * 2.0, closest_distance);
+    float intensity = 1.0 - smoothstep(u_line_render_width, u_line_render_width * 2.0, closest_distance);
     frag_color = vec4(vec3(intensity), 1.0);
 }
 

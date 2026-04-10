@@ -13,8 +13,10 @@ static const char* domain = "SOUND-ENVELOPE-3D-DC";
 #define WAVEFORM_SAMPLES_PER_LANE_POINT (WAVEFORM_BUFFER_SIZE / LANE_POINT_COUNT)
 
 #define AMPLITUDE_Y_SCALE 0.75f
+#define FRONT_LANE_SMOOTHING 0.4f
 #define ENVELOPE_HALF_SPAN 0.5f
 #define ENVELOPE_LINE_WIDTH 2.0f
+#define LINE_LENGTH_SCALE 1.75f //TODO: manually derived alignment...
 
 #define CAMERA_FOVY_MIN 0.1f
 #define CAMERA_FOVY_MAX 6.0f
@@ -33,7 +35,7 @@ static void update_camera_orbit(Camera3D* camera, float dt);
 int main(void) {
     int16_t chunk_samples[WAVEFORM_AUDIO_STREAM_RING_BUFFER_SIZE] = {0};
 
-    SetTraceLogLevel(LOG_WARNING);
+    //SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
     InitAudioDevice();
@@ -48,10 +50,10 @@ int main(void) {
     int16_t* pcm_data = (int16_t*)wave.data;
 
     Camera3D camera = {
-        .position = (Vector3){-1.0f, 0.85f, 1.40f},
+        .position = (Vector3){-1.093f, 1.126f, 1.165f}, //TODO: manually derived alignment...
         .target = (Vector3){0.0f, 0.25f, 0.0f},
         .up = (Vector3){0.0f, 1.0f, 0.0f},
-        .fovy = 2.0f,
+        .fovy = 3.111f, //TODO: manually derived alignment... 2D software isometric projection -> true 3D orthographic projection is tough
         .projection = CAMERA_ORTHOGRAPHIC,
     };
 
@@ -116,13 +118,13 @@ static void update_envelope_mesh_vertices() {
             absolute_amplitude_sum += fabsf(waveform_window_samples[waveform_sample_base + j]);
         }
 
-        lane_point_samples[0][i] = absolute_amplitude_sum / (float)WAVEFORM_SAMPLES_PER_LANE_POINT;
+        lane_point_samples[0][i] = (absolute_amplitude_sum / (float)WAVEFORM_SAMPLES_PER_LANE_POINT) * FRONT_LANE_SMOOTHING;
     }
 
     for (int i = 0; i < LANE_COUNT; i++) {
         float z = ENVELOPE_HALF_SPAN - ((float)i / (float)(LANE_COUNT - 1));
         for (int j = 0; j < LANE_POINT_COUNT; j++) {
-            float x = ((float)j / (float)(LANE_POINT_COUNT - 1)) - ENVELOPE_HALF_SPAN;
+            float x = (((float)j / (float)(LANE_POINT_COUNT - 1)) - ENVELOPE_HALF_SPAN) * LINE_LENGTH_SCALE;
             float y = lane_point_samples[i][j] * AMPLITUDE_Y_SCALE;
             envelope_mesh_vertices[i][j].x = x;
             envelope_mesh_vertices[i][j].y = y;

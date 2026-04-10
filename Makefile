@@ -99,7 +99,8 @@ RAYLIB_DC_SRC := raylib_dc/src
 KOS_PORTS_INCLUDE := -I$(KOS_PORTS)/include
 FMT ?= $(shell command -v clang-format 2>/dev/null || { [ -x /usr/bin/clang-format ] && echo /usr/bin/clang-format; } || { [ -x /opt/homebrew/bin/clang-format ] && echo /opt/homebrew/bin/clang-format; } || { [ -x /Library/Developer/CommandLineTools/usr/bin/clang-format ] && echo /Library/Developer/CommandLineTools/usr/bin/clang-format; } || echo clang-format)
 FMT_STYLE ?= .clang-format
-FMT_SOURCES := $(COMMON_SOURCE) $(GL33_SOURCE) $(FFTW_SOURCE) $(FFTW_DC_SOURCE) $(GL11_SOURCE) $(SH4_SOURCE) $(AUDIO_ONLY_WAV_SOURCE) $(AUDIO_ONLY_MP3_SOURCE) $(PICKING_OUT_NOTES_DC_SOURCE) $(WAVEFORM_DC_SOURCE) $(WAVEFORM_SANDBOX_DC_SOURCE) $(SOUND_ENVELOPE_DC_SOURCE) $(SOUND_ENVELOPE_3D_DC_SOURCE) $(SOUND_ENVELOPE_GL33_SOURCE)
+FMT_GLSL_SOURCES := $(wildcard $(SRC_DIR)/resources/*.glsl)
+FMT_SOURCES := $(COMMON_SOURCE) $(GL33_SOURCE) $(FFTW_SOURCE) $(FFTW_DC_SOURCE) $(GL11_SOURCE) $(SH4_SOURCE) $(AUDIO_ONLY_WAV_SOURCE) $(AUDIO_ONLY_MP3_SOURCE) $(PICKING_OUT_NOTES_DC_SOURCE) $(WAVEFORM_DC_SOURCE) $(WAVEFORM_SANDBOX_DC_SOURCE) $(SOUND_ENVELOPE_DC_SOURCE) $(SOUND_ENVELOPE_3D_DC_SOURCE) $(SOUND_ENVELOPE_GL33_SOURCE) $(FMT_GLSL_SOURCES)
 
 UNAME_S := $(shell uname -s 2>/dev/null || echo Unknown)
 CC ?= cc

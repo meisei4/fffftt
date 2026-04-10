@@ -8,18 +8,16 @@ uniform vec4 colDiffuse;
 
 uniform vec3 iResolution;
 uniform float iTime;
-uniform int iFrame;
 uniform sampler2D iChannel0;
 uniform sampler2D iChannel1;
+uniform int uAdvanceHistory;
+uniform float uFrontLaneSmoothing;
 
 out vec4 finalColor;
 
 #define NUMBER_OF_BINS 64
 #define NUMBER_OF_HISTORY_ROWS 5
 #define WAVEFORM_SAMPLE_COUNT 512
-
-const float uUpdateInterval = 10.0;
-const float uEnvelopeSmoothing = 0.4;
 
 const int samples_per_bin = WAVEFORM_SAMPLE_COUNT / NUMBER_OF_BINS;
 
@@ -28,7 +26,6 @@ float sample_waveform_envelope(int bin_index) {
     for (int i = 0; i < samples_per_bin; i++) {
         float sample_x = (float(bin_index * samples_per_bin + i) + 0.5) / float(WAVEFORM_SAMPLE_COUNT);
         float sample_value = texture(iChannel1, vec2(sample_x, 1.0)).r;
-        sample_value = sample_value * 2.0 - 1.0;
         sum_amplitude += abs(sample_value);
     }
     return sum_amplitude / float(samples_per_bin);
@@ -42,21 +39,22 @@ void mainImage(out vec4 frag_color, in vec2 frag_coord) {
     vec2 uv = frag_coord.xy / iResolution.xy;
     float row_height = 1.0 / float(NUMBER_OF_HISTORY_ROWS);
 
+    if (uAdvanceHistory == 0) {
+        frag_color = texture(iChannel0, uv);
+        return;
+    }
+
     if (uv.y < 1.0 - row_height) {
         frag_color = shift_envelope_history(uv, row_height);
     } else {
-        float blend_factor = mod(float(iFrame), uUpdateInterval) / uUpdateInterval;
-
         int bin_index = int(floor(uv.x * float(NUMBER_OF_BINS)));
-        if (bin_index < 0) bin_index = 0;
-        if (bin_index >= NUMBER_OF_BINS) bin_index = NUMBER_OF_BINS - 1;
+        if (bin_index < 0)
+            bin_index = 0;
+        if (bin_index >= NUMBER_OF_BINS)
+            bin_index = NUMBER_OF_BINS - 1;
 
-        float new_envelope = sample_waveform_envelope(bin_index);
-        float old_envelope = texture(iChannel0, uv).r;
-
-        float effective_blend = blend_factor * uEnvelopeSmoothing;
-        float blended_envelope = mix(old_envelope, new_envelope, effective_blend);
-        frag_color = vec4(blended_envelope, blended_envelope, blended_envelope, 1.0);
+        float new_envelope = sample_waveform_envelope(bin_index) * uFrontLaneSmoothing;
+        frag_color = vec4(new_envelope, new_envelope, new_envelope, 1.0);
     }
 }
 
