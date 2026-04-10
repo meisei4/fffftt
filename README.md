@@ -1,6 +1,6 @@
 (f)ixed (f)unction and (f)ast (f)ourier (t)ransform (t)esting
 ---
-fffftt is an educational exhibit for audio signal processing <-> graphic visualization demos. It is highly inspired by Shaderto and uses raylib as a bridge between modern GLSL-driven shaders and traditional [Fixed Function](https://en.wikipedia.org/wiki/Fixed-function_(computer_graphics)) pre-shader graphics pipelines
+fffftt is an educational exhibit for audio signal processing <-> graphic visualization demos. It is highly inspired by [Shadertoy](https://www.shadertoy.com/) and uses [raylib](https://github.com/raysan5/raylib) as a bridge between modern GLSL-driven shaders and traditional [Fixed Function](https://en.wikipedia.org/wiki/Fixed-function_(computer_graphics)) pre-shader graphics pipelines using Dreamcast [KOS](https://github.com/KallistiOS/KallistiOS) and [GLdc](https://github.com/kazade/GLdc)raylib backend case study (more information at [third party section](#third-party))
 
 The project to act as a reference for approximate historical approaches of:
 1. Modern glsl shader effect implementations
@@ -8,7 +8,7 @@ The project to act as a reference for approximate historical approaches of:
 
 *Dreamcast is the current focus because it has the most active development scene for raylib OpenGL 1.1 targets
 
-For demos jump to [fft shadertoy ports](#fft-shadertoy-ports) or [example targets](#example-targets).
+For demos scroll down to [fft shadertoy ports](#fft-shadertoy-ports) or [example targets](#benchmarking).
 
 ---
 
@@ -19,11 +19,10 @@ For demos jump to [fft shadertoy ports](#fft-shadertoy-ports) or [example target
 
 features
 --------
-  - Shadertoy-inspired audio visualization experiments built in plain C
-  - Desktop reference targets for OpenGL 3.3  and OpenGL 1.1 (suffixed `-gl11` or `-gl33`)
+  - Shadertoy-inspired audio visualization experiments built in plain C each under ~150 LOC
   - Dreamcast (suffixed `-dc`) targets built through raylib4Consoles and KallistiOS
-  - all examples simple and readable each under 200 LOC
-  - Generated `./bin/*` launchers for both desktop and Dreamcast runs
+  - Desktop reference targets for OpenGL 3.3  and OpenGL 1.1 (suffixed `-gl33` or `-gl11` )
+  - Generated `./bin/*` launchers for both desktop and flycast Dreamcast runs
 
 fft shadertoy ports
 -------------------
@@ -37,14 +36,14 @@ Audio source: [Shadertoy media files index](https://shadertoyunofficial.wordpres
 <table>
   <tr>
     <td width="50%" align="center"><strong>Dreamcast capture</strong></td>
-    <td width="50%" align="center"><strong>Shadertoy reference</strong></td>
+    <td width="50%" align="center"><strong>Shadertoy capture</strong></td>
   </tr>
   <tr>
     <td width="50%">
-      <video src="https://github.com/user-attachments/assets/afb82de8-e7eb-408b-a098-4f7deeb20b51" controls muted playsinline width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/358c96bd-2520-42e1-acb0-8aec52358ad5" controls muted playsinline width="100%"></video>
     </td>
     <td width="50%">
-      <video src="https://github.com/user-attachments/assets/de3515d9-4d13-4d0c-bcdb-51aa4b9da37a" controls muted playsinline width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/9538fb97-79ec-434c-b659-74deec5030a3" controls muted playsinline width="100%"></video>
     </td>
   </tr>
 </table>
@@ -57,14 +56,14 @@ make picking-out-notes-dc # -> out: build/dc/picking_out_notes_dc/picking_out_no
 <table>
   <tr>
     <td width="50%" align="center"><strong>Dreamcast capture</strong></td>
-    <td width="50%" align="center"><strong>Shadertoy reference</strong></td>
+    <td width="50%" align="center"><strong>Shadertoy capture</strong></td>
   </tr>
   <tr>
     <td width="50%">
-      <video src="https://github.com/user-attachments/assets/c44f8ca0-7b23-4970-acec-50e3f2022368" controls muted playsinline width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/f942edb3-cb31-4095-851c-5b907f006d29" controls muted playsinline width="100%"></video>
     </td>
     <td width="50%">
-      <video src="https://github.com/user-attachments/assets/1db9ec0d-8410-4718-b934-bb7bee2a63b7" controls muted playsinline width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/ff68e8b7-095f-4a61-b838-3e82e0a52e5d" controls muted playsinline width="100%"></video>
     </td>
   </tr>
 </table>
@@ -73,34 +72,50 @@ waveform shadertoy ports
 ------------------------
 meisei4: sound envelope reference: [https://www.shadertoy.com/view/7fXSWB](https://www.shadertoy.com/view/7fXSWB)
 --------------------------------------------------------------------------------------------------------------------
+```bash
+make sound-envelope-dc
+make sound-envelope-3d-dc
+make sound-envelope-gl33
+```
 <table>
   <tr>
-    <td width="50%" align="center"><strong>Dreamcast capture</strong></td>
-    <td width="50%" align="center"><strong>Shadertoy reference</strong></td>
+    <td width="25%" align="center"><strong>Dreamcast 2D capture</strong></td>
+    <td width="25%" align="center"><strong>Dreamcast 3D capture</strong></td>
+    <td width="25%" align="center"><strong>GL33 capture</strong></td>
+    <td width="25%" align="center"><strong>Shadertoy capture</strong></td>
   </tr>
   <tr>
-    <td width="50%">
-      <video src="https://github.com/user-attachments/assets/c44f8ca0-7b23-4970-acec-50e3f2022368" controls muted playsinline width="100%"></video>
+    <td width="25%">
+      <video src="https://github.com/user-attachments/assets/ac36e5e0-c8a5-42bc-aa92-9303712dc4a7" controls muted playsinline width="100%"></video>
     </td>
-    <td width="50%">
-      <video src="https://github.com/user-attachments/assets/1db9ec0d-8410-4718-b934-bb7bee2a63b7" controls muted playsinline width="100%"></video>
+    <td width="25%">
+      <video src="https://github.com/user-attachments/assets/d9d90e0c-82a5-44ed-a485-5b57db02a299" controls muted playsinline width="100%"></video>
+    </td>
+    <td width="25%">
+      <video src="https://github.com/user-attachments/assets/d34794b5-c1d7-47bd-9e90-fc808389ccb4" controls muted playsinline width="100%"></video>
+    </td>
+    <td width="25%">
+      <video src="https://github.com/user-attachments/assets/71ac43c5-8667-4efa-9bea-558f183f5602" controls muted playsinline width="100%"></video>
     </td>
   </tr>
 </table>
 
 meisei4: basic waveform data visualizer: [https://www.shadertoy.com/view/tcSXRz](https://www.shadertoy.com/view/tcSXRz)
 --------------------------------------------------------------------------------------------------------------------------
+```bash
+make waveform-dc
+```
 <table>
   <tr>
     <td width="50%" align="center"><strong>Dreamcast capture</strong></td>
-    <td width="50%" align="center"><strong>Shadertoy reference</strong></td>
+    <td width="50%" align="center"><strong>Shadertoy capture</strong></td>
   </tr>
   <tr>
     <td width="50%">
-      <video src="https://github.com/user-attachments/assets/c44f8ca0-7b23-4970-acec-50e3f2022368" controls muted playsinline width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/9dab963d-eabd-40d1-b541-5c6f3e64c544" controls muted playsinline width="100%"></video>
     </td>
     <td width="50%">
-      <video src="https://github.com/user-attachments/assets/1db9ec0d-8410-4718-b934-bb7bee2a63b7" controls muted playsinline width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/df219ba5-18be-4a7e-a023-edb22fd3e6ea" controls muted playsinline width="100%"></video>
     </td>
   </tr>
 </table>
@@ -123,15 +138,13 @@ The current Makefile expects:
 
 [src directory](https://github.com/meisei4/fffftt/tree/master/src) contains the examples and the shared analyzer code used across the demos.
 
-example benchmarking
+benchmarking
 ---------------
 cooley tukey lame cool
 ----------------------
 ```bash
 make cool-gl33 # -> then run: ./bin/cool_gl33
-
 make cool-gl11 # -> then run: ./bin/cool_gl11
-
 make cool-dc # -> out: build/dc/cool_dc/cool_dc.elf + run: ./bin/cool_dc
 ```
 
@@ -139,7 +152,6 @@ wild west
 ---------
 ```bash
 make fftw-gl11 # -> then run: ./bin/fftw_gl11
-
 make fftw-dc # -> out: build/dc/fftw_dc/fftw_dc.elf + run: ./bin/fftw_dc
 ```
 
