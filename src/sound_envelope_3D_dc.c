@@ -1,47 +1,35 @@
-#include "audio_spectrum_analyzer.h"
-#include "raylib.h"
-#include "raymath.h"
+#include "fffftt.h"
 #include "rlgl.h"
 #include <GL/gl.h>
-#include <math.h>
-#include <stdint.h>
 
 static const char* domain = "SOUND-ENVELOPE-3D-DC";
 
 #define LANE_COUNT 5
 #define LANE_POINT_COUNT 64
-#define WAVEFORM_SAMPLES_PER_LANE_POINT (WAVEFORM_BUFFER_SIZE / LANE_POINT_COUNT)
+#define WAVEFORM_SAMPLES_PER_LANE_POINT (BUFFER_SIZE / LANE_POINT_COUNT)
 
-#define AMPLITUDE_Y_SCALE 0.75f
+#define AMPLITUDE_Y_SCALE 2.0f //TODO: manually tuned, not even close to exact parity
 #define FRONT_LANE_SMOOTHING 0.4f
 #define ENVELOPE_HALF_SPAN 0.5f
 #define ENVELOPE_LINE_WIDTH_RASTER_PIXELS 2.0f
-#define LINE_LENGTH_SCALE 1.75f //TODO: manually derived alignment...
-
-#define CAMERA_FOVY_MIN 0.1f
-#define CAMERA_FOVY_MAX 6.0f
-#define CAMERA_FOVY_VELOCITY 6.0f
-#define CAMERA_ORBIT_VELOCITY 2.0f
-#define CAMERA_PITCH_MIN 0.1f
-#define CAMERA_PITCH_MAX 2.5f
+#define LINE_LENGTH_SCALE 1.75f //TODO: manually tuned alignment...
 
 static Vector3 envelope_mesh_vertices[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float lane_point_samples[LANE_COUNT][LANE_POINT_COUNT] = {0};
-static float waveform_window_samples[WAVEFORM_WINDOW_SIZE] = {0};
+static float waveform_window_samples[WINDOW_SIZE] = {0};
 
 static void update_envelope_mesh_vertices(void);
 static void update_camera_orbit(Camera3D* camera, float dt);
 
 int main(void) {
-    int16_t chunk_samples[WAVEFORM_AUDIO_STREAM_RING_BUFFER_SIZE] = {0};
+    int16_t chunk_samples[AUDIO_STREAM_RING_BUFFER_SIZE] = {0};
 
     //SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
     InitAudioDevice();
-    SetAudioStreamBufferSizeDefault(WAVEFORM_AUDIO_STREAM_RING_BUFFER_SIZE);
-    Wave wave = LoadWave("/rd/shadertoy_experiment_22050hz_pcm16_mono.wav");
-    //Wave wave = LoadWave("/rd/hellion_one_fifth_22050hz_pcm16_mono.wav");
+    SetAudioStreamBufferSizeDefault(AUDIO_STREAM_RING_BUFFER_SIZE);
+    Wave wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
     WaveFormat(&wave, SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
     AudioStream stream = LoadAudioStream(SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
     PlayAudioStream(stream);
@@ -50,10 +38,10 @@ int main(void) {
     int16_t* pcm_data = (int16_t*)wave.data;
 
     Camera3D camera = {
-        .position = (Vector3){-1.093f, 1.126f, 1.165f}, //TODO: manually derived alignment...
+        .position = (Vector3){-1.093f, 1.126f, 1.165f}, //TODO: manually tuned alignment...
         .target = (Vector3){0.0f, 0.25f, 0.0f},
         .up = (Vector3){0.0f, 1.0f, 0.0f},
-        .fovy = 3.111f, //TODO: manually derived alignment... 2D software isometric projection -> true 3D orthographic projection is tough
+        .fovy = 3.111f, //TODO: manually tuned alignment... 2D software isometric projection -> true 3D orthographic projection is tough
         .projection = CAMERA_ORTHOGRAPHIC,
     };
 
@@ -65,17 +53,17 @@ int main(void) {
         }
 
         while (IsAudioStreamProcessed(stream)) {
-            for (int i = 0; i < WAVEFORM_AUDIO_STREAM_RING_BUFFER_SIZE; i++) {
+            for (int i = 0; i < AUDIO_STREAM_RING_BUFFER_SIZE; i++) {
                 chunk_samples[i] = pcm_data[wave_cursor];
                 if (++wave_cursor >= wave.frameCount) {
                     wave_cursor = 0;
                 }
             }
 
-            UpdateAudioStream(stream, chunk_samples, WAVEFORM_AUDIO_STREAM_RING_BUFFER_SIZE);
+            UpdateAudioStream(stream, chunk_samples, AUDIO_STREAM_RING_BUFFER_SIZE);
 
-            for (int i = 0; i < WAVEFORM_WINDOW_SIZE; i++) {
-                waveform_window_samples[i] = (float)chunk_samples[WAVEFORM_WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
+            for (int i = 0; i < WINDOW_SIZE; i++) {
+                waveform_window_samples[i] = (float)chunk_samples[WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
             }
         }
 

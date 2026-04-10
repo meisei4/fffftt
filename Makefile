@@ -15,13 +15,12 @@ BIN_DIR := bin
 SRC_DIR := src
 FFTW_1997_DIR := fftw_1997
 ROMDISK_DIR := $(SRC_DIR)/romdisk
-############################ TOGGLES!!!!!!!!########################
 ############################ FLOAT PRECISION ####################### 
 # This will not work as i expect, need to figure out whats happening
 # FFT_FLAGS += -DFFTW_ENABLE_FLOAT
 
 ############################ NUMERIC OPTIMIZATION OFF ##############
-# Faster? idk whats happening here tbh
+# fast math does not neccessarily mean "faster", TODO: figure out if convention is needed per example
 FFT_FLAGS += -fno-fast-math -ffp-contract=off
 
 ############################ FFT PROFILING ######################
@@ -29,7 +28,7 @@ FFT_FLAGS += -fno-fast-math -ffp-contract=off
 
 ############################ PERIOD ################################ 
 ALT_AUDIO_DEVICE_PERIOD_FRAMES_KOS_CFLAGS :=
-PERIOD_FRAMES := 1024 # Uncomment  below linefor 1024-period testing!
+PERIOD_FRAMES := 1024 # Uncomment  below line for 1024-period testing
 #ALT_AUDIO_DEVICE_PERIOD_FRAMES_KOS_CFLAGS := KOS_CFLAGS="$(KOS_CFLAGS) -DAUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES=$(PERIOD_FRAMES)"
 
 GL33_RAYLIB_DIR := $(BUILD_DIR)/gl33/raylib
@@ -43,9 +42,8 @@ AUDIO_ONLY_WAV_TARGET_DIR := $(BUILD_DIR)/dc/audio_only_wav_dc
 AUDIO_ONLY_MP3_TARGET_DIR := $(BUILD_DIR)/dc/audio_only_mp3_dc
 PICKING_OUT_NOTES_DC_TARGET_DIR := $(BUILD_DIR)/dc/picking_out_notes_dc
 WAVEFORM_DC_TARGET_DIR := $(BUILD_DIR)/dc/waveform_dc
-WAVEFORM_SANDBOX_DC_TARGET_DIR := $(BUILD_DIR)/dc/waveform_sandbox_dc
 SOUND_ENVELOPE_DC_TARGET_DIR := $(BUILD_DIR)/dc/sound_envelope_dc
-SOUND_ENVELOPE_3D_DC_TARGET_DIR := $(BUILD_DIR)/dc/sound_envelope_3D_dc
+SOUND_ENVELOPE_3D_DC_TARGET_DIR := $(BUILD_DIR)/dc/sound_envelope_3d_dc
 
 GL33_BIN := $(BIN_DIR)/cool_gl33
 FFTW_BIN := $(BIN_DIR)/fftw_gl11
@@ -57,9 +55,8 @@ AUDIO_ONLY_WAV_LAUNCHER := $(BIN_DIR)/audio_only_wav_dc
 AUDIO_ONLY_MP3_LAUNCHER := $(BIN_DIR)/audio_only_mp3_dc
 PICKING_OUT_NOTES_DC_LAUNCHER := $(BIN_DIR)/picking_out_notes_dc
 WAVEFORM_DC_LAUNCHER := $(BIN_DIR)/waveform_dc
-WAVEFORM_SANDBOX_DC_LAUNCHER := $(BIN_DIR)/waveform_sandbox_dc
 SOUND_ENVELOPE_DC_LAUNCHER := $(BIN_DIR)/sound_envelope_dc
-SOUND_ENVELOPE_3D_DC_LAUNCHER := $(BIN_DIR)/sound_envelope_3D_dc
+SOUND_ENVELOPE_3D_DC_LAUNCHER := $(BIN_DIR)/sound_envelope_3d_dc
 SOUND_ENVELOPE_GL33_LAUNCHER := $(BIN_DIR)/sound_envelope_gl33
 
 DC_TARGET := $(DC_TARGET_DIR)/cool_dc.elf
@@ -69,12 +66,10 @@ AUDIO_ONLY_WAV_TARGET := $(AUDIO_ONLY_WAV_TARGET_DIR)/audio_only_wav_dc.elf
 AUDIO_ONLY_MP3_TARGET := $(AUDIO_ONLY_MP3_TARGET_DIR)/audio_only_mp3_dc.elf
 PICKING_OUT_NOTES_DC_TARGET := $(PICKING_OUT_NOTES_DC_TARGET_DIR)/picking_out_notes_dc.elf
 WAVEFORM_DC_TARGET := $(WAVEFORM_DC_TARGET_DIR)/waveform_dc.elf
-WAVEFORM_SANDBOX_DC_TARGET := $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/waveform_sandbox_dc.elf
 SOUND_ENVELOPE_DC_TARGET := $(SOUND_ENVELOPE_DC_TARGET_DIR)/sound_envelope_dc.elf
-SOUND_ENVELOPE_3D_DC_TARGET := $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/sound_envelope_3D_dc.elf
+SOUND_ENVELOPE_3D_DC_TARGET := $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/sound_envelope_3d_dc.elf
 SOUND_ENVELOPE_GL33_TARGET := $(BIN_DIR)/sound_envelope_gl33
 
-COMMON_SOURCE := $(SRC_DIR)/audio_spectrum_analyzer.c
 GL33_SOURCE := $(SRC_DIR)/cool_gl33.c
 FFTW_SOURCE := $(SRC_DIR)/fftw_gl11.c
 FFTW_DC_SOURCE := $(SRC_DIR)/fftw_dc.c
@@ -88,9 +83,8 @@ AUDIO_ONLY_WAV_SOURCE := $(SRC_DIR)/audio_only_wav_dc.c
 AUDIO_ONLY_MP3_SOURCE := $(SRC_DIR)/audio_only_mp3_dc.c
 PICKING_OUT_NOTES_DC_SOURCE := $(SRC_DIR)/picking_out_notes_dc.c
 WAVEFORM_DC_SOURCE := $(SRC_DIR)/waveform_dc.c
-WAVEFORM_SANDBOX_DC_SOURCE := $(SRC_DIR)/waveform_sandbox_dc.c
 SOUND_ENVELOPE_DC_SOURCE := $(SRC_DIR)/sound_envelope_dc.c
-SOUND_ENVELOPE_3D_DC_SOURCE := $(SRC_DIR)/sound_envelope_3D_dc.c
+SOUND_ENVELOPE_3D_DC_SOURCE := $(SRC_DIR)/sound_envelope_3d_dc.c
 SOUND_ENVELOPE_GL33_SOURCE := $(SRC_DIR)/sound_envelope_gl33.c
 
 RAYLIB_DESKTOP_SRC := raylib_desktop/src
@@ -100,7 +94,7 @@ KOS_PORTS_INCLUDE := -I$(KOS_PORTS)/include
 FMT ?= $(shell command -v clang-format 2>/dev/null || { [ -x /usr/bin/clang-format ] && echo /usr/bin/clang-format; } || { [ -x /opt/homebrew/bin/clang-format ] && echo /opt/homebrew/bin/clang-format; } || { [ -x /Library/Developer/CommandLineTools/usr/bin/clang-format ] && echo /Library/Developer/CommandLineTools/usr/bin/clang-format; } || echo clang-format)
 FMT_STYLE ?= .clang-format
 FMT_GLSL_SOURCES := $(wildcard $(SRC_DIR)/resources/*.glsl)
-FMT_SOURCES := $(COMMON_SOURCE) $(GL33_SOURCE) $(FFTW_SOURCE) $(FFTW_DC_SOURCE) $(GL11_SOURCE) $(SH4_SOURCE) $(AUDIO_ONLY_WAV_SOURCE) $(AUDIO_ONLY_MP3_SOURCE) $(PICKING_OUT_NOTES_DC_SOURCE) $(WAVEFORM_DC_SOURCE) $(WAVEFORM_SANDBOX_DC_SOURCE) $(SOUND_ENVELOPE_DC_SOURCE) $(SOUND_ENVELOPE_3D_DC_SOURCE) $(SOUND_ENVELOPE_GL33_SOURCE) $(FMT_GLSL_SOURCES)
+FMT_SOURCES := $(GL33_SOURCE) $(FFTW_SOURCE) $(FFTW_DC_SOURCE) $(GL11_SOURCE) $(SH4_SOURCE) $(AUDIO_ONLY_WAV_SOURCE) $(AUDIO_ONLY_MP3_SOURCE) $(PICKING_OUT_NOTES_DC_SOURCE) $(WAVEFORM_DC_SOURCE) $(WAVEFORM_SANDBOX_DC_SOURCE) $(SOUND_ENVELOPE_DC_SOURCE) $(SOUND_ENVELOPE_3D_DC_SOURCE) $(SOUND_ENVELOPE_GL33_SOURCE) $(FMT_GLSL_SOURCES)
 
 UNAME_S := $(shell uname -s 2>/dev/null || echo Unknown)
 CC ?= cc
@@ -121,9 +115,9 @@ define WRITE_BIN
 	chmod +x $(2)
 endef
 
-.PHONY: help all cool-gl33 fftw-gl11 cool-gl11 cool-dc sh4zam-butterfly fftw-dc audio-only-wav-dc audio-only-mp3-dc picking-out-notes-dc waveform-dc waveform-sandbox-dc sound-envelope-dc sound-envelope-3d-dc sound-envelope-gl33 fmt clean-all fixdb
+.PHONY: help all cool-gl33 fftw-gl11 cool-gl11 cool-dc sh4zam-butterfly fftw-dc audio-only-wav-dc audio-only-mp3-dc picking-out-notes-dc waveform-dc sound-envelope-dc sound-envelope-3d-dc sound-envelope-gl33 fmt clean-all fixdb
 help:
-	$(error PLEASE DEFINE A TARGET: make cool-gl33 | make cool-gl11 | make fftw-gl11 | make cool-dc | make sh4zam-butterfly | make fftw-dc | make audio-only-wav-dc | make audio-only-mp3-dc | make picking-out-notes-dc | make waveform-dc | make waveform-sandbox-dc | make sound-envelope-dc | make sound-envelope-3d-dc | make sound-envelope-gl33 | make fmt | make clean-all | make fixdb)
+	$(error PLEASE DEFINE A TARGET: make cool-gl33 | make cool-gl11 | make fftw-gl11 | make cool-dc | make sh4zam-butterfly | make fftw-dc | make audio-only-wav-dc | make audio-only-mp3-dc | make picking-out-notes-dc | make waveform-dc | make sound-envelope-dc | make sound-envelope-3d-dc | make sound-envelope-gl33 | make fmt | make clean-all | make fixdb)
 
 fixdb:
 	@echo "Fixing compilation database for CLion..."
@@ -153,19 +147,19 @@ $(GL11_RAYLIB_DIR)/libraylib.a:
 
 cool-gl33: $(GL33_RAYLIB_DIR)/libraylib.a
 	mkdir -p $(BIN_DIR)
-	$(CC) -std=c99 -O2 -Wall -Wextra -DPLATFORM_DESKTOP -I$(GL33_RAYLIB_DIR) $(GL33_SOURCE) $(COMMON_SOURCE) $(GL33_RAYLIB_DIR)/libraylib.a -lm $(DESKTOP_LIBS) -o $(GL33_BIN)
+	$(CC) -std=c99 -O2 -Wall -Wextra -DPLATFORM_DESKTOP -I$(GL33_RAYLIB_DIR) $(GL33_SOURCE) $(GL33_RAYLIB_DIR)/libraylib.a -lm $(DESKTOP_LIBS) -o $(GL33_BIN)
 
 sound-envelope-gl33: $(GL33_RAYLIB_DIR)/libraylib.a
 	mkdir -p $(BIN_DIR)
-	$(CC) -std=c99 -O2 -Wall -Wextra -DPLATFORM_DESKTOP -I$(GL33_RAYLIB_DIR) $(SOUND_ENVELOPE_GL33_SOURCE) $(COMMON_SOURCE) $(GL33_RAYLIB_DIR)/libraylib.a -lm $(DESKTOP_LIBS) -o $(SOUND_ENVELOPE_GL33_TARGET)
+	$(CC) -std=c99 -O2 -Wall -Wextra -DPLATFORM_DESKTOP -I$(GL33_RAYLIB_DIR) $(SOUND_ENVELOPE_GL33_SOURCE) $(GL33_RAYLIB_DIR)/libraylib.a -lm $(DESKTOP_LIBS) -o $(SOUND_ENVELOPE_GL33_TARGET)
 
 fftw-gl11: $(GL11_RAYLIB_DIR)/libraylib.a
 	mkdir -p $(BIN_DIR)
-	$(CC) -std=c99 -O2 -Wall -Wextra -DPLATFORM_DESKTOP -I$(GL11_RAYLIB_DIR) -I$(FFTW_1997_DIR) $(FFT_FLAGS) $(FFTW_SOURCE) $(COMMON_SOURCE) $(FFTW_1997_SOURCES) $(GL11_RAYLIB_DIR)/libraylib.a -lm $(DESKTOP_LIBS) -o $(FFTW_BIN)
+	$(CC) -std=c99 -O2 -Wall -Wextra -DPLATFORM_DESKTOP -I$(GL11_RAYLIB_DIR) -I$(FFTW_1997_DIR) $(FFT_FLAGS) $(FFTW_SOURCE) $(FFTW_1997_SOURCES) $(GL11_RAYLIB_DIR)/libraylib.a -lm $(DESKTOP_LIBS) -o $(FFTW_BIN)
 
 cool-gl11: $(GL11_RAYLIB_DIR)/libraylib.a
 	mkdir -p $(BIN_DIR)
-	$(CC) -std=c99 -O2 -Wall -Wextra -DPLATFORM_DESKTOP -I$(GL11_RAYLIB_DIR) $(GL11_SOURCE) $(COMMON_SOURCE) $(GL11_RAYLIB_DIR)/libraylib.a -lm $(DESKTOP_LIBS) -o $(GL11_BIN)
+	$(CC) -std=c99 -O2 -Wall -Wextra -DPLATFORM_DESKTOP -I$(GL11_RAYLIB_DIR) $(GL11_SOURCE) $(GL11_RAYLIB_DIR)/libraylib.a -lm $(DESKTOP_LIBS) -o $(GL11_BIN)
 
 $(DC_RAYLIB_DIR)/libraylib.a:
 	$(MAKE) -C $(RAYLIB_DC_SRC) clean
@@ -192,9 +186,8 @@ cool-dc: $(DC_RAYLIB_DIR)/libraylib.a
 	$(KOS_CC) -o $(DC_TARGET_DIR)/romdisk.o -r $(DC_TARGET_DIR)/romdisk_tmp.o \
 	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
 	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
-	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(COMMON_SOURCE) -o $(DC_TARGET_DIR)/common.o
 	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(DC_SOURCE) -o $(DC_TARGET_DIR)/dc.o
-	kos-cc -o $(DC_TARGET) $(DC_TARGET_DIR)/dc.o $(DC_TARGET_DIR)/common.o $(DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
+	kos-cc -o $(DC_TARGET) $(DC_TARGET_DIR)/dc.o $(DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
 	$(call WRITE_BIN,build/dc/cool_dc/cool_dc.elf,$(DC_LAUNCHER))
 	rm -f $(DC_TARGET_DIR)/romdisk_tmp.c $(DC_TARGET_DIR)/romdisk_tmp.o
 	rm -rf $(DC_TARGET_DIR)/romdisk
@@ -209,10 +202,9 @@ sh4zam-butterfly: $(SH4_RAYLIB_DIR)/libraylib.a
 	$(KOS_CC) -o $(SH4_TARGET_DIR)/romdisk.o -r $(SH4_TARGET_DIR)/romdisk_tmp.o \
 	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
 	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
-	$(BEAR_APPEND) -- kos-cc -iquote sh4zam/include -I$(SH4_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(COMMON_SOURCE) -o $(SH4_TARGET_DIR)/common.o
 	$(BEAR_APPEND) -- kos-cc -iquote sh4zam/include -I$(SH4_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(SH4_SOURCE) -o $(SH4_TARGET_DIR)/sh4.o
 	$(BEAR_APPEND) -- kos-cc -iquote sh4zam/include -DPLATFORM_DREAMCAST $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) -std=gnu2x -c $(SH4ZAM_COMPLEX_SOURCE) -o $(SH4_TARGET_DIR)/shz_complex.o
-	kos-cc -o $(SH4_TARGET) $(SH4_TARGET_DIR)/sh4.o $(SH4_TARGET_DIR)/common.o $(SH4_TARGET_DIR)/shz_complex.o $(SH4_TARGET_DIR)/romdisk.o $(SH4_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
+	kos-cc -o $(SH4_TARGET) $(SH4_TARGET_DIR)/sh4.o $(SH4_TARGET_DIR)/shz_complex.o $(SH4_TARGET_DIR)/romdisk.o $(SH4_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
 	$(call WRITE_BIN,build/sh4/sh4zam_butterfly/sh4zam_butterfly.elf,$(SH4_LAUNCHER))
 	rm -f $(SH4_TARGET_DIR)/romdisk_tmp.c $(SH4_TARGET_DIR)/romdisk_tmp.o
 	@$(MAKE) fixdb
@@ -226,9 +218,8 @@ fftw-dc: $(DC_RAYLIB_DIR)/libraylib.a $(FFTW_1997_OBJS)
 	$(KOS_CC) -o $(DC_FFTW_TARGET_DIR)/romdisk.o -r $(DC_FFTW_TARGET_DIR)/romdisk_tmp.o \
 	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
 	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
-	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(FFTW_1997_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(COMMON_SOURCE) -o $(DC_FFTW_TARGET_DIR)/common.o
 	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(FFTW_1997_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(FFTW_DC_SOURCE) -o $(DC_FFTW_TARGET_DIR)/fftw_dc.o
-	kos-cc -o $(DC_FFTW_TARGET) $(DC_FFTW_TARGET_DIR)/fftw_dc.o $(DC_FFTW_TARGET_DIR)/common.o $(FFTW_1997_OBJS) $(DC_FFTW_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
+	kos-cc -o $(DC_FFTW_TARGET) $(DC_FFTW_TARGET_DIR)/fftw_dc.o $(FFTW_1997_OBJS) $(DC_FFTW_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
 	$(call WRITE_BIN,$(DC_FFTW_TARGET),$(DC_FFTW_LAUNCHER))
 	rm -f $(DC_FFTW_TARGET_DIR)/romdisk_tmp.c $(DC_FFTW_TARGET_DIR)/romdisk_tmp.o
 	@$(MAKE) fixdb
@@ -277,10 +268,9 @@ picking-out-notes-dc: $(DC_RAYLIB_DIR)/libraylib.a
 	$(KOS_CC) -o $(PICKING_OUT_NOTES_DC_TARGET_DIR)/romdisk.o -r $(PICKING_OUT_NOTES_DC_TARGET_DIR)/romdisk_tmp.o \
 	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
 	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
-	$(BEAR_APPEND) -- kos-cc -iquote sh4zam/include -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(COMMON_SOURCE) -o $(PICKING_OUT_NOTES_DC_TARGET_DIR)/common.o
 	$(BEAR_APPEND) -- kos-cc -iquote sh4zam/include -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(PICKING_OUT_NOTES_DC_SOURCE) -o $(PICKING_OUT_NOTES_DC_TARGET_DIR)/picking_out_notes_dc.o
 	$(BEAR_APPEND) -- kos-cc -iquote sh4zam/include -DPLATFORM_DREAMCAST $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) -std=gnu2x -c $(SH4ZAM_COMPLEX_SOURCE) -o $(PICKING_OUT_NOTES_DC_TARGET_DIR)/shz_complex.o
-	kos-cc -o $(PICKING_OUT_NOTES_DC_TARGET) $(PICKING_OUT_NOTES_DC_TARGET_DIR)/picking_out_notes_dc.o $(PICKING_OUT_NOTES_DC_TARGET_DIR)/common.o $(PICKING_OUT_NOTES_DC_TARGET_DIR)/shz_complex.o $(PICKING_OUT_NOTES_DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lm -lpthread
+	kos-cc -o $(PICKING_OUT_NOTES_DC_TARGET) $(PICKING_OUT_NOTES_DC_TARGET_DIR)/picking_out_notes_dc.o $(PICKING_OUT_NOTES_DC_TARGET_DIR)/shz_complex.o $(PICKING_OUT_NOTES_DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lm -lpthread
 	$(call WRITE_BIN,$(PICKING_OUT_NOTES_DC_TARGET),$(PICKING_OUT_NOTES_DC_LAUNCHER))
 	rm -f $(PICKING_OUT_NOTES_DC_TARGET_DIR)/romdisk_tmp.c $(PICKING_OUT_NOTES_DC_TARGET_DIR)/romdisk_tmp.o
 	rm -rf $(PICKING_OUT_NOTES_DC_TARGET_DIR)/romdisk
@@ -296,30 +286,11 @@ waveform-dc: $(DC_RAYLIB_DIR)/libraylib.a
 	$(KOS_CC) -o $(WAVEFORM_DC_TARGET_DIR)/romdisk.o -r $(WAVEFORM_DC_TARGET_DIR)/romdisk_tmp.o \
 	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
 	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
-	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(COMMON_SOURCE) -o $(WAVEFORM_DC_TARGET_DIR)/common.o
 	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(WAVEFORM_DC_SOURCE) -o $(WAVEFORM_DC_TARGET_DIR)/waveform_dc.o
-	kos-cc -o $(WAVEFORM_DC_TARGET) $(WAVEFORM_DC_TARGET_DIR)/waveform_dc.o $(WAVEFORM_DC_TARGET_DIR)/common.o $(WAVEFORM_DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
+	kos-cc -o $(WAVEFORM_DC_TARGET) $(WAVEFORM_DC_TARGET_DIR)/waveform_dc.o $(WAVEFORM_DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
 	$(call WRITE_BIN,$(WAVEFORM_DC_TARGET),$(WAVEFORM_DC_LAUNCHER))
 	rm -f $(WAVEFORM_DC_TARGET_DIR)/romdisk_tmp.c $(WAVEFORM_DC_TARGET_DIR)/romdisk_tmp.o
 	rm -rf $(WAVEFORM_DC_TARGET_DIR)/romdisk
-	@$(MAKE) fixdb
-
-waveform-sandbox-dc: $(DC_RAYLIB_DIR)/libraylib.a
-	@rm -f $(DB_OUT)
-	mkdir -p $(BIN_DIR) $(WAVEFORM_SANDBOX_DC_TARGET_DIR) $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk
-	cp -f $(SRC_DIR)/resources/shadertoy_experiment_22050hz_pcm16_mono.wav $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk/
-	$(KOS_GENROMFS) -f $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk.img -d $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk -v -x .gitignore -x .DS_Store -x Thumbs.db
-	$(KOS_BASE)/utils/bin2c/bin2c $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk.img $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk_tmp.c romdisk
-	$(KOS_CC) $(KOS_CFLAGS) -o $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk_tmp.o -c $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk_tmp.c
-	$(KOS_CC) -o $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk.o -r $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk_tmp.o \
-	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
-	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
-	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(COMMON_SOURCE) -o $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/common.o
-	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(WAVEFORM_SANDBOX_DC_SOURCE) -o $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/waveform_sandbox_dc.o
-	kos-cc -o $(WAVEFORM_SANDBOX_DC_TARGET) $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/waveform_sandbox_dc.o $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/common.o $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
-	$(call WRITE_BIN,$(WAVEFORM_SANDBOX_DC_TARGET),$(WAVEFORM_SANDBOX_DC_LAUNCHER))
-	rm -f $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk_tmp.c $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk_tmp.o
-	rm -rf $(WAVEFORM_SANDBOX_DC_TARGET_DIR)/romdisk
 	@$(MAKE) fixdb
 
 sound-envelope-dc: $(DC_RAYLIB_DIR)/libraylib.a
@@ -332,9 +303,8 @@ sound-envelope-dc: $(DC_RAYLIB_DIR)/libraylib.a
 	$(KOS_CC) -o $(SOUND_ENVELOPE_DC_TARGET_DIR)/romdisk.o -r $(SOUND_ENVELOPE_DC_TARGET_DIR)/romdisk_tmp.o \
 	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
 	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
-	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(COMMON_SOURCE) -o $(SOUND_ENVELOPE_DC_TARGET_DIR)/common.o
 	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(SOUND_ENVELOPE_DC_SOURCE) -o $(SOUND_ENVELOPE_DC_TARGET_DIR)/sound_envelope_dc.o
-	kos-cc -o $(SOUND_ENVELOPE_DC_TARGET) $(SOUND_ENVELOPE_DC_TARGET_DIR)/sound_envelope_dc.o $(SOUND_ENVELOPE_DC_TARGET_DIR)/common.o $(SOUND_ENVELOPE_DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
+	kos-cc -o $(SOUND_ENVELOPE_DC_TARGET) $(SOUND_ENVELOPE_DC_TARGET_DIR)/sound_envelope_dc.o $(SOUND_ENVELOPE_DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
 	$(call WRITE_BIN,$(SOUND_ENVELOPE_DC_TARGET),$(SOUND_ENVELOPE_DC_LAUNCHER))
 	rm -f $(SOUND_ENVELOPE_DC_TARGET_DIR)/romdisk_tmp.c $(SOUND_ENVELOPE_DC_TARGET_DIR)/romdisk_tmp.o
 	rm -rf $(SOUND_ENVELOPE_DC_TARGET_DIR)/romdisk
@@ -351,9 +321,8 @@ sound-envelope-3d-dc: $(DC_RAYLIB_DIR)/libraylib.a
 	$(KOS_CC) -o $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/romdisk.o -r $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/romdisk_tmp.o \
 	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
 	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
-	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(COMMON_SOURCE) -o $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/common.o
-	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(SOUND_ENVELOPE_3D_DC_SOURCE) -o $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/sound_envelope_3D_dc.o
-	kos-cc -o $(SOUND_ENVELOPE_3D_DC_TARGET) $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/sound_envelope_3D_dc.o $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/common.o $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
+	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(SOUND_ENVELOPE_3D_DC_SOURCE) -o $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/sound_envelope_3d_dc.o
+	kos-cc -o $(SOUND_ENVELOPE_3D_DC_TARGET) $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/sound_envelope_3d_dc.o $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
 	$(call WRITE_BIN,$(SOUND_ENVELOPE_3D_DC_TARGET),$(SOUND_ENVELOPE_3D_DC_LAUNCHER))
 	rm -f $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/romdisk_tmp.c $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/romdisk_tmp.o
 	rm -rf $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/romdisk

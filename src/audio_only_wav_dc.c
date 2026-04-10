@@ -1,10 +1,6 @@
-#include "audio_spectrum_analyzer.h"
-#include <stdint.h>
+#include "fffftt.h"
 
-#define WAV_TARGET "/rd/country_22050hz_pcm16_mono.wav"
-#define FILENAME_CHAR_COUNT (sizeof(WAV_TARGET) - 1)
-
-static const char* domain = "AUDIO-ONLY-DC";
+static const char* domain = "AUDIO-ONLY-WAV-DC";
 static AudioStream audio_stream = {0};
 static Wave wav = {0};
 static size_t wav_cursor = 0;
@@ -20,7 +16,7 @@ int main(void) {
     device_period_frames = GetAudioDevicePeriodSizeInFrames();
     SetTargetFPS(60);
     SetAudioStreamBufferSizeDefault(AUDIO_STREAM_RING_BUFFER_SIZE);
-    wav = LoadWave(WAV_TARGET);
+    wav = LoadWave(RD_COUNTRY_22K_WAV);
     WaveFormat(&wav, SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
     audio_stream = LoadAudioStream(SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
     PlayAudioStream(audio_stream);
@@ -45,7 +41,7 @@ int main(void) {
 
         BeginDrawing();
         ClearBackground(BLACK);
-        DrawText(TextFormat("FILE: %.*s", FILENAME_CHAR_COUNT, WAV_TARGET), 16, 16, 20, WHITE);
+        DrawText(TextFormat("FILE: %.*s", (int)(sizeof(RD_COUNTRY_22K_WAV) - 1), RD_COUNTRY_22K_WAV), 16, 16, 20, WHITE);
         DrawText(TextFormat("PERIOD: %u", device_period_frames), 16, 44, 20, WHITE);
         EndDrawing();
     }

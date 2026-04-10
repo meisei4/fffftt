@@ -1,15 +1,12 @@
-#include "audio_spectrum_analyzer.h"
-#include "raylib.h"
+#include "fffftt.h"
 #include "rlgl.h"
 #include <GL/gl.h>
-#include <math.h>
-#include <stdint.h>
 
 static const char* domain = "SOUND-ENVELOPE-DC";
 
 #define LANE_COUNT 5
 #define LANE_POINT_COUNT 64
-#define WAVEFORM_SAMPLES_PER_LANE_POINT (WAVEFORM_BUFFER_SIZE / LANE_POINT_COUNT)
+#define WAVEFORM_SAMPLES_PER_LANE_POINT (BUFFER_SIZE / LANE_POINT_COUNT)
 
 #define AMPLITUDE_Y_SCALE 120.0f
 #define LANE_SPACING 9.0f
@@ -21,19 +18,19 @@ static const char* domain = "SOUND-ENVELOPE-DC";
 
 static Vector3 envelope_mesh_vertices[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float lane_point_samples[LANE_COUNT][LANE_POINT_COUNT] = {0};
-static float waveform_window_samples[WAVEFORM_WINDOW_SIZE] = {0};
+static float waveform_window_samples[WINDOW_SIZE] = {0};
 
 static void update_envelope_mesh_vertices(void);
 
 int main(void) {
-    int16_t chunk_samples[WAVEFORM_AUDIO_STREAM_RING_BUFFER_SIZE] = {0};
+    int16_t chunk_samples[AUDIO_STREAM_RING_BUFFER_SIZE] = {0};
 
     SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
     InitAudioDevice();
-    SetAudioStreamBufferSizeDefault(WAVEFORM_AUDIO_STREAM_RING_BUFFER_SIZE);
-    Wave wave = LoadWave("/rd/shadertoy_experiment_22050hz_pcm16_mono.wav");
+    SetAudioStreamBufferSizeDefault(AUDIO_STREAM_RING_BUFFER_SIZE);
+    Wave wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
     WaveFormat(&wave, SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
     AudioStream stream = LoadAudioStream(SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
     PlayAudioStream(stream);
@@ -49,17 +46,17 @@ int main(void) {
         }
 
         while (IsAudioStreamProcessed(stream)) {
-            for (int i = 0; i < WAVEFORM_AUDIO_STREAM_RING_BUFFER_SIZE; i++) {
+            for (int i = 0; i < AUDIO_STREAM_RING_BUFFER_SIZE; i++) {
                 chunk_samples[i] = pcm_data[wave_cursor];
                 if (++wave_cursor >= wave.frameCount) {
                     wave_cursor = 0;
                 }
             }
 
-            UpdateAudioStream(stream, chunk_samples, WAVEFORM_AUDIO_STREAM_RING_BUFFER_SIZE);
+            UpdateAudioStream(stream, chunk_samples, AUDIO_STREAM_RING_BUFFER_SIZE);
 
-            for (int i = 0; i < WAVEFORM_WINDOW_SIZE; i++) {
-                waveform_window_samples[i] = (float)chunk_samples[WAVEFORM_WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
+            for (int i = 0; i < WINDOW_SIZE; i++) {
+                waveform_window_samples[i] = (float)chunk_samples[WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
             }
         }
 

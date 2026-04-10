@@ -1,9 +1,6 @@
-#include "audio_spectrum_analyzer.h"
+#include "fffftt.h"
 
-#define MP3_TARGET "/rd/country_44100hz_128kbps_stereo.mp3"
-#define FILENAME_CHAR_COUNT (sizeof(MP3_TARGET) - 1)
-
-static const char* domain = "AUDIO-ONLY-DC";
+static const char* domain = "AUDIO-ONLY-MP3-DC";
 static Music music = {0};
 
 int main(void) {
@@ -13,7 +10,7 @@ int main(void) {
     InitAudioDevice();
     device_period_frames = GetAudioDevicePeriodSizeInFrames();
     SetTargetFPS(60);
-    music = LoadMusicStream(MP3_TARGET);
+    music = LoadMusicStream(RD_COUNTRY_STEREO_MP3);
     PlayMusicStream(music);
     while (!WindowShouldClose()) {
         if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_MIDDLE_RIGHT) && IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
@@ -23,7 +20,7 @@ int main(void) {
         UpdateMusicStream(music);
         BeginDrawing();
         ClearBackground(BLACK);
-        DrawText(TextFormat("FILE: %.*s", FILENAME_CHAR_COUNT, MP3_TARGET), 16, 16, 20, WHITE);
+        DrawText(TextFormat("FILE: %.*s", (int)(sizeof(RD_COUNTRY_STEREO_MP3) - 1), RD_COUNTRY_STEREO_MP3), 16, 16, 20, WHITE);
         DrawText(TextFormat("PERIOD: %u", device_period_frames), 16, 44, 20, WHITE);
         EndDrawing();
     }

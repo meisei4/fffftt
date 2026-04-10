@@ -1,6 +1,4 @@
-#include "audio_spectrum_analyzer.h"
-#include <stdint.h>
-#include <stdlib.h>
+#include "fffftt.h"
 
 static const char* domain = "COOL-DC";
 
@@ -13,20 +11,20 @@ static int16_t chunk_samples[AUDIO_STREAM_RING_BUFFER_SIZE] = {0};
 int main(void) {
     FFTData fft_data = {0};
     float fft_compute_ms = 0.0f;
-    float audio_samples[FFT_WINDOW_SIZE] = {0};
+    float audio_samples[WINDOW_SIZE] = {0};
 
     SetTraceLogLevel(LOG_WARNING); // TODO: note this should be commented out for testing logs on
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     float start_time = (float)GetTime();
     FFT_PROFILE_DEFINE(fft_profile_data);
     fft_data.tapback_pos = TAPBACK_POS_DEFAULT;
-    fft_data.work_buffer = RL_CALLOC(FFT_WINDOW_SIZE, sizeof(FFTComplex));
+    fft_data.work_buffer = RL_CALLOC(WINDOW_SIZE, sizeof(FFTComplex));
     fft_data.prev_magnitudes = RL_CALLOC(BUFFER_SIZE, sizeof(float));
     fft_data.fft_history = RL_CALLOC(FFT_HISTORY_FRAME_COUNT, sizeof(float[BUFFER_SIZE]));
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_STREAM_RING_BUFFER_SIZE);
-    wav = LoadWave("/rd/shadertoy_experiment_22050hz_pcm16_mono.wav"); //TODO: just for the README.md comparison with shadertoy capture
+    wav = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV); //TODO: just for the README.md comparison with shadertoy capture
 
     WaveFormat(&wav, SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
     audio_stream = LoadAudioStream(SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
@@ -50,8 +48,8 @@ int main(void) {
 
             UpdateAudioStream(audio_stream, chunk_samples, AUDIO_STREAM_RING_BUFFER_SIZE);
 
-            for (int i = 0; i < FFT_WINDOW_SIZE; i++) {
-                audio_samples[i] = (float)chunk_samples[FFT_WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
+            for (int i = 0; i < WINDOW_SIZE; i++) {
+                audio_samples[i] = (float)chunk_samples[WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
             }
         }
 
