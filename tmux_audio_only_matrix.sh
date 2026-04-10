@@ -2,7 +2,7 @@
 set -euo pipefail
 
 project_root="$(cd "$(dirname "$0")" && pwd)"
-log_directory="${1:-$project_root/logs/audio-only-matrix}"
+log_directory="${1:-$project_root/logs}"
 tmux_session_prefix="${2:-audio-only}"
 tmux_start_gate="${tmux_session_prefix}-start-$$"
 capture_seconds="${TMUX_AUDIO_ONLY_CAPTURE_SECONDS:-15}"

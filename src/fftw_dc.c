@@ -1,7 +1,4 @@
-#include "audio_spectrum_analyzer.h"
-#include "fftw.h"
-#include <stdint.h>
-#include <stdlib.h>
+#include "fffftt.h"
 
 static const char* domain = "FFTW-DC";
 static const int fftw_plan_flags = FFTW_ESTIMATE;
@@ -18,7 +15,7 @@ int main(void) {
     fftw_plan fftw_plan_state;
     fftw_complex* fftw_input;
     fftw_complex* fftw_output;
-    float audio_samples[FFT_WINDOW_SIZE] = {0};
+    float audio_samples[WINDOW_SIZE] = {0};
 
     SetTraceLogLevel(LOG_WARNING); // TODO: note this should be commented out for testing logs on
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
@@ -29,14 +26,14 @@ int main(void) {
     fft_data.prev_magnitudes = RL_CALLOC(BUFFER_SIZE, sizeof(float));
     fft_data.fft_history = RL_CALLOC(FFT_HISTORY_FRAME_COUNT, sizeof(float[BUFFER_SIZE]));
 
-    fftw_input = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * FFT_WINDOW_SIZE);
-    fftw_output = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * FFT_WINDOW_SIZE);
+    fftw_input = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * WINDOW_SIZE);
+    fftw_output = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * WINDOW_SIZE);
 
-    fftw_plan_state = fftw_create_plan_specific(FFT_WINDOW_SIZE, FFTW_FORWARD, fftw_plan_flags, fftw_input, 1, fftw_output, 1);
+    fftw_plan_state = fftw_create_plan_specific(WINDOW_SIZE, FFTW_FORWARD, fftw_plan_flags, fftw_input, 1, fftw_output, 1);
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_STREAM_RING_BUFFER_SIZE);
-    wav = LoadWave("/rd/country_22050hz_pcm16_mono.wav");
+    wav = LoadWave(RD_COUNTRY_22K_WAV);
     WaveFormat(&wav, SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
     audio_stream = LoadAudioStream(SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
     PlayAudioStream(audio_stream);
@@ -58,8 +55,8 @@ int main(void) {
 
             UpdateAudioStream(audio_stream, chunk_samples, AUDIO_STREAM_RING_BUFFER_SIZE);
 
-            for (int i = 0; i < FFT_WINDOW_SIZE; i++) {
-                audio_samples[i] = (float)chunk_samples[FFT_WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
+            for (int i = 0; i < WINDOW_SIZE; i++) {
+                audio_samples[i] = (float)chunk_samples[WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
             }
         }
 
@@ -74,7 +71,7 @@ int main(void) {
 
         BeginDrawing();
         ClearBackground(BLACK);
-        render_frame(&fft_data);
+        render_fft_frame(&fft_data);
         EndDrawing();
     }
 

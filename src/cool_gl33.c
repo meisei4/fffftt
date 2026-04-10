@@ -1,7 +1,4 @@
-#include "audio_spectrum_analyzer.h"
-#include <math.h>
-#include <stdint.h>
-#include <stdlib.h>
+#include "fffftt.h"
 
 static const char* domain = "COOL-GL33";
 
@@ -14,19 +11,19 @@ static int16_t chunk_samples[AUDIO_STREAM_RING_BUFFER_SIZE] = {0};
 int main(void) {
     FFTData fft_data = {0};
     float fft_compute_ms = 0.0f;
-    float audio_samples[FFT_WINDOW_SIZE] = {0};
+    float audio_samples[WINDOW_SIZE] = {0};
 
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     float start_time = (float)GetTime();
 
     fft_data.tapback_pos = TAPBACK_POS_DEFAULT;
-    fft_data.work_buffer = RL_CALLOC(FFT_WINDOW_SIZE, sizeof(FFTComplex));
+    fft_data.work_buffer = RL_CALLOC(WINDOW_SIZE, sizeof(FFTComplex));
     fft_data.prev_magnitudes = RL_CALLOC(BUFFER_SIZE, sizeof(float));
     fft_data.fft_history = RL_CALLOC(FFT_HISTORY_FRAME_COUNT, sizeof(float[BUFFER_SIZE]));
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_STREAM_RING_BUFFER_SIZE);
-    wav = LoadWave("src/resources/country_44100hz_pcm16_stereo.wav");
+    wav = LoadWave(RES_COUNTRY_STEREO_44K_WAV);
 
     WaveFormat(&wav, SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
     audio_stream = LoadAudioStream(SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
@@ -36,7 +33,7 @@ int main(void) {
     Image fft_image = GenImageColor(BUFFER_SIZE, 1, BLACK);
     Color* fft_pixels = (Color*)fft_image.data;
     Texture2D fft_texture = LoadTextureFromImage(fft_image);
-    Shader shader = LoadShader(NULL, "src/resources/fft.glsl");
+    Shader shader = LoadShader(NULL, SHADER_FFT);
     int resolution_location = GetShaderLocation(shader, "iResolution");
     int channel_location = GetShaderLocation(shader, "iChannel0");
     Vector2 resolution = {(float)SCREEN_WIDTH, (float)SCREEN_HEIGHT};
@@ -59,8 +56,8 @@ int main(void) {
 
             UpdateAudioStream(audio_stream, chunk_samples, AUDIO_STREAM_RING_BUFFER_SIZE);
 
-            for (int i = 0; i < FFT_WINDOW_SIZE; i++) {
-                audio_samples[i] = (float)chunk_samples[FFT_WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
+            for (int i = 0; i < WINDOW_SIZE; i++) {
+                audio_samples[i] = (float)chunk_samples[WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
             }
         }
 
@@ -73,7 +70,7 @@ int main(void) {
 
         FFT_PROFILE_SAMPLE(fft_profile_data, domain, fft_compute_ms, (float)GetTime() - start_time, &fft_data);
 
-        float frames_since_tapback = floorf(fft_data.tapback_pos / ((float)FFT_WINDOW_SIZE / EFFECTIVE_SAMPLE_RATE));
+        float frames_since_tapback = floorf(fft_data.tapback_pos / ((float)WINDOW_SIZE / EFFECTIVE_SAMPLE_RATE));
         frames_since_tapback = fminf(fmaxf(frames_since_tapback, 0.0f), (float)(FFT_HISTORY_FRAME_COUNT - 1));
         int history_position = (fft_data.history_pos - 1 - (int)frames_since_tapback + FFT_HISTORY_FRAME_COUNT) % FFT_HISTORY_FRAME_COUNT;
 

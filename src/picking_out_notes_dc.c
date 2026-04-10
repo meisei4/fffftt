@@ -1,9 +1,5 @@
-#include "audio_spectrum_analyzer.h"
+#include "fffftt.h"
 #include "../sh4zam/include/sh4zam/shz_sh4zam.h"
-#include "raymath.h"
-#include <math.h>
-#include <stdint.h>
-#include <stdlib.h>
 
 static const char* domain = "PICKING-OUT-NOTES-DC";
 
@@ -55,7 +51,7 @@ static const float cols[GRID_COLUMN_COUNT][3] = {{1., 1., 0.},
                                                  {1., 0.5, 0.}};
 
 static void picking_out_the_notes(const FFTData* fft_data) {
-    float u = fft_data->tapback_pos / ((float)FFT_WINDOW_SIZE / EFFECTIVE_SAMPLE_RATE);                                      // #L32 u / iResolution.xy
+    float u = fft_data->tapback_pos / ((float)WINDOW_SIZE / EFFECTIVE_SAMPLE_RATE);                                          // #L32 u / iResolution.xy
     int history_position = (fft_data->history_pos - 1 - (int)floorf(u) + FFT_HISTORY_FRAME_COUNT) % FFT_HISTORY_FRAME_COUNT; // #L34 TO = floor(to)
 
     float cell_w = (float)SCREEN_WIDTH / GRID_COLUMN_COUNT; // #L33 U * vec2(12,10)
@@ -99,6 +95,7 @@ static void picking_out_the_notes(const FFTData* fft_data) {
                     float dy = fabsf(local_y - .5);       // #L35 abs(fract(to) - .5)
                     float dist = fmaxf(dx, dy);           // #L38 dist = max(D.x, D.y)
 
+                    //TODO: LOOK INTO USING shz_smoothstepf AND FULL REVIEW OF SHADER STUFF WITH sh4zam maths ofc!!!
                     float t = Clamp(((f * f * f * f) - dist * 2.) / .01, 0., 1.); // #L48 smoothstep
                     float bright = t * t * (3. - 2. * t);                         // #L48 t*t*(3.-2.*t)
                     if (bright > 0.) {                                            // #L50 O = bright *
@@ -128,19 +125,19 @@ static void picking_out_the_notes(const FFTData* fft_data) {
 
 int main(void) {
     FFTData fft_data = {0};
-    float audio_samples[FFT_WINDOW_SIZE] = {0};
+    float audio_samples[WINDOW_SIZE] = {0};
 
     SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
     fft_data.tapback_pos = TAPBACK_POS_DEFAULT;
-    fft_data.work_buffer = RL_CALLOC(FFT_WINDOW_SIZE, sizeof(FFTComplex));
+    fft_data.work_buffer = RL_CALLOC(WINDOW_SIZE, sizeof(FFTComplex));
     fft_data.prev_magnitudes = RL_CALLOC(BUFFER_SIZE, sizeof(float));
     fft_data.fft_history = RL_CALLOC(FFT_HISTORY_FRAME_COUNT, sizeof(float[BUFFER_SIZE]));
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_STREAM_RING_BUFFER_SIZE);
-    wav = LoadWave("/rd/shadertoy_electronebulae_one_fourth_22050hz_pcm16_mono.wav");
+    wav = LoadWave(RD_SHADERTOY_ELECTRONEBULAE_ONE_FOURTH_22K_WAV);
     WaveFormat(&wav, SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
     audio_stream = LoadAudioStream(SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
     PlayAudioStream(audio_stream);
@@ -162,13 +159,13 @@ int main(void) {
 
             UpdateAudioStream(audio_stream, chunk_samples, AUDIO_STREAM_RING_BUFFER_SIZE);
 
-            for (int i = 0; i < FFT_WINDOW_SIZE; i++) {
-                audio_samples[i] = (float)chunk_samples[FFT_WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
+            for (int i = 0; i < WINDOW_SIZE; i++) {
+                audio_samples[i] = (float)chunk_samples[WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
             }
         }
 
         apply_blackman_window(&fft_data, audio_samples);
-        shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)FFT_WINDOW_SIZE);
+        shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)WINDOW_SIZE);
         clean_up_fft(&fft_data);
         BeginDrawing();
         ClearBackground(BLACK);

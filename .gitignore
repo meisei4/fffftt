@@ -3,6 +3,10 @@ build/
 bin/
 logs/
 *.log
+.capture_obs_py/
+
+.bear/
+*.idx
 
 # General
 .DS_Store
