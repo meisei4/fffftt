@@ -135,7 +135,7 @@ int main(void) {
 
 static void update_audio_texture_pixels(Color* audio_texture_pixels) {
     for (int i = 0; i < BUFFER_SIZE; i++) {
-        float amplitude = fabsf(waveform_window_samples[i]);
+        float amplitude = fabsf(waveform_window_samples[(i * (WINDOW_SIZE - 1)) / (BUFFER_SIZE - 1)]);
         unsigned char pixel_value = (unsigned char)(fminf(fmaxf(amplitude, 0.0f), 1.0f) * 255.0f);
         audio_texture_pixels[i].r = pixel_value;
         audio_texture_pixels[i].g = pixel_value;

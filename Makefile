@@ -44,6 +44,8 @@ PICKING_OUT_NOTES_DC_TARGET_DIR := $(BUILD_DIR)/dc/picking_out_notes_dc
 WAVEFORM_DC_TARGET_DIR := $(BUILD_DIR)/dc/waveform_dc
 SOUND_ENVELOPE_DC_TARGET_DIR := $(BUILD_DIR)/dc/sound_envelope_dc
 SOUND_ENVELOPE_3D_DC_TARGET_DIR := $(BUILD_DIR)/dc/sound_envelope_3d_dc
+SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR := $(BUILD_DIR)/dc/sound_envelope_3d_audio_cadence_dc
+WAVEFORM_TERRAIN_3D_DC_TARGET_DIR := $(BUILD_DIR)/dc/waveform_terrain_3d_dc
 
 GL33_BIN := $(BIN_DIR)/cool_gl33
 FFTW_BIN := $(BIN_DIR)/fftw_gl11
@@ -58,6 +60,8 @@ WAVEFORM_DC_LAUNCHER := $(BIN_DIR)/waveform_dc
 SOUND_ENVELOPE_DC_LAUNCHER := $(BIN_DIR)/sound_envelope_dc
 SOUND_ENVELOPE_3D_DC_LAUNCHER := $(BIN_DIR)/sound_envelope_3d_dc
 SOUND_ENVELOPE_GL33_LAUNCHER := $(BIN_DIR)/sound_envelope_gl33
+SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_LAUNCHER := $(BIN_DIR)/sound_envelope_3d_audio_cadence_dc
+WAVEFORM_TERRAIN_3D_DC_LAUNCHER := $(BIN_DIR)/waveform_terrain_3d_dc
 
 DC_TARGET := $(DC_TARGET_DIR)/cool_dc.elf
 SH4_TARGET := $(SH4_TARGET_DIR)/sh4zam_butterfly.elf
@@ -69,6 +73,8 @@ WAVEFORM_DC_TARGET := $(WAVEFORM_DC_TARGET_DIR)/waveform_dc.elf
 SOUND_ENVELOPE_DC_TARGET := $(SOUND_ENVELOPE_DC_TARGET_DIR)/sound_envelope_dc.elf
 SOUND_ENVELOPE_3D_DC_TARGET := $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/sound_envelope_3d_dc.elf
 SOUND_ENVELOPE_GL33_TARGET := $(BIN_DIR)/sound_envelope_gl33
+SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET := $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/sound_envelope_3d_audio_cadence_dc.elf
+WAVEFORM_TERRAIN_3D_DC_TARGET := $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/waveform_terrain_3d_dc.elf
 
 GL33_SOURCE := $(SRC_DIR)/cool_gl33.c
 FFTW_SOURCE := $(SRC_DIR)/fftw_gl11.c
@@ -86,6 +92,8 @@ WAVEFORM_DC_SOURCE := $(SRC_DIR)/waveform_dc.c
 SOUND_ENVELOPE_DC_SOURCE := $(SRC_DIR)/sound_envelope_dc.c
 SOUND_ENVELOPE_3D_DC_SOURCE := $(SRC_DIR)/sound_envelope_3d_dc.c
 SOUND_ENVELOPE_GL33_SOURCE := $(SRC_DIR)/sound_envelope_gl33.c
+SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_SOURCE := $(SRC_DIR)/sound_envelope_3d_audio_cadence_dc.c
+WAVEFORM_TERRAIN_3D_DC_SOURCE := $(SRC_DIR)/waveform_terrain_3d_dc.c
 
 RAYLIB_DESKTOP_SRC := raylib_desktop/src
 RAYLIB_DC_SRC := raylib_dc/src
@@ -94,7 +102,7 @@ KOS_PORTS_INCLUDE := -I$(KOS_PORTS)/include
 FMT ?= $(shell command -v clang-format 2>/dev/null || { [ -x /usr/bin/clang-format ] && echo /usr/bin/clang-format; } || { [ -x /opt/homebrew/bin/clang-format ] && echo /opt/homebrew/bin/clang-format; } || { [ -x /Library/Developer/CommandLineTools/usr/bin/clang-format ] && echo /Library/Developer/CommandLineTools/usr/bin/clang-format; } || echo clang-format)
 FMT_STYLE ?= .clang-format
 FMT_GLSL_SOURCES := $(wildcard $(SRC_DIR)/resources/*.glsl)
-FMT_SOURCES := $(GL33_SOURCE) $(FFTW_SOURCE) $(FFTW_DC_SOURCE) $(GL11_SOURCE) $(SH4_SOURCE) $(AUDIO_ONLY_WAV_SOURCE) $(AUDIO_ONLY_MP3_SOURCE) $(PICKING_OUT_NOTES_DC_SOURCE) $(WAVEFORM_DC_SOURCE) $(WAVEFORM_SANDBOX_DC_SOURCE) $(SOUND_ENVELOPE_DC_SOURCE) $(SOUND_ENVELOPE_3D_DC_SOURCE) $(SOUND_ENVELOPE_GL33_SOURCE) $(FMT_GLSL_SOURCES)
+FMT_SOURCES := $(GL33_SOURCE) $(FFTW_SOURCE) $(FFTW_DC_SOURCE) $(GL11_SOURCE) $(SH4_SOURCE) $(AUDIO_ONLY_WAV_SOURCE) $(AUDIO_ONLY_MP3_SOURCE) $(PICKING_OUT_NOTES_DC_SOURCE) $(WAVEFORM_DC_SOURCE) $(WAVEFORM_SANDBOX_DC_SOURCE) $(SOUND_ENVELOPE_DC_SOURCE) $(SOUND_ENVELOPE_3D_DC_SOURCE) $(SOUND_ENVELOPE_GL33_SOURCE) $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_SOURCE) $(WAVEFORM_TERRAIN_3D_DC_SOURCE) $(FMT_GLSL_SOURCES)
 
 UNAME_S := $(shell uname -s 2>/dev/null || echo Unknown)
 CC ?= cc
@@ -115,9 +123,9 @@ define WRITE_BIN
 	chmod +x $(2)
 endef
 
-.PHONY: help all cool-gl33 fftw-gl11 cool-gl11 cool-dc sh4zam-butterfly fftw-dc audio-only-wav-dc audio-only-mp3-dc picking-out-notes-dc waveform-dc sound-envelope-dc sound-envelope-3d-dc sound-envelope-gl33 fmt clean-all fixdb
+.PHONY: help all cool-gl33 fftw-gl11 cool-gl11 cool-dc sh4zam-butterfly fftw-dc audio-only-wav-dc audio-only-mp3-dc picking-out-notes-dc waveform-dc sound-envelope-dc sound-envelope-3d-dc sound-envelope-gl33 sound-envelope-3d-audio-cadence-dc waveform-terrain-3d-dc fmt clean-all fixdb
 help:
-	$(error PLEASE DEFINE A TARGET: make cool-gl33 | make cool-gl11 | make fftw-gl11 | make cool-dc | make sh4zam-butterfly | make fftw-dc | make audio-only-wav-dc | make audio-only-mp3-dc | make picking-out-notes-dc | make waveform-dc | make sound-envelope-dc | make sound-envelope-3d-dc | make sound-envelope-gl33 | make fmt | make clean-all | make fixdb)
+	$(error PLEASE DEFINE A TARGET: make cool-gl33 | make cool-gl11 | make fftw-gl11 | make cool-dc | make sh4zam-butterfly | make fftw-dc | make audio-only-wav-dc | make audio-only-mp3-dc | make picking-out-notes-dc | make waveform-dc | make sound-envelope-dc | make sound-envelope-3d-dc | make sound-envelope-gl33 | make sound-envelope-3d-audio-cadence-dc | make waveform-terrain-3d-dc | make fmt | make clean-all | make fixdb)
 
 fixdb:
 	@echo "Fixing compilation database for CLion..."
@@ -328,6 +336,40 @@ sound-envelope-3d-dc: $(DC_RAYLIB_DIR)/libraylib.a
 	rm -rf $(SOUND_ENVELOPE_3D_DC_TARGET_DIR)/romdisk
 	@$(MAKE) fixdb
 
+sound-envelope-3d-audio-cadence-dc: $(DC_RAYLIB_DIR)/libraylib.a
+	@rm -f $(DB_OUT)
+	mkdir -p $(BIN_DIR) $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR) $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk
+	cp -f $(SRC_DIR)/resources/shadertoy_experiment_22050hz_pcm16_mono.wav $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk/
+	$(KOS_GENROMFS) -f $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk.img -d $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk -v -x .gitignore -x .DS_Store -x Thumbs.db
+	$(KOS_BASE)/utils/bin2c/bin2c $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk.img $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk_tmp.c romdisk
+	$(KOS_CC) $(KOS_CFLAGS) -o $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk_tmp.o -c $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk_tmp.c
+	$(KOS_CC) -o $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk.o -r $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk_tmp.o \
+	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
+	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
+	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_SOURCE) -o $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/sound_envelope_3d_audio_cadence_dc.o
+	kos-cc -o $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET) $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/sound_envelope_3d_audio_cadence_dc.o $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
+	$(call WRITE_BIN,$(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET),$(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_LAUNCHER))
+	rm -f $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk_tmp.c $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk_tmp.o
+	rm -rf $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk
+	@$(MAKE) fixdb
+
+waveform-terrain-3d-dc: $(DC_RAYLIB_DIR)/libraylib.a
+	@rm -f $(DB_OUT)
+	mkdir -p $(BIN_DIR) $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR) $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk
+	cp -f $(SRC_DIR)/resources/shadertoy_experiment_22050hz_pcm16_mono.wav $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
+	$(KOS_GENROMFS) -f $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk.img -d $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk -v -x .gitignore -x .DS_Store -x Thumbs.db
+	$(KOS_BASE)/utils/bin2c/bin2c $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk.img $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk_tmp.c romdisk
+	$(KOS_CC) $(KOS_CFLAGS) -o $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk_tmp.o -c $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk_tmp.c
+	$(KOS_CC) -o $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk.o -r $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk_tmp.o \
+	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
+	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
+	$(BEAR_APPEND) -- kos-cc -I$(DC_RAYLIB_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(FFT_FLAGS) -std=gnu2x -c $(WAVEFORM_TERRAIN_3D_DC_SOURCE) -o $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/waveform_terrain_3d_dc.o
+	kos-cc -o $(WAVEFORM_TERRAIN_3D_DC_TARGET) $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/waveform_terrain_3d_dc.o $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk.o $(DC_RAYLIB_DIR)/libraylib.a -lGL -lkosutils -lwav -lm -lpthread
+	$(call WRITE_BIN,$(WAVEFORM_TERRAIN_3D_DC_TARGET),$(WAVEFORM_TERRAIN_3D_DC_LAUNCHER))
+	rm -f $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk_tmp.c $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk_tmp.o
+	rm -rf $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk
+	@$(MAKE) fixdb
+
 fmt:
 	@F="$(FMT)"; (command -v "$$F" >/dev/null 2>&1 || [ -x "$$F" ]) || { echo "clang-format not found. Install it or set FMT=path/to/clang-format"; exit 1; }
 	@if [ -f "$(FMT_STYLE)" ]; then $(FMT) -style=file:$(FMT_STYLE) -i $(FMT_SOURCES); else $(FMT) -i $(FMT_SOURCES); fi
@@ -335,6 +377,6 @@ fmt:
 clean-all:
 	rm -f $(DB_OUT) $(COMPILE_DB_BACKUP)
 	rm -rf $(BUILD_DIR)
-	rm -f $(GL33_BIN) $(FFTW_BIN) $(GL11_BIN) $(DC_LAUNCHER) $(SH4_LAUNCHER) $(DC_FFTW_LAUNCHER) $(AUDIO_ONLY_WAV_LAUNCHER) $(AUDIO_ONLY_MP3_LAUNCHER) $(PICKING_OUT_NOTES_DC_LAUNCHER) $(WAVEFORM_DC_LAUNCHER) $(WAVEFORM_SANDBOX_DC_LAUNCHER) $(SOUND_ENVELOPE_DC_LAUNCHER) $(SOUND_ENVELOPE_3D_DC_LAUNCHER) $(SOUND_ENVELOPE_GL33_LAUNCHER) $(DC_TARGET) $(SH4_TARGET) $(DC_FFTW_TARGET) $(AUDIO_ONLY_WAV_TARGET) $(AUDIO_ONLY_MP3_TARGET) $(PICKING_OUT_NOTES_DC_TARGET) $(WAVEFORM_DC_TARGET) $(WAVEFORM_SANDBOX_DC_TARGET) $(SOUND_ENVELOPE_DC_TARGET) $(SOUND_ENVELOPE_3D_DC_TARGET) $(SOUND_ENVELOPE_GL33_TARGET)	rm -rf logs/*
+	rm -f $(GL33_BIN) $(FFTW_BIN) $(GL11_BIN) $(DC_LAUNCHER) $(SH4_LAUNCHER) $(DC_FFTW_LAUNCHER) $(AUDIO_ONLY_WAV_LAUNCHER) $(AUDIO_ONLY_MP3_LAUNCHER) $(PICKING_OUT_NOTES_DC_LAUNCHER) $(WAVEFORM_DC_LAUNCHER) $(WAVEFORM_SANDBOX_DC_LAUNCHER) $(SOUND_ENVELOPE_DC_LAUNCHER) $(SOUND_ENVELOPE_3D_DC_LAUNCHER) $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_LAUNCHER) $(SOUND_ENVELOPE_GL33_LAUNCHER) $(WAVEFORM_TERRAIN_3D_DC_LAUNCHER) $(DC_TARGET) $(SH4_TARGET) $(DC_FFTW_TARGET) $(AUDIO_ONLY_WAV_TARGET) $(AUDIO_ONLY_MP3_TARGET) $(PICKING_OUT_NOTES_DC_TARGET) $(WAVEFORM_DC_TARGET) $(WAVEFORM_SANDBOX_DC_TARGET) $(SOUND_ENVELOPE_DC_TARGET) $(SOUND_ENVELOPE_3D_DC_TARGET) $(SOUND_ENVELOPE_GL33_TARGET) $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET) $(WAVEFORM_TERRAIN_3D_DC_TARGET)	rm -rf logs/*
 	$(MAKE) -C $(RAYLIB_DESKTOP_SRC) clean || true
 	$(MAKE) -C $(RAYLIB_DC_SRC) clean || true

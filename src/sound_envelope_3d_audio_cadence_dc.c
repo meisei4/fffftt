@@ -2,7 +2,7 @@
 #include "rlgl.h"
 #include <GL/gl.h>
 
-static const char* domain = "SOUND-ENVELOPE-3D-DC";
+static const char* domain = "SOUND-ENVELOPE-3D-AUDIO-CADENCE-DC";
 
 #define LANE_COUNT 5
 #define LANE_POINT_COUNT 64
@@ -18,24 +18,25 @@ static Vector3 envelope_mesh_vertices[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float lane_point_samples[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float waveform_window_samples[WINDOW_SIZE] = {0};
 
+static void advance_envelope_history(void);
 static void update_envelope_mesh_vertices(void);
 static void update_camera_orbit(Camera3D* camera, float dt);
 
 int main(void) {
     int16_t chunk_samples[AUDIO_STREAM_RING_BUFFER_SIZE] = {0};
 
-    //SetTraceLogLevel(LOG_WARNING);
+    SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_STREAM_RING_BUFFER_SIZE);
-    Wave wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
-    WaveFormat(&wave, SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
-    AudioStream stream = LoadAudioStream(SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
-    PlayAudioStream(stream);
+    Wave wav = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
+    WaveFormat(&wav, SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
+    AudioStream audio_stream = LoadAudioStream(SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
+    PlayAudioStream(audio_stream);
 
-    size_t wave_cursor = 0;
-    int16_t* pcm_data = (int16_t*)wave.data;
+    size_t wav_cursor = 0;
+    int16_t* wav_pcm16 = (int16_t*)wav.data;
 
     Camera3D camera = {
         .position = (Vector3){-1.093f, 1.126f, 1.165f}, //TODO: manually tuned alignment...
@@ -45,26 +46,28 @@ int main(void) {
         .projection = CAMERA_ORTHOGRAPHIC,
     };
 
-    SetTargetFPS(15);
+    SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
         if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_MIDDLE_RIGHT) && IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
             break;
         }
 
-        while (IsAudioStreamProcessed(stream)) {
+        while (IsAudioStreamProcessed(audio_stream)) {
             for (int i = 0; i < AUDIO_STREAM_RING_BUFFER_SIZE; i++) {
-                chunk_samples[i] = pcm_data[wave_cursor];
-                if (++wave_cursor >= wave.frameCount) {
-                    wave_cursor = 0;
+                chunk_samples[i] = wav_pcm16[wav_cursor];
+                if (++wav_cursor >= wav.frameCount) {
+                    wav_cursor = 0;
                 }
             }
 
-            UpdateAudioStream(stream, chunk_samples, AUDIO_STREAM_RING_BUFFER_SIZE);
+            UpdateAudioStream(audio_stream, chunk_samples, AUDIO_STREAM_RING_BUFFER_SIZE);
 
             for (int i = 0; i < WINDOW_SIZE; i++) {
                 waveform_window_samples[i] = (float)chunk_samples[WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
             }
+
+            advance_envelope_history();
         }
 
         update_envelope_mesh_vertices();
@@ -84,14 +87,14 @@ int main(void) {
         EndDrawing();
     }
 
-    UnloadAudioStream(stream);
-    UnloadWave(wave);
+    UnloadAudioStream(audio_stream);
+    UnloadWave(wav);
     CloseAudioDevice();
     CloseWindow();
     return 0;
 }
 
-static void update_envelope_mesh_vertices(void) {
+static void advance_envelope_history(void) {
     for (int i = LANE_COUNT - 1; i > 0; i--) {
         for (int j = 0; j < LANE_POINT_COUNT; j++) {
             lane_point_samples[i][j] = lane_point_samples[i - 1][j];
@@ -100,13 +103,17 @@ static void update_envelope_mesh_vertices(void) {
 
     for (int i = 0; i < LANE_POINT_COUNT; i++) {
         float amplitude_sum = 0.0f;
+        int lane_window_offset = i * WAVEFORM_SAMPLES_PER_LANE_POINT;
+
         for (int j = 0; j < WAVEFORM_SAMPLES_PER_LANE_POINT; j++) {
-            amplitude_sum += fabsf(waveform_window_samples[i * WAVEFORM_SAMPLES_PER_LANE_POINT + j]);
+            amplitude_sum += fabsf(waveform_window_samples[lane_window_offset + j]);
         }
 
         lane_point_samples[0][i] = (amplitude_sum / (float)WAVEFORM_SAMPLES_PER_LANE_POINT) * FRONT_LANE_SMOOTHING;
     }
+}
 
+static void update_envelope_mesh_vertices(void) {
     for (int i = 0; i < LANE_COUNT; i++) {
         float z = ENVELOPE_HALF_SPAN - ((float)i / (float)(LANE_COUNT - 1));
         for (int j = 0; j < LANE_POINT_COUNT; j++) {
