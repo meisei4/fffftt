@@ -8,7 +8,7 @@
 	branch = miniaudio_dreamcast
 [submodule "GLdc"]
 	path = GLdc
-	url = https://github.com/Kazade/GLdc.git
+	url = https://gitlab.com/simulant/GLdc.git
 	branch = master
 [submodule "sh4zam"]
 	path = sh4zam
