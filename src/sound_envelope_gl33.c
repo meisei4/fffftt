@@ -1,20 +1,12 @@
+#define FFFFTT_PROFILE_SOUND_ENVELOPE_ISO
 #include "fffftt.h"
 
+#define ENVELOPE_LINE_WIDTH_DISTANCE_PIXELS 0.5f
+#define AUDIO_TEXTURE_ROW_COUNT 2
+
 static const char* domain = "SOUND-ENVELOPE-GL33";
-
-#define LANE_COUNT 5
-#define LANE_POINT_COUNT 64
-#define WAVEFORM_SAMPLES_PER_LANE_POINT (BUFFER_SIZE / LANE_POINT_COUNT)
-
-#define AMPLITUDE_Y_SCALE 120.0f
-#define LANE_SPACING 9.0f
-#define ISOMETRIC_ZOOM 3.0f
-#define ISOMETRIC_GRID_CENTER_X (0.5f * (-(float)(LANE_COUNT - 1) * LANE_SPACING + (float)(LANE_POINT_COUNT - 1)))
-#define ISOMETRIC_GRID_CENTER_Y (0.25f * ((float)(LANE_POINT_COUNT - 1) + (float)(LANE_COUNT - 1) * LANE_SPACING))
-#define FRONT_LANE_SMOOTHING 0.4f
 //TODO: shader distance threshold value, fundamentally different from a fixed-function raster unit. like ENVELOPE_LINE_WIDTH_RASTER_PIXELS
 #define ENVELOPE_LINE_WIDTH_DISTANCE_PIXELS 0.5f
-
 #define AUDIO_TEXTURE_ROW_COUNT 2
 
 static float waveform_window_samples[WINDOW_SIZE] = {0};
@@ -107,7 +99,7 @@ int main(void) {
         SetShaderValue(image, image_iresolution_loc, image_resolution, SHADER_UNIFORM_VEC3);
         SetShaderValueTexture(image, image_ichannel0_loc, cur_render_texture->texture);
         SetShaderValue(image, image_u_amplitude_scale_loc, &(float){AMPLITUDE_Y_SCALE}, SHADER_UNIFORM_FLOAT);
-        SetShaderValue(image, image_u_lane_spacing_loc, &(float){LANE_SPACING}, SHADER_UNIFORM_FLOAT);
+        SetShaderValue(image, image_u_lane_spacing_loc, &(float){ISOMETRIC_LANE_SPACING}, SHADER_UNIFORM_FLOAT);
         SetShaderValue(image, image_u_isometric_zoom_loc, &(float){ISOMETRIC_ZOOM}, SHADER_UNIFORM_FLOAT);
         SetShaderValue(image, image_u_grid_center_loc, image_grid_center, SHADER_UNIFORM_VEC2);
         SetShaderValue(image, image_u_line_width_distance_pixels_loc, &(float){ENVELOPE_LINE_WIDTH_DISTANCE_PIXELS}, SHADER_UNIFORM_FLOAT);
@@ -135,7 +127,7 @@ int main(void) {
 
 static void update_audio_texture_pixels(Color* audio_texture_pixels) {
     for (int i = 0; i < BUFFER_SIZE; i++) {
-        float amplitude = fabsf(waveform_window_samples[i]);
+        float amplitude = fabsf(waveform_window_samples[(i * (WINDOW_SIZE - 1)) / (BUFFER_SIZE - 1)]);
         unsigned char pixel_value = (unsigned char)(fminf(fmaxf(amplitude, 0.0f), 1.0f) * 255.0f);
         audio_texture_pixels[i].r = pixel_value;
         audio_texture_pixels[i].g = pixel_value;
