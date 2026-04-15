@@ -293,4 +293,174 @@ static inline void render_fft_frame(FFTData* fft_data) {
     }
 }
 
+
+//TODO: temporary refactor for targetting common code and compression areas for later
+#if defined(FFFFTT_PROFILE_SOUND_ENVELOPE_3D)
+    #define LANE_COUNT 5
+    #define LANE_POINT_COUNT 64
+    #define AMPLITUDE_Y_SCALE 2.0f
+    #define LINE_LENGTH_SCALE 1.75f
+#elif defined(FFFFTT_PROFILE_SOUND_ENVELOPE_ISO)
+    #define LANE_COUNT 5
+    #define LANE_POINT_COUNT 64
+    #define AMPLITUDE_Y_SCALE 120.0f
+    #define LINE_LENGTH_SCALE 4.0f
+#elif defined(FFFFTT_PROFILE_WAVEFORM_TERRAIN_3D)
+    #define LANE_COUNT 12
+    #define LANE_POINT_COUNT 128
+    #define AMPLITUDE_Y_SCALE 1.0f
+    #define LINE_LENGTH_SCALE 2.75f
+#else
+    #define LANE_COUNT 24
+    #define LANE_POINT_COUNT 128
+    #define AMPLITUDE_Y_SCALE 2.0f
+    #define LINE_LENGTH_SCALE 4.0f
+#endif
+
+#define HALF_SPAN 0.5f
+#define ISOMETRIC_ZOOM 3.0f
+#define ISOMETRIC_GRID_CENTER_X (0.5f * (-(float)(LANE_COUNT - 1) * ISOMETRIC_LANE_SPACING + (float)(LANE_POINT_COUNT - 1)))
+#define ISOMETRIC_GRID_CENTER_Y (0.25f * ((float)(LANE_POINT_COUNT - 1) + (float)(LANE_COUNT - 1) * ISOMETRIC_LANE_SPACING))
+#define FRONT_LANE_SMOOTHING 0.4f
+#define ISOMETRIC_LANE_SPACING 9.0f
+#define POINT_SIZE_RASTER_PIXELS 3.0f
+#define LANE_SPACING_SCALE 0.25f
+#define MESH_VERTEX_COUNT (LANE_COUNT * LANE_POINT_COUNT)
+#define LINE_SEGMENT_COUNT (LANE_COUNT * (LANE_POINT_COUNT - 1))
+#define LINE_INDEX_COUNT (LINE_SEGMENT_COUNT * 2)
+#define TRIANGLE_COUNT (((LANE_COUNT - 1) * (LANE_POINT_COUNT - 1)) * 2)
+#define TRIANGLE_INDEX_COUNT (TRIANGLE_COUNT * 3)
+#define WAVEFORM_SAMPLES_PER_LANE_POINT (WINDOW_SIZE / LANE_POINT_COUNT)
+
+static inline void advance_lane_history(float* lane_point_samples) {
+    for (int i = LANE_COUNT - 1; i > 0; i--) {
+        for (int j = 0; j < LANE_POINT_COUNT; j++) {
+            lane_point_samples[i * LANE_POINT_COUNT + j] = lane_point_samples[(i - 1) * LANE_POINT_COUNT + j];
+        }
+    }
+}
+
+static inline void smooth_front_lane(float* lane_point_samples, float* waveform_window_samples) {
+    for (int i = 0; i < LANE_POINT_COUNT; i++) {
+        float sample_sum = 0.0f;
+        int k = i * WAVEFORM_SAMPLES_PER_LANE_POINT;
+        for (int j = 0; j < WAVEFORM_SAMPLES_PER_LANE_POINT; j++) {
+            sample_sum += fabsf(waveform_window_samples[k + j]);
+        }
+
+        lane_point_samples[i] = (sample_sum / (float)WAVEFORM_SAMPLES_PER_LANE_POINT) * FRONT_LANE_SMOOTHING;
+    }
+}
+
+static inline void update_envelope_mesh_vertices_isometric(Vector3* vertices, float* lane_point_samples) {
+    for (int i = 0; i < LANE_COUNT; i++) {
+        float lane_offset = (float)i * ISOMETRIC_LANE_SPACING;
+        for (int j = 0; j < LANE_POINT_COUNT; j++) {
+            int k = i * LANE_POINT_COUNT + j;
+            float grid_x = (float)j - lane_offset;
+            float grid_y = 0.5f * ((float)j + lane_offset) - lane_point_samples[k] * AMPLITUDE_Y_SCALE;
+            vertices[k].x = 0.5f * (float)SCREEN_WIDTH + (grid_x - ISOMETRIC_GRID_CENTER_X) * ISOMETRIC_ZOOM;
+            vertices[k].y = 0.5f * (float)SCREEN_HEIGHT - (grid_y - ISOMETRIC_GRID_CENTER_Y) * ISOMETRIC_ZOOM;
+            vertices[k].z = 0.0f;
+        }
+    }
+}
+
+static inline void update_envelope_mesh_vertices(Vector3* vertices, float* lane_point_samples) {
+    for (int i = 0; i < LANE_COUNT; i++) {
+        float z = HALF_SPAN - ((float)i / (float)(LANE_COUNT - 1));
+        for (int j = 0; j < LANE_POINT_COUNT; j++) {
+            int k = i * LANE_POINT_COUNT + j;
+            float x = (((float)j / (float)(LANE_POINT_COUNT - 1)) - HALF_SPAN) * LINE_LENGTH_SCALE;
+            vertices[k].x = x;
+            vertices[k].y = lane_point_samples[k] * AMPLITUDE_Y_SCALE;
+            vertices[k].z = z;
+        }
+    }
+}
+
+static inline void update_terrain_mesh_vertices(float* vertices, float* lane_point_samples) {
+    for (int i = 0; i < LANE_COUNT; i++) {
+        float lane_offset = ((float)i - 0.5f * (float)(LANE_COUNT - 1)) * LANE_SPACING_SCALE;
+        for (int j = 0; j < LANE_POINT_COUNT; j++) {
+            int k = (i * LANE_POINT_COUNT + j) * 3;
+            float x = (((float)j / (float)(LANE_POINT_COUNT - 1)) - HALF_SPAN) * LINE_LENGTH_SCALE;
+            float y = lane_point_samples[i * LANE_POINT_COUNT + j] * AMPLITUDE_Y_SCALE;
+            vertices[k + 0] = x;
+            vertices[k + 1] = y;
+            vertices[k + 2] = -lane_offset;
+        }
+    }
+}
+
+static inline void fill_mesh_colors(Color* colors) {
+    for (int i = 0; i < LANE_COUNT; i++) {
+        float v = (float)i / (float)(LANE_COUNT - 1);
+        for (int j = 0; j < LANE_POINT_COUNT; j++) {
+            float u = (float)j / (float)(LANE_POINT_COUNT - 1);
+            int k = i * LANE_POINT_COUNT + j;
+            float r = (1.0f - u) * (1.0f - v) * MAGENTA.r + u * (1.0f - v) * BLUE.r + (1.0f - u) * v * RED.r + u * v * YELLOW.r;
+            float g = (1.0f - u) * (1.0f - v) * MAGENTA.g + u * (1.0f - v) * BLUE.g + (1.0f - u) * v * RED.g + u * v * YELLOW.g;
+            float b = (1.0f - u) * (1.0f - v) * MAGENTA.b + u * (1.0f - v) * BLUE.b + (1.0f - u) * v * RED.b + u * v * YELLOW.b;
+            colors[k] = (Color){(unsigned char)r, (unsigned char)g, (unsigned char)b, COLOR_CHANNEL_MAX};
+        }
+    }
+}
+
+static inline void fill_mesh_indices_lane_topology(unsigned short* indices) {
+    int k = 0;
+    for (int i = 0; i < LANE_COUNT; i++) {
+        for (int j = 0; j < LANE_POINT_COUNT - 1; j++) {
+            unsigned short i_0 = (unsigned short)(i * LANE_POINT_COUNT + j);
+            unsigned short i_1 = (unsigned short)(i_0 + 1);
+            indices[k++] = i_0;
+            indices[k++] = i_1;
+        }
+    }
+}
+
+static inline void fill_mesh_indices_triangle_topology(unsigned short* indices) {
+    int k = 0;
+    for (int i = 0; i < LANE_COUNT - 1; i++) {
+        for (int j = 0; j < LANE_POINT_COUNT - 1; j++) {
+            unsigned short a = (unsigned short)(i * LANE_POINT_COUNT + j);
+            indices[k++] = a;
+            indices[k++] = a + 1;
+            indices[k++] = a + LANE_POINT_COUNT;
+            indices[k++] = a + 1;
+            indices[k++] = a + LANE_POINT_COUNT + 1;
+            indices[k++] = a + LANE_POINT_COUNT;
+        }
+    }
+}
+
+static inline void update_camera_orbit(Camera3D* camera, float dt) {
+    Vector3 dist_from_target = Vector3Subtract(camera->position, camera->target);
+    float orbit_radius = Vector3Length(dist_from_target);
+    float yaw = atan2f(dist_from_target.z, dist_from_target.x);
+    float ground_radius = sqrtf(dist_from_target.x * dist_from_target.x + dist_from_target.z * dist_from_target.z);
+    float pitch = atan2f(dist_from_target.y, ground_radius);
+    float fovy = camera->fovy;
+
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT))
+        yaw += CAMERA_ORBIT_VELOCITY * dt;
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_RIGHT))
+        yaw -= CAMERA_ORBIT_VELOCITY * dt;
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_UP))
+        pitch += CAMERA_ORBIT_VELOCITY * dt;
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_DOWN))
+        pitch -= CAMERA_ORBIT_VELOCITY * dt;
+    if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_TRIGGER) > 0.0f)
+        fovy -= GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_TRIGGER) * CAMERA_FOVY_VELOCITY * dt;
+    if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_TRIGGER) > 0.0f)
+        fovy += GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_TRIGGER) * CAMERA_FOVY_VELOCITY * dt;
+
+    pitch = Clamp(pitch, CAMERA_PITCH_MIN, CAMERA_PITCH_MAX);
+    fovy = Clamp(fovy, CAMERA_FOVY_MIN, CAMERA_FOVY_MAX);
+    camera->position.x = camera->target.x + orbit_radius * cosf(pitch) * cosf(yaw);
+    camera->position.y = camera->target.y + orbit_radius * sinf(pitch);
+    camera->position.z = camera->target.z + orbit_radius * cosf(pitch) * sinf(yaw);
+    camera->fovy = fovy;
+}
+
 #endif // FFFFTT_H

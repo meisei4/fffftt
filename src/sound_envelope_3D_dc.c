@@ -1,25 +1,15 @@
+#define FFFFTT_PROFILE_SOUND_ENVELOPE_3D
 #include "fffftt.h"
 #include "rlgl.h"
 #include <GL/gl.h>
 
+#define LINE_WIDTH_RASTER_PIXELS 2.0f
+
 static const char* domain = "SOUND-ENVELOPE-3D-DC";
-
-#define LANE_COUNT 5
-#define LANE_POINT_COUNT 64
-#define WAVEFORM_SAMPLES_PER_LANE_POINT (WINDOW_SIZE / LANE_POINT_COUNT)
-
-#define AMPLITUDE_Y_SCALE 2.0f //TODO: manually tuned, not even close to exact parity
-#define FRONT_LANE_SMOOTHING 0.4f
-#define ENVELOPE_HALF_SPAN 0.5f
-#define ENVELOPE_LINE_WIDTH_RASTER_PIXELS 2.0f
-#define LINE_LENGTH_SCALE 1.75f //TODO: manually tuned alignment...
 
 static Vector3 envelope_mesh_vertices[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float lane_point_samples[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float waveform_window_samples[WINDOW_SIZE] = {0};
-
-static void update_envelope_mesh_vertices(void);
-static void update_camera_orbit(Camera3D* camera, float dt);
 
 int main(void) {
     int16_t chunk_samples[AUDIO_STREAM_RING_BUFFER_SIZE] = {0};
@@ -67,14 +57,16 @@ int main(void) {
             }
         }
 
-        update_envelope_mesh_vertices();
+        advance_lane_history(&lane_point_samples[0][0]);
+        smooth_front_lane(&lane_point_samples[0][0], waveform_window_samples);
+        update_envelope_mesh_vertices(&envelope_mesh_vertices[0][0], &lane_point_samples[0][0]);
         update_camera_orbit(&camera, (float)GetFrameTime());
 
         BeginDrawing();
         ClearBackground(BLACK);
         BeginMode3D(camera);
 
-        rlSetLineWidth(ENVELOPE_LINE_WIDTH_RASTER_PIXELS);
+        rlSetLineWidth(LINE_WIDTH_RASTER_PIXELS);
         for (int i = 0; i < LANE_COUNT; i++) {
             rlEnableStatePointer(GL_VERTEX_ARRAY, envelope_mesh_vertices[i]);
             rlDrawVertexArrayCustom(0, LANE_POINT_COUNT, GL_LINE_STRIP);
@@ -89,60 +81,4 @@ int main(void) {
     CloseAudioDevice();
     CloseWindow();
     return 0;
-}
-
-static void update_envelope_mesh_vertices(void) {
-    for (int i = LANE_COUNT - 1; i > 0; i--) {
-        for (int j = 0; j < LANE_POINT_COUNT; j++) {
-            lane_point_samples[i][j] = lane_point_samples[i - 1][j];
-        }
-    }
-
-    for (int i = 0; i < LANE_POINT_COUNT; i++) {
-        float amplitude_sum = 0.0f;
-        for (int j = 0; j < WAVEFORM_SAMPLES_PER_LANE_POINT; j++) {
-            amplitude_sum += fabsf(waveform_window_samples[i * WAVEFORM_SAMPLES_PER_LANE_POINT + j]);
-        }
-
-        lane_point_samples[0][i] = (amplitude_sum / (float)WAVEFORM_SAMPLES_PER_LANE_POINT) * FRONT_LANE_SMOOTHING;
-    }
-
-    for (int i = 0; i < LANE_COUNT; i++) {
-        float z = ENVELOPE_HALF_SPAN - ((float)i / (float)(LANE_COUNT - 1));
-        for (int j = 0; j < LANE_POINT_COUNT; j++) {
-            float x = (((float)j / (float)(LANE_POINT_COUNT - 1)) - ENVELOPE_HALF_SPAN) * LINE_LENGTH_SCALE;
-            float y = lane_point_samples[i][j] * AMPLITUDE_Y_SCALE;
-            envelope_mesh_vertices[i][j].x = x;
-            envelope_mesh_vertices[i][j].y = y;
-            envelope_mesh_vertices[i][j].z = z;
-        }
-    }
-}
-
-static void update_camera_orbit(Camera3D* camera, float dt) {
-    Vector3 dist_from_target = Vector3Subtract(camera->position, camera->target);
-    float orbit_radius = Vector3Length(dist_from_target);
-    float yaw = atan2f(dist_from_target.z, dist_from_target.x);
-    float ground_radius = sqrtf(dist_from_target.x * dist_from_target.x + dist_from_target.z * dist_from_target.z);
-    float pitch = atan2f(dist_from_target.y, ground_radius);
-    float fovy = camera->fovy;
-    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT))
-        yaw += CAMERA_ORBIT_VELOCITY * dt;
-    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_RIGHT))
-        yaw -= CAMERA_ORBIT_VELOCITY * dt;
-    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_UP))
-        pitch += CAMERA_ORBIT_VELOCITY * dt;
-    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_DOWN))
-        pitch -= CAMERA_ORBIT_VELOCITY * dt;
-    if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_TRIGGER) > 0.0f)
-        fovy -= GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_TRIGGER) * CAMERA_FOVY_VELOCITY * dt;
-    if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_TRIGGER) > 0.0f)
-        fovy += GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_TRIGGER) * CAMERA_FOVY_VELOCITY * dt;
-
-    pitch = Clamp(pitch, CAMERA_PITCH_MIN, CAMERA_PITCH_MAX);
-    fovy = Clamp(fovy, CAMERA_FOVY_MIN, CAMERA_FOVY_MAX);
-    camera->position.x = camera->target.x + orbit_radius * cosf(pitch) * cosf(yaw);
-    camera->position.y = camera->target.y + orbit_radius * sinf(pitch);
-    camera->position.z = camera->target.z + orbit_radius * cosf(pitch) * sinf(yaw);
-    camera->fovy = fovy;
 }
