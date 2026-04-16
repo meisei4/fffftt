@@ -70,7 +70,7 @@ int main(void) {
         rlSetLineWidth(LINE_WIDTH_RASTER_PIXELS);
         for (int i = 0; i < LANE_COUNT; i++) {
             rlEnableStatePointer(GL_VERTEX_ARRAY, envelope_mesh_vertices[i]);
-            rlDrawVertexArrayCustom(0, LANE_POINT_COUNT, GL_LINE_STRIP);
+            glDrawArrays(GL_LINE_STRIP, 0, LANE_POINT_COUNT);
         }
 
         EndMode3D();

@@ -104,14 +104,14 @@ int main(void) {
         update_waveform_vertices(audio_samples);
         rlEnableStatePointer(GL_VERTEX_ARRAY, waveform_vertices);
         rlSetLineWidth(WAVEFORM_LINE_WIDTH);
-        rlDrawVertexArrayCustom(0, BUFFER_SIZE, GL_LINE_STRIP);
-        // rlDrawVertexArrayCustom(0, BUFFER_SIZE, GL_LINES);
-        // rlDrawVertexArrayCustom(0, BUFFER_SIZE, GL_TRIANGLES); //TODO: NOT YET TESTED
-        // rlDrawVertexArrayCustom(0, BUFFER_SIZE, GL_TRIANGLE_STRIP);  //TODO: NOT YET TESTED
+        glDrawArrays(GL_LINE_STRIP, 0, BUFFER_SIZE);
+        // glDrawArrays(GL_LINES, 0, BUFFER_SIZE);
+        // glDrawArrays(GL_TRIANGLES, 0, BUFFER_SIZE);
+        // glDrawArrays(GL_TRIANGLE_STRIP, 0, BUFFER_SIZE);
 
         // rlEnablePointMode();
         // rlSetPointSize(WAVEFORM_LINE_WIDTH);
-        // rlDrawVertexArrayCustom(0, BUFFER_SIZE, GL_POINTS); //TODO: NOT YET TESTED
+        // glDrawArrays(GL_POINTS, 0, BUFFER_SIZE);
         EndDrawing();
     }
 
