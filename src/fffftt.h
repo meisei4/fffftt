@@ -307,7 +307,7 @@ static inline void render_fft_frame(FFTData* fft_data) {
     #define LINE_LENGTH_SCALE 4.0f
 #elif defined(FFFFTT_PROFILE_WAVEFORM_TERRAIN_3D)
     #define LANE_COUNT 12
-    #define LANE_POINT_COUNT 128
+    #define LANE_POINT_COUNT 32
     #define AMPLITUDE_Y_SCALE 1.0f
     #define LINE_LENGTH_SCALE 2.75f
 #else
@@ -388,7 +388,7 @@ static inline void update_terrain_mesh_vertices(float* vertices, float* lane_poi
             float y = lane_point_samples[i * LANE_POINT_COUNT + j] * AMPLITUDE_Y_SCALE;
             vertices[k + 0] = x;
             vertices[k + 1] = y;
-            vertices[k + 2] = -lane_offset;
+            vertices[k + 2] = lane_offset; //TODO: +Z orientation determined by raylib GenMeshPlane function!!
         }
     }
 }
