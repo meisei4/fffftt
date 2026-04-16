@@ -307,7 +307,7 @@ static inline void render_fft_frame(FFTData* fft_data) {
     #define LINE_LENGTH_SCALE 4.0f
 #elif defined(FFFFTT_PROFILE_WAVEFORM_TERRAIN_3D)
     #define LANE_COUNT 12
-    #define LANE_POINT_COUNT 128
+    #define LANE_POINT_COUNT 32
     #define AMPLITUDE_Y_SCALE 1.0f
     #define LINE_LENGTH_SCALE 2.75f
 #else
@@ -328,8 +328,6 @@ static inline void render_fft_frame(FFTData* fft_data) {
 #define MESH_VERTEX_COUNT (LANE_COUNT * LANE_POINT_COUNT)
 #define LINE_SEGMENT_COUNT (LANE_COUNT * (LANE_POINT_COUNT - 1))
 #define LINE_INDEX_COUNT (LINE_SEGMENT_COUNT * 2)
-#define TRIANGLE_COUNT (((LANE_COUNT - 1) * (LANE_POINT_COUNT - 1)) * 2)
-#define TRIANGLE_INDEX_COUNT (TRIANGLE_COUNT * 3)
 #define WAVEFORM_SAMPLES_PER_LANE_POINT (WINDOW_SIZE / LANE_POINT_COUNT)
 
 static inline void advance_lane_history(float* lane_point_samples) {
@@ -388,7 +386,7 @@ static inline void update_terrain_mesh_vertices(float* vertices, float* lane_poi
             float y = lane_point_samples[i * LANE_POINT_COUNT + j] * AMPLITUDE_Y_SCALE;
             vertices[k + 0] = x;
             vertices[k + 1] = y;
-            vertices[k + 2] = -lane_offset;
+            vertices[k + 2] = lane_offset; //TODO: +Z orientation determined by raylib GenMeshPlane function!!
         }
     }
 }
@@ -415,21 +413,6 @@ static inline void fill_mesh_indices_lane_topology(unsigned short* indices) {
             unsigned short i_1 = (unsigned short)(i_0 + 1);
             indices[k++] = i_0;
             indices[k++] = i_1;
-        }
-    }
-}
-
-static inline void fill_mesh_indices_triangle_topology(unsigned short* indices) {
-    int k = 0;
-    for (int i = 0; i < LANE_COUNT - 1; i++) {
-        for (int j = 0; j < LANE_POINT_COUNT - 1; j++) {
-            unsigned short a = (unsigned short)(i * LANE_POINT_COUNT + j);
-            indices[k++] = a;
-            indices[k++] = a + 1;
-            indices[k++] = a + LANE_POINT_COUNT;
-            indices[k++] = a + 1;
-            indices[k++] = a + LANE_POINT_COUNT + 1;
-            indices[k++] = a + LANE_POINT_COUNT;
         }
     }
 }
