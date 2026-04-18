@@ -3,21 +3,15 @@
 #include <GL/gl.h>
 
 static const char* domain = "WAVEFORM-DC";
-
-static Wave wav = {0};
-static AudioStream audio_stream = {0};
-static size_t wav_cursor = 0;
-static int16_t* wav_pcm16 = NULL;
-static int16_t chunk_samples[AUDIO_STREAM_RING_BUFFER_SIZE] = {0};
-static Vector3 waveform_vertices[BUFFER_SIZE] = {0};
+static Vector3 waveform_vertices[ANALYSIS_WAVEFORM_SAMPLE_COUNT] = {0};
 
 #define WAVEFORM_LINE_WIDTH 5.0f // waveform.glsl#L7 #define LINE_WIDTH 1.0
 
-static void update_waveform_vertices(float* audio_samples) {
-    int sample_stride = WINDOW_SIZE / BUFFER_SIZE;
-    float sample_column_width = (float)SCREEN_WIDTH / (float)BUFFER_SIZE;
-    for (int sample_index = 0; sample_index < BUFFER_SIZE; sample_index++) {
-        float sample_value = audio_samples[sample_index * sample_stride];
+static void update_waveform_vertices(float* analysis_window_samples) {
+    int sample_stride = ANALYSIS_WINDOW_SIZE_IN_FRAMES / ANALYSIS_WAVEFORM_SAMPLE_COUNT;
+    float sample_column_width = (float)SCREEN_WIDTH / (float)ANALYSIS_WAVEFORM_SAMPLE_COUNT;
+    for (int sample_index = 0; sample_index < ANALYSIS_WAVEFORM_SAMPLE_COUNT; sample_index++) {
+        float sample_value = analysis_window_samples[sample_index * sample_stride];
         float normalized_sample = 0.5f * (1.0f + sample_value);
         normalized_sample = (normalized_sample < 0.0f) ? 0.0f : (normalized_sample > 1.0f) ? 1.0f : normalized_sample;
         float sample_x = ((float)sample_index + 0.5f) * sample_column_width;
@@ -28,13 +22,13 @@ static void update_waveform_vertices(float* audio_samples) {
     }
 }
 
-static void render_waveform_frame(float* audio_samples) {
-    int sample_stride = WINDOW_SIZE / BUFFER_SIZE;
-    float sample_column_width = (float)SCREEN_WIDTH / (float)BUFFER_SIZE;
+static void render_waveform_frame(float* analysis_window_samples) {
+    int sample_stride = ANALYSIS_WINDOW_SIZE_IN_FRAMES / ANALYSIS_WAVEFORM_SAMPLE_COUNT;
+    float sample_column_width = (float)SCREEN_WIDTH / (float)ANALYSIS_WAVEFORM_SAMPLE_COUNT;
     int line_thickness_px = (int)floorf(WAVEFORM_LINE_WIDTH + 0.5f); // waveform.glsl#L7 #define LINE_WIDTH 1.0
 
     // waveform.glsl#L12 float sample_index = floor(frag_coord.x / cell_width);
-    for (int sample_index = 0; sample_index < BUFFER_SIZE; sample_index++) {
+    for (int sample_index = 0; sample_index < ANALYSIS_WAVEFORM_SAMPLE_COUNT; sample_index++) {
         int sample_x_min = (int)floorf((float)sample_index * sample_column_width);
         // waveform.glsl#L13 float sample_x = (sample_index + 0.5) / total_waveform_buffer_size_in_samples;
         int sample_x_max = (int)floorf((float)(sample_index + 1) * sample_column_width);
@@ -43,7 +37,7 @@ static void render_waveform_frame(float* audio_samples) {
             sample_x_max = sample_x_min + 1;
         }
 
-        float sample_value = audio_samples[sample_index * sample_stride];
+        float sample_value = analysis_window_samples[sample_index * sample_stride];
         float normalized_sample = 0.5f * (1.0f + sample_value);
         normalized_sample = Clamp(normalized_sample, 0.0f, 1.0f);
         // waveform.glsl#L16 float line_y = floor(sample_value * (iResolution.y - 1.0) + 0.5);
@@ -63,18 +57,20 @@ static void render_waveform_frame(float* audio_samples) {
 }
 
 int main(void) {
-    float audio_samples[WINDOW_SIZE] = {0};
+    int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
+    float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
 
     SetTraceLogLevel(LOG_WARNING); // TODO: note this should be commented out for testing logs on
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
     InitAudioDevice();
-    SetAudioStreamBufferSizeDefault(AUDIO_STREAM_RING_BUFFER_SIZE);
-    wav = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
-    WaveFormat(&wav, SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
-    audio_stream = LoadAudioStream(SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
+    SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
+    Wave wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
+    WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    AudioStream audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
-    wav_pcm16 = (int16_t*)wav.data;
+    size_t wave_cursor = 0;
+    int16_t* wave_pcm16 = (int16_t*)wave.data;
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
@@ -83,40 +79,40 @@ int main(void) {
         }
 
         while (IsAudioStreamProcessed(audio_stream)) {
-            for (int i = 0; i < AUDIO_STREAM_RING_BUFFER_SIZE; i++) {
-                chunk_samples[i] = wav_pcm16[wav_cursor];
-                if (++wav_cursor >= wav.frameCount) {
-                    wav_cursor = 0;
+            for (int i = 0; i < AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES; i++) {
+                chunk_samples[i] = wave_pcm16[wave_cursor];
+                if (++wave_cursor >= wave.frameCount) {
+                    wave_cursor = 0;
                 }
             }
 
-            UpdateAudioStream(audio_stream, chunk_samples, AUDIO_STREAM_RING_BUFFER_SIZE);
+            UpdateAudioStream(audio_stream, chunk_samples, AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
 
-            for (int i = 0; i < WINDOW_SIZE; i++) {
-                audio_samples[i] = (float)chunk_samples[WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
+            for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
+                analysis_window_samples[i] = (float)chunk_samples[i] / ANALYSIS_PCM16_UPPER_BOUND;
             }
         }
 
         BeginDrawing();
         ClearBackground(BLACK);
         // TODO: BELOW IS FOR EXPERIMENTING WITH DIFFERENT DRAW TYPES
-        // render_waveform_frame(audio_samples); // TODO: pendantic shadertoy parity example
-        update_waveform_vertices(audio_samples);
+        // render_waveform_frame(analysis_window_samples); // TODO: pendantic shadertoy parity example
+        update_waveform_vertices(analysis_window_samples);
         rlEnableStatePointer(GL_VERTEX_ARRAY, waveform_vertices);
         rlSetLineWidth(WAVEFORM_LINE_WIDTH);
-        glDrawArrays(GL_LINE_STRIP, 0, BUFFER_SIZE);
-        // glDrawArrays(GL_LINES, 0, BUFFER_SIZE);
-        // glDrawArrays(GL_TRIANGLES, 0, BUFFER_SIZE);
-        // glDrawArrays(GL_TRIANGLE_STRIP, 0, BUFFER_SIZE);
+        glDrawArrays(GL_LINE_STRIP, 0, ANALYSIS_WAVEFORM_SAMPLE_COUNT);
+        // glDrawArrays(GL_LINES, 0, ANALYSIS_WAVEFORM_SAMPLE_COUNT);
+        // glDrawArrays(GL_TRIANGLES, 0, ANALYSIS_WAVEFORM_SAMPLE_COUNT);
+        // glDrawArrays(GL_TRIANGLE_STRIP, 0, ANALYSIS_WAVEFORM_SAMPLE_COUNT);
 
         // rlEnablePointMode();
         // rlSetPointSize(WAVEFORM_LINE_WIDTH);
-        // glDrawArrays(GL_POINTS, 0, BUFFER_SIZE);
+        // glDrawArrays(GL_POINTS, 0, ANALYSIS_WAVEFORM_SAMPLE_COUNT);
         EndDrawing();
     }
 
     UnloadAudioStream(audio_stream);
-    UnloadWave(wav);
+    UnloadWave(wave);
     CloseAudioDevice();
     CloseWindow();
     return 0;

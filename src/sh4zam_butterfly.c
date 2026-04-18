@@ -3,33 +3,30 @@
 
 static const char* domain = "SH4ZAM-BUTTERFLY";
 
-static Wave wav = {0};
-static AudioStream audio_stream = {0};
-static size_t wav_cursor = 0;
-static int16_t* wav_pcm16 = NULL;
-static int16_t chunk_samples[AUDIO_STREAM_RING_BUFFER_SIZE] = {0};
-
 int main(void) {
+    int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
+
     FFTData fft_data = {0};
     float fft_compute_ms = 0.0f;
-    float audio_samples[WINDOW_SIZE] = {0};
+    float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
 
-    SetTraceLogLevel(LOG_WARNING); // TODO: note this should be commented out for testing logs on
+    SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     float start_time = (float)GetTime();
     FFT_PROFILE_DEFINE(fft_profile_data);
-    fft_data.tapback_pos = TAPBACK_POS_DEFAULT;
-    fft_data.work_buffer = RL_CALLOC(WINDOW_SIZE, sizeof(FFTComplex));
-    fft_data.prev_magnitudes = RL_CALLOC(BUFFER_SIZE, sizeof(float));
-    fft_data.fft_history = RL_CALLOC(FFT_HISTORY_FRAME_COUNT, sizeof(float[BUFFER_SIZE]));
+    fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;
+    fft_data.work_buffer = RL_CALLOC(ANALYSIS_WINDOW_SIZE_IN_FRAMES, sizeof(FFTComplex));
+    fft_data.prev_spectrum_bin_levels = RL_CALLOC(ANALYSIS_SPECTRUM_BIN_COUNT, sizeof(float));
+    fft_data.spectrum_history_levels = RL_CALLOC(ANALYSIS_FFT_HISTORY_FRAME_COUNT, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]));
 
     InitAudioDevice();
-    SetAudioStreamBufferSizeDefault(AUDIO_STREAM_RING_BUFFER_SIZE);
-    wav = LoadWave(RD_COUNTRY_22K_WAV);
-    WaveFormat(&wav, SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
-    audio_stream = LoadAudioStream(SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
+    SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
+    Wave wave = LoadWave(RD_COUNTRY_22K_WAV);
+    WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    AudioStream audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
-    wav_pcm16 = (int16_t*)wav.data;
+    size_t wave_cursor = 0;
+    int16_t* wave_pcm16 = (int16_t*)wave.data;
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
@@ -38,26 +35,26 @@ int main(void) {
         }
 
         while (IsAudioStreamProcessed(audio_stream)) {
-            for (int i = 0; i < AUDIO_STREAM_RING_BUFFER_SIZE; i++) {
-                chunk_samples[i] = wav_pcm16[wav_cursor];
-                if (++wav_cursor >= wav.frameCount) {
-                    wav_cursor = 0;
+            for (int i = 0; i < AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES; i++) {
+                chunk_samples[i] = wave_pcm16[wave_cursor];
+                if (++wave_cursor >= wave.frameCount) {
+                    wave_cursor = 0;
                 }
             }
 
-            UpdateAudioStream(audio_stream, chunk_samples, AUDIO_STREAM_RING_BUFFER_SIZE);
+            UpdateAudioStream(audio_stream, chunk_samples, AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
 
-            for (int i = 0; i < WINDOW_SIZE; i++) {
-                audio_samples[i] = (float)chunk_samples[WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
+            for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
+                analysis_window_samples[i] = (float)chunk_samples[i] / ANALYSIS_PCM16_UPPER_BOUND;
             }
         }
 
-        apply_blackman_window(&fft_data, audio_samples);
+        apply_blackman_window(&fft_data, analysis_window_samples);
         uint64_t fft_start = time_nanoseconds();
-        shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)WINDOW_SIZE);
+        shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)ANALYSIS_WINDOW_SIZE_IN_FRAMES);
         fft_compute_ms = elapsed_milliseconds(fft_start);
 
-        clean_up_fft(&fft_data);
+        build_spectrum(&fft_data);
 
         FFT_PROFILE_SAMPLE(fft_profile_data, domain, fft_compute_ms, (float)GetTime() - start_time, &fft_data);
 
@@ -68,10 +65,10 @@ int main(void) {
     }
 
     UnloadAudioStream(audio_stream);
-    UnloadWave(wav);
+    UnloadWave(wave);
     CloseAudioDevice();
-    RL_FREE(fft_data.fft_history);
-    RL_FREE(fft_data.prev_magnitudes);
+    RL_FREE(fft_data.spectrum_history_levels);
+    RL_FREE(fft_data.prev_spectrum_bin_levels);
     RL_FREE(fft_data.work_buffer);
     CloseWindow();
     return 0;
