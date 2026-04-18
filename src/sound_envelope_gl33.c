@@ -9,27 +9,27 @@ static const char* domain = "SOUND-ENVELOPE-GL33";
 #define ENVELOPE_LINE_WIDTH_DISTANCE_PIXELS 0.5f
 #define AUDIO_TEXTURE_ROW_COUNT 2
 
-static float waveform_window_samples[WINDOW_SIZE] = {0};
+static float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
 
 static void update_audio_texture_pixels(Color* audio_texture_pixels);
 
 int main(void) {
-    int16_t chunk_samples[AUDIO_STREAM_RING_BUFFER_SIZE] = {0};
+    int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
 
     SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
     InitAudioDevice();
-    SetAudioStreamBufferSizeDefault(AUDIO_STREAM_RING_BUFFER_SIZE);
+    SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
     Wave wave = LoadWave(RES_SHADERTOY_EXPERIMENT_22K_WAV);
-    WaveFormat(&wave, SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
-    AudioStream stream = LoadAudioStream(SAMPLE_RATE, PER_SAMPLE_BIT_DEPTH, MONO);
-    PlayAudioStream(stream);
+    WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    AudioStream audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    PlayAudioStream(audio_stream);
 
     size_t wave_cursor = 0;
-    int16_t* pcm_data = (int16_t*)wave.data;
+    int16_t* wave_pcm16 = (int16_t*)wave.data;
 
-    Image audio_texture_image = GenImageColor(BUFFER_SIZE, AUDIO_TEXTURE_ROW_COUNT, BLACK);
+    Image audio_texture_image = GenImageColor(ANALYSIS_WAVEFORM_SAMPLE_COUNT, AUDIO_TEXTURE_ROW_COUNT, BLACK);
     Color* audio_texture_pixels = (Color*)audio_texture_image.data;
     Texture2D audio_texture = LoadTextureFromImage(audio_texture_image);
 
@@ -61,18 +61,18 @@ int main(void) {
     SetTargetFPS(15); //TODO: in shadertoy this is controlled by browser config, e.g. in firefox at URL:`about:config` search: `layout.frame_rate`
 
     while (!WindowShouldClose()) {
-        while (IsAudioStreamProcessed(stream)) {
-            for (int i = 0; i < AUDIO_STREAM_RING_BUFFER_SIZE; i++) {
-                chunk_samples[i] = pcm_data[wave_cursor];
+        while (IsAudioStreamProcessed(audio_stream)) {
+            for (int i = 0; i < AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES; i++) {
+                chunk_samples[i] = wave_pcm16[wave_cursor];
                 if (++wave_cursor >= wave.frameCount) {
                     wave_cursor = 0;
                 }
             }
 
-            UpdateAudioStream(stream, chunk_samples, AUDIO_STREAM_RING_BUFFER_SIZE);
+            UpdateAudioStream(audio_stream, chunk_samples, AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
 
-            for (int i = 0; i < WINDOW_SIZE; i++) {
-                waveform_window_samples[i] = (float)chunk_samples[WINDOW_SIZE + i] / PCM_SAMPLE_MAX_F;
+            for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
+                analysis_window_samples[i] = (float)chunk_samples[i] / ANALYSIS_PCM16_UPPER_BOUND;
             }
         }
 
@@ -118,7 +118,7 @@ int main(void) {
     UnloadShader(buffer_a);
     UnloadTexture(audio_texture);
     UnloadImage(audio_texture_image);
-    UnloadAudioStream(stream);
+    UnloadAudioStream(audio_stream);
     UnloadWave(wave);
     CloseAudioDevice();
     CloseWindow();
@@ -126,16 +126,16 @@ int main(void) {
 }
 
 static void update_audio_texture_pixels(Color* audio_texture_pixels) {
-    for (int i = 0; i < BUFFER_SIZE; i++) {
-        float amplitude = fabsf(waveform_window_samples[(i * (WINDOW_SIZE - 1)) / (BUFFER_SIZE - 1)]);
+    for (int i = 0; i < ANALYSIS_WAVEFORM_SAMPLE_COUNT; i++) {
+        float amplitude = fabsf(analysis_window_samples[(i * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (ANALYSIS_WAVEFORM_SAMPLE_COUNT - 1)]);
         unsigned char pixel_value = (unsigned char)(fminf(fmaxf(amplitude, 0.0f), 1.0f) * 255.0f);
         audio_texture_pixels[i].r = pixel_value;
         audio_texture_pixels[i].g = pixel_value;
         audio_texture_pixels[i].b = pixel_value;
         audio_texture_pixels[i].a = 255;
-        audio_texture_pixels[i + BUFFER_SIZE].r = pixel_value;
-        audio_texture_pixels[i + BUFFER_SIZE].g = pixel_value;
-        audio_texture_pixels[i + BUFFER_SIZE].b = pixel_value;
-        audio_texture_pixels[i + BUFFER_SIZE].a = 255;
+        audio_texture_pixels[i + ANALYSIS_WAVEFORM_SAMPLE_COUNT].r = pixel_value;
+        audio_texture_pixels[i + ANALYSIS_WAVEFORM_SAMPLE_COUNT].g = pixel_value;
+        audio_texture_pixels[i + ANALYSIS_WAVEFORM_SAMPLE_COUNT].b = pixel_value;
+        audio_texture_pixels[i + ANALYSIS_WAVEFORM_SAMPLE_COUNT].a = 255;
     }
 }

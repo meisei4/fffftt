@@ -16,14 +16,22 @@
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 
-#define MONO 1
-#define SAMPLE_RATE 22050
-#define PER_SAMPLE_BIT_DEPTH 16
-#define PCM_SAMPLE_MAX_F 32767.0f
-#define AUDIO_STREAM_FRAME_COUNT 2
-#define WINDOW_SIZE 1024
-#define BUFFER_SIZE 512 
-#define AUDIO_STREAM_RING_BUFFER_SIZE (WINDOW_SIZE * AUDIO_STREAM_FRAME_COUNT)
+#define SRC_CHANNELS 1
+#define AUDIO_DEVICE_CHANNELS 2
+
+#define SRC_SAMPLE_RATE 22050
+#define AUDIO_DEVICE_SAMPLE_RATE 44100
+#define ANALYSIS_SAMPLE_RATE 22050 //44100
+
+#define SRC_BIT_DEPTH 16
+#define AUDIO_DEVICE_BIT_DEPTH 16
+#define ANALYSIS_PCM16_UPPER_BOUND 32767.0f
+
+#define ANALYSIS_WINDOW_SIZE_IN_FRAMES 1024 //2048
+#define ANALYSIS_SPECTRUM_BIN_COUNT 512
+#define ANALYSIS_WAVEFORM_SAMPLE_COUNT 512
+
+#define AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES 2048
 
 #define CAMERA_FOVY_MIN 0.1f
 #define CAMERA_FOVY_MAX 6.0f
@@ -50,27 +58,26 @@
 #define SHADER_SOUND_ENVELOPE_BUFFER_A "src/resources/sound_envelope_buffer_a.glsl"
 #define SHADER_SOUND_ENVELOPE_IMAGE "src/resources/sound_envelope_image.glsl"
 
-#define TAPBACK_POS_DEFAULT 0.01f
-#define EFFECTIVE_SAMPLE_RATE ((float)SAMPLE_RATE)
+#define ANALYSIS_TAPBACK_POS_DEFAULT 0.01f
 
-#define BLACKMAN_A 0.42f
-#define BLACKMAN_B 0.5f
-#define BLACKMAN_C 0.08f
+#define ANALYSIS_BLACKMAN_A 0.42f
+#define ANALYSIS_BLACKMAN_B 0.5f
+#define ANALYSIS_BLACKMAN_C 0.08f
 
-#define MIN_DECIBELS (-100.0f)
-#define MAX_DECIBELS (-30.0f)
-#define INVERSE_DECIBEL_RANGE (1.0f / (MAX_DECIBELS - MIN_DECIBELS))
+#define ANALYSIS_MIN_DECIBELS (-100.0f)
+#define ANALYSIS_MAX_DECIBELS (-30.0f)
+#define ANALYSIS_INVERSE_DECIBEL_RANGE (1.0f / (ANALYSIS_MAX_DECIBELS - ANALYSIS_MIN_DECIBELS))
 #define LN_10 2.302585092994046f
-#define DB_TO_LINEAR_SCALE (20.0f / LN_10)
-#define SMOOTHING_TIME_CONSTANT 0.8f
-#define MIN_LOG_MAGNITUDE 1e-40f
+#define ANALYSIS_DB_TO_LINEAR_SCALE (20.0f / LN_10)
+#define ANALYSIS_SMOOTHING_TIME_CONSTANT 0.8f
+#define ANALYSIS_MIN_LOG_MAGNITUDE 1e-40f
 
-#define FFT_HISTORICAL_SMOOTHING_DUR 2000
-#define FFT_WINDOW_DURATION_MILLISECONDS ((WINDOW_SIZE * MILLISECONDS_PER_SECOND) / SAMPLE_RATE)
-#define FFT_HISTORY_FRAME_COUNT (((FFT_HISTORICAL_SMOOTHING_DUR + FFT_WINDOW_DURATION_MILLISECONDS - 1) / FFT_WINDOW_DURATION_MILLISECONDS) + 1)
+#define ANALYSIS_FFT_HISTORICAL_SMOOTHING_DUR 2000
+#define ANALYSIS_WINDOW_DURATION_MS ((ANALYSIS_WINDOW_SIZE_IN_FRAMES * MILLISECONDS_PER_SECOND) / ANALYSIS_SAMPLE_RATE)
+#define ANALYSIS_FFT_HISTORY_FRAME_COUNT (((ANALYSIS_FFT_HISTORICAL_SMOOTHING_DUR + ANALYSIS_WINDOW_DURATION_MS - 1) / ANALYSIS_WINDOW_DURATION_MS) + 1)
 
-#define COLOR_CHANNEL_MAX 255
-#define MIN_SPECTRUM_COLUMN_WIDTH 1
+#define DRAW_COLOR_CHANNEL_MAX 255
+#define DRAW_MIN_SPECTRUM_BIN_WIDTH 1
 
 typedef struct FFTComplex {
     float real;
@@ -79,9 +86,9 @@ typedef struct FFTComplex {
 
 typedef struct FFTData {
     FFTComplex *work_buffer;
-    float *prev_magnitudes;
+    float *prev_spectrum_bin_levels;
     unsigned int frame_index;
-    float (*fft_history)[BUFFER_SIZE];
+    float (*spectrum_history_levels)[ANALYSIS_SPECTRUM_BIN_COUNT];
     int history_pos;
     float tapback_pos;
 } FFTData;
@@ -162,22 +169,22 @@ static inline float elapsed_milliseconds(uint64_t start_ns) {
     return (float)(time_nanoseconds() - start_ns) * 0.000001f;
 }
 
-static inline void apply_blackman_window(FFTData* fft_data, float* audio_samples) {
-    for (int i = 0; i < WINDOW_SIZE; i++) {
-        float x = (2.0f * PI * i) / (WINDOW_SIZE - 1.0f);
-        float blackman_weight = BLACKMAN_A - BLACKMAN_B * cosf(x) + BLACKMAN_C * cosf(2.0f * x);
-        float sample = audio_samples[i];
+static inline void apply_blackman_window(FFTData* fft_data, float* analysis_window_samples) {
+    for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
+        float x = (2.0f * PI * i) / (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1.0f);
+        float blackman_weight = ANALYSIS_BLACKMAN_A - ANALYSIS_BLACKMAN_B * cosf(x) + ANALYSIS_BLACKMAN_C * cosf(2.0f * x);
+        float sample = analysis_window_samples[i];
 
         fft_data->work_buffer[i].real = sample * blackman_weight;
         fft_data->work_buffer[i].imaginary = 0.0f;
     }
 }
 
-static inline void apply_blackman_window_fftw_complex(fftw_complex* fft_input, float* audio_samples) {
-    for (int i = 0; i < WINDOW_SIZE; i++) {
-        float x = (2.0f * PI * i) / (WINDOW_SIZE - 1.0f);
-        float blackman_weight = BLACKMAN_A - BLACKMAN_B * cosf(x) + BLACKMAN_C * cosf(2.0f * x);
-        float sample = audio_samples[i];
+static inline void apply_blackman_window_fftw_complex(fftw_complex* fft_input, float* analysis_window_samples) {
+    for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
+        float x = (2.0f * PI * i) / (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1.0f);
+        float blackman_weight = ANALYSIS_BLACKMAN_A - ANALYSIS_BLACKMAN_B * cosf(x) + ANALYSIS_BLACKMAN_C * cosf(2.0f * x);
+        float sample = analysis_window_samples[i];
         float windowed_sample = sample * blackman_weight;
 
         fft_input[i].re = (fftw_real)windowed_sample;
@@ -188,8 +195,8 @@ static inline void apply_blackman_window_fftw_complex(fftw_complex* fft_input, f
 static inline void cooley_tukey_fft_slow(FFTComplex* spectrum) {
     int j = 0;
 
-    for (int i = 1; i < WINDOW_SIZE - 1; i++) {
-        int bit = WINDOW_SIZE >> 1;
+    for (int i = 1; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1; i++) {
+        int bit = ANALYSIS_WINDOW_SIZE_IN_FRAMES >> 1;
 
         while (j >= bit) {
             j -= bit;
@@ -204,11 +211,11 @@ static inline void cooley_tukey_fft_slow(FFTComplex* spectrum) {
         }
     }
 
-    for (int len = 2; len <= WINDOW_SIZE; len <<= 1) {
+    for (int len = 2; len <= ANALYSIS_WINDOW_SIZE_IN_FRAMES; len <<= 1) {
         float angle_rad = -2.0f * PI / len;
         FFTComplex twiddle_unit = {cosf(angle_rad), sinf(angle_rad)};
 
-        for (int i = 0; i < WINDOW_SIZE; i += len) {
+        for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i += len) {
             FFTComplex twiddle_cur = {1.0f, 0.0f};
 
             for (int k = 0; k < len / 2; k++) {
@@ -230,71 +237,72 @@ static inline void cooley_tukey_fft_slow(FFTComplex* spectrum) {
 }
 
 static inline void update_spectrum_bin(FFTData* fft_data, float* smoothed_spectrum, int bin, float real, float imaginary) {
-    float linear_magnitude = sqrtf(real * real + imaginary * imaginary) / WINDOW_SIZE;
-    float smoothed_magnitude = SMOOTHING_TIME_CONSTANT * fft_data->prev_magnitudes[bin] + (1.0f - SMOOTHING_TIME_CONSTANT) * linear_magnitude;
-    float db = logf(fmaxf(smoothed_magnitude, MIN_LOG_MAGNITUDE)) * DB_TO_LINEAR_SCALE;
-    float normalized = (db - MIN_DECIBELS) * INVERSE_DECIBEL_RANGE;
+    float linear_magnitude = sqrtf(real * real + imaginary * imaginary) / ANALYSIS_WINDOW_SIZE_IN_FRAMES;
+    float smoothed_magnitude =
+        ANALYSIS_SMOOTHING_TIME_CONSTANT * fft_data->prev_spectrum_bin_levels[bin] + (1.0f - ANALYSIS_SMOOTHING_TIME_CONSTANT) * linear_magnitude;
+    float db = logf(fmaxf(smoothed_magnitude, ANALYSIS_MIN_LOG_MAGNITUDE)) * ANALYSIS_DB_TO_LINEAR_SCALE;
+    float normalized = (db - ANALYSIS_MIN_DECIBELS) * ANALYSIS_INVERSE_DECIBEL_RANGE;
     float clamped_magnitude = Clamp(normalized, 0.0f, 1.0f);
 
-    fft_data->prev_magnitudes[bin] = smoothed_magnitude;
+    fft_data->prev_spectrum_bin_levels[bin] = smoothed_magnitude;
     smoothed_spectrum[bin] = clamped_magnitude;
 }
 
-static inline void clean_up_fft(FFTData* fft_data) {
-    float* smoothed_spectrum = fft_data->fft_history[fft_data->history_pos];
+static inline void build_spectrum(FFTData* fft_data) {
+    float* smoothed_spectrum = fft_data->spectrum_history_levels[fft_data->history_pos];
 
-    for (int bin = 0; bin < BUFFER_SIZE; bin++) {
+    for (int bin = 0; bin < ANALYSIS_SPECTRUM_BIN_COUNT; bin++) {
         float re = fft_data->work_buffer[bin].real;
         float im = fft_data->work_buffer[bin].imaginary;
         update_spectrum_bin(fft_data, smoothed_spectrum, bin, re, im);
     }
 
-    fft_data->history_pos = (fft_data->history_pos + 1) % FFT_HISTORY_FRAME_COUNT;
+    fft_data->history_pos = (fft_data->history_pos + 1) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
     fft_data->frame_index++;
 }
 
-static inline void clean_up_fftw_complex(FFTData* fft_data, fftw_complex* fft_output) {
-    float* smoothed_spectrum = fft_data->fft_history[fft_data->history_pos];
+static inline void build_spectrum_fftw(FFTData* fft_data, fftw_complex* fft_output) {
+    float* smoothed_spectrum = fft_data->spectrum_history_levels[fft_data->history_pos];
 
-    for (int bin = 0; bin < BUFFER_SIZE; bin++) {
+    for (int bin = 0; bin < ANALYSIS_SPECTRUM_BIN_COUNT; bin++) {
         float re = (float)fft_output[bin].re;
         float im = (float)fft_output[bin].im;
         update_spectrum_bin(fft_data, smoothed_spectrum, bin, re, im);
     }
 
-    fft_data->history_pos = (fft_data->history_pos + 1) % FFT_HISTORY_FRAME_COUNT;
+    fft_data->history_pos = (fft_data->history_pos + 1) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
     fft_data->frame_index++;
 }
 
 static inline void render_fft_frame(FFTData* fft_data) {
-    float frames_since_tapback = floorf(fft_data->tapback_pos / ((float)WINDOW_SIZE / EFFECTIVE_SAMPLE_RATE));
-    frames_since_tapback = Clamp(frames_since_tapback, 0.0f, (float)(FFT_HISTORY_FRAME_COUNT - 1));
-    int history_frame_index = (fft_data->history_pos - 1 - (int)frames_since_tapback + FFT_HISTORY_FRAME_COUNT) % FFT_HISTORY_FRAME_COUNT;
-    float* fft_frame = fft_data->fft_history[history_frame_index];
+    float frames_since_tapback = floorf(fft_data->tapback_pos / ((float)ANALYSIS_WINDOW_SIZE_IN_FRAMES / (float)ANALYSIS_SAMPLE_RATE));
+    frames_since_tapback = Clamp(frames_since_tapback, 0.0f, (float)(ANALYSIS_FFT_HISTORY_FRAME_COUNT - 1));
+    int history_frame_index = (fft_data->history_pos - 1 - (int)frames_since_tapback + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
+    float* spectrum_bin_levels = fft_data->spectrum_history_levels[history_frame_index];
 
-    float cell_width = (float)SCREEN_WIDTH / (float)BUFFER_SIZE;    // fft.glsl#L19 float cellWidth = iResolution.x / NUM_OF_BINS;
-    for (int bin_index = 0; bin_index < BUFFER_SIZE; bin_index++) { // fft.glsl#L20 float binIndex = floor(fragCoord.x / cellWidth);
+    float cell_width = (float)SCREEN_WIDTH / (float)ANALYSIS_SPECTRUM_BIN_COUNT; // fft.glsl#L19 float cellWidth = iResolution.x / NUM_OF_BINS;
+    for (int bin_index = 0; bin_index < ANALYSIS_SPECTRUM_BIN_COUNT; bin_index++) { // fft.glsl#L20 float binIndex = floor(fragCoord.x / cellWidth);
         int bin_x_min = (int)floorf((float)bin_index * cell_width); //????? fft.glsl#L21 float localX = mod(fragCoord.x, cellWidth);
         int bin_x_max = (int)ceilf((float)(bin_index + 1) * cell_width);
         int bar_width = (bin_x_max - bin_x_min) - 1; // fft.glsl#L22 float barWidth = cellWidth - 1.0;
 
-        if (bar_width < MIN_SPECTRUM_COLUMN_WIDTH) {
-            bar_width = MIN_SPECTRUM_COLUMN_WIDTH;
+        if (bar_width < DRAW_MIN_SPECTRUM_BIN_WIDTH) {
+            bar_width = DRAW_MIN_SPECTRUM_BIN_WIDTH;
         }
 
-        float amplitude = fft_frame[bin_index]; // fft.glsl#L28 float amplitude = texture(iChannel0, sampleCoord).r;
-        if (amplitude <= 0.0f) {
+        float spectrum_level = spectrum_bin_levels[bin_index]; // fft.glsl#L28 float amplitude = texture(iChannel0, sampleCoord).r;
+        if (spectrum_level <= 0.0f) {
             continue;
         }
 
-        int bar_y = (int)ceilf(amplitude * (float)SCREEN_HEIGHT); // fft.glsl#L29 float barY = 1.0 - fragTexCoord.y;
+        int bar_y = (int)ceilf(spectrum_level * (float)SCREEN_HEIGHT); // fft.glsl#L29 float barY = 1.0 - fragTexCoord.y;
         // fft.glsl#L30 if (barY < amplitude) color = WHITE;
         DrawRectangle(bin_x_min, SCREEN_HEIGHT - bar_y, bar_width, bar_y, WHITE);
     }
 }
 
 
-//TODO: temporary refactor for targetting common code and compression areas for later
+// ENVELOPE AND TERRIAN PROFILES + CONSTANTS
 #if defined(FFFFTT_PROFILE_SOUND_ENVELOPE_3D)
     #define LANE_COUNT 5
     #define LANE_POINT_COUNT 64
@@ -328,35 +336,35 @@ static inline void render_fft_frame(FFTData* fft_data) {
 #define MESH_VERTEX_COUNT (LANE_COUNT * LANE_POINT_COUNT)
 #define LINE_SEGMENT_COUNT (LANE_COUNT * (LANE_POINT_COUNT - 1))
 #define LINE_INDEX_COUNT (LINE_SEGMENT_COUNT * 2)
-#define WAVEFORM_SAMPLES_PER_LANE_POINT (WINDOW_SIZE / LANE_POINT_COUNT)
+#define WAVEFORM_SAMPLES_PER_LANE_POINT (ANALYSIS_WINDOW_SIZE_IN_FRAMES / LANE_POINT_COUNT)
 
-static inline void advance_lane_history(float* lane_point_samples) {
+static inline void advance_lane_history(float* lane_point_values) {
     for (int i = LANE_COUNT - 1; i > 0; i--) {
         for (int j = 0; j < LANE_POINT_COUNT; j++) {
-            lane_point_samples[i * LANE_POINT_COUNT + j] = lane_point_samples[(i - 1) * LANE_POINT_COUNT + j];
+            lane_point_values[i * LANE_POINT_COUNT + j] = lane_point_values[(i - 1) * LANE_POINT_COUNT + j];
         }
     }
 }
 
-static inline void smooth_front_lane(float* lane_point_samples, float* waveform_window_samples) {
+static inline void smooth_front_lane(float* lane_point_values, float* analysis_window_samples) {
     for (int i = 0; i < LANE_POINT_COUNT; i++) {
         float sample_sum = 0.0f;
         int k = i * WAVEFORM_SAMPLES_PER_LANE_POINT;
         for (int j = 0; j < WAVEFORM_SAMPLES_PER_LANE_POINT; j++) {
-            sample_sum += fabsf(waveform_window_samples[k + j]);
+            sample_sum += fabsf(analysis_window_samples[k + j]);
         }
 
-        lane_point_samples[i] = (sample_sum / (float)WAVEFORM_SAMPLES_PER_LANE_POINT) * FRONT_LANE_SMOOTHING;
+        lane_point_values[i] = (sample_sum / (float)WAVEFORM_SAMPLES_PER_LANE_POINT) * FRONT_LANE_SMOOTHING;
     }
 }
 
-static inline void update_envelope_mesh_vertices_isometric(Vector3* vertices, float* lane_point_samples) {
+static inline void update_envelope_mesh_vertices_isometric(Vector3* vertices, float* lane_point_values) {
     for (int i = 0; i < LANE_COUNT; i++) {
         float lane_offset = (float)i * ISOMETRIC_LANE_SPACING;
         for (int j = 0; j < LANE_POINT_COUNT; j++) {
             int k = i * LANE_POINT_COUNT + j;
             float grid_x = (float)j - lane_offset;
-            float grid_y = 0.5f * ((float)j + lane_offset) - lane_point_samples[k] * AMPLITUDE_Y_SCALE;
+            float grid_y = 0.5f * ((float)j + lane_offset) - lane_point_values[k] * AMPLITUDE_Y_SCALE;
             vertices[k].x = 0.5f * (float)SCREEN_WIDTH + (grid_x - ISOMETRIC_GRID_CENTER_X) * ISOMETRIC_ZOOM;
             vertices[k].y = 0.5f * (float)SCREEN_HEIGHT - (grid_y - ISOMETRIC_GRID_CENTER_Y) * ISOMETRIC_ZOOM;
             vertices[k].z = 0.0f;
@@ -364,29 +372,29 @@ static inline void update_envelope_mesh_vertices_isometric(Vector3* vertices, fl
     }
 }
 
-static inline void update_envelope_mesh_vertices(Vector3* vertices, float* lane_point_samples) {
+static inline void update_envelope_mesh_vertices(Vector3* vertices, float* lane_point_values) {
     for (int i = 0; i < LANE_COUNT; i++) {
         float z = HALF_SPAN - ((float)i / (float)(LANE_COUNT - 1));
         for (int j = 0; j < LANE_POINT_COUNT; j++) {
             int k = i * LANE_POINT_COUNT + j;
             float x = (((float)j / (float)(LANE_POINT_COUNT - 1)) - HALF_SPAN) * LINE_LENGTH_SCALE;
             vertices[k].x = x;
-            vertices[k].y = lane_point_samples[k] * AMPLITUDE_Y_SCALE;
+            vertices[k].y = lane_point_values[k] * AMPLITUDE_Y_SCALE;
             vertices[k].z = z;
         }
     }
 }
 
-static inline void update_terrain_mesh_vertices(float* vertices, float* lane_point_samples) {
+static inline void update_terrain_mesh_vertices(float* vertices, float* lane_point_values) {
     for (int i = 0; i < LANE_COUNT; i++) {
         float lane_offset = ((float)i - 0.5f * (float)(LANE_COUNT - 1)) * LANE_SPACING_SCALE;
         for (int j = 0; j < LANE_POINT_COUNT; j++) {
             int k = (i * LANE_POINT_COUNT + j) * 3;
             float x = (((float)j / (float)(LANE_POINT_COUNT - 1)) - HALF_SPAN) * LINE_LENGTH_SCALE;
-            float y = lane_point_samples[i * LANE_POINT_COUNT + j] * AMPLITUDE_Y_SCALE;
+            float y = lane_point_values[i * LANE_POINT_COUNT + j] * AMPLITUDE_Y_SCALE;
             vertices[k + 0] = x;
             vertices[k + 1] = y;
-            vertices[k + 2] = lane_offset; //TODO: +Z orientation determined by raylib GenMeshPlane function!!
+            vertices[k + 2] = lane_offset; // NOTE: +Z orientation determined by raylib GenMeshPlane function!!
         }
     }
 }
@@ -400,7 +408,7 @@ static inline void fill_mesh_colors(Color* colors) {
             float r = (1.0f - u) * (1.0f - v) * MAGENTA.r + u * (1.0f - v) * BLUE.r + (1.0f - u) * v * RED.r + u * v * YELLOW.r;
             float g = (1.0f - u) * (1.0f - v) * MAGENTA.g + u * (1.0f - v) * BLUE.g + (1.0f - u) * v * RED.g + u * v * YELLOW.g;
             float b = (1.0f - u) * (1.0f - v) * MAGENTA.b + u * (1.0f - v) * BLUE.b + (1.0f - u) * v * RED.b + u * v * YELLOW.b;
-            colors[k] = (Color){(unsigned char)r, (unsigned char)g, (unsigned char)b, COLOR_CHANNEL_MAX};
+            colors[k] = (Color){(unsigned char)r, (unsigned char)g, (unsigned char)b, DRAW_COLOR_CHANNEL_MAX};
         }
     }
 }

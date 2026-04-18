@@ -1,16 +1,14 @@
 #include "fffftt.h"
 
 static const char* domain = "AUDIO-ONLY-MP3-DC";
-static Music music = {0};
 
 int main(void) {
-    unsigned int device_period_frames = 0;
     // SetTraceLogLevel(LOG_WARNING); // TODO: note this should be commented out for testing logs on
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     InitAudioDevice();
-    device_period_frames = GetAudioDevicePeriodSizeInFrames();
+    unsigned int device_period_frames = GetAudioDevicePeriodSizeInFrames();
     SetTargetFPS(60);
-    music = LoadMusicStream(RD_COUNTRY_STEREO_MP3);
+    Music music = LoadMusicStream(RD_COUNTRY_STEREO_MP3);
     PlayMusicStream(music);
     while (!WindowShouldClose()) {
         if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_MIDDLE_RIGHT) && IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
