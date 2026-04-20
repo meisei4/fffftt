@@ -15,13 +15,15 @@ static void update_flat_mesh_vertices(Mesh* dst_mesh, const Mesh* src_mesh);
 static void fill_flat_mesh_colors(Mesh* dst_mesh, const Mesh* src_mesh);
 static void update_flat_mesh_normals(Mesh* mesh);
 static void update_smooth_mesh_normals(Mesh* mesh);
-static void build_rms_normal_height_field(void);
+static void build_rms_vertex_color_field(void);
 static void build_peak_normal_height_field(void);
 static void update_envelopic_mesh_normals(Mesh* mesh, const float* height_field);
+static void update_rms_mesh_colors(Color* colors);
+static Color sample_rms_pallete(float rms);
 static Vector3 height_field_position(const float* height_field, int lane_index, int point_index);
 static float lane_point_values[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
-static float rms_normal_height_field[LANE_COUNT][LANE_POINT_COUNT] = {0};
+static float rms_vertex_color_field[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float peak_normal_height_field[LANE_COUNT][LANE_POINT_COUNT] = {0};
 
 int main(void) {
@@ -56,8 +58,6 @@ int main(void) {
     // update_smooth_mesh_normals(&mesh);
     // fill_mesh_indices_lane_topology(mesh.indices); //TODO: this would be for a direct drawElements call not a mesh draw, custom topology is a bit complicated
     fill_mesh_colors((Color*)mesh.colors);
-    // build_rms_normal_height_field();
-    // update_envelopic_mesh_normals(&mesh, &rms_normal_height_field[0][0]);
     build_peak_normal_height_field();
     update_envelopic_mesh_normals(&mesh, &peak_normal_height_field[0][0]);
 
@@ -99,19 +99,20 @@ int main(void) {
             }
 
             advance_lane_history(&lane_point_values[0][0]);
-            // advance_lane_history(&rms_normal_height_field[0][0]);
-            advance_lane_history(&peak_normal_height_field[0][0]);
+            // advance_lane_history(&peak_normal_height_field[0][0]);
+            advance_lane_history(&rms_vertex_color_field[0][0]);
             for (int i = 0; i < LANE_POINT_COUNT; i++) {
                 lane_point_values[0][i] = analysis_window_samples[(i * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (LANE_POINT_COUNT - 1)];
             }
         }
 
         update_terrain_mesh_vertices(mesh.vertices, &lane_point_values[0][0]);
+        build_rms_vertex_color_field();
+        update_rms_mesh_colors((Color*)mesh.colors);
+        // fill_mesh_colors((Color*)mesh.colors);
         // update_smooth_mesh_normals(&mesh);
-        // build_rms_normal_height_field();
-        // update_envelopic_mesh_normals(&mesh, &rms_normal_height_field[0][0]);
-        build_peak_normal_height_field();
-        update_envelopic_mesh_normals(&mesh, &peak_normal_height_field[0][0]);
+        // build_peak_normal_height_field();
+        // update_envelopic_mesh_normals(&mesh, &peak_normal_height_field[0][0]);
         update_flat_mesh_vertices(&flat_mesh, &mesh);
         update_flat_mesh_normals(&flat_mesh);
         update_camera_orbit(&camera, GetFrameTime());
@@ -129,19 +130,21 @@ int main(void) {
         glLightfv(GL_LIGHT0, GL_AMBIENT, (const GLfloat[]){0.08f, 0.08f, 0.08f, 1.0f});
         glLightfv(GL_LIGHT0, GL_DIFFUSE, (const GLfloat[]){0.60f, 0.60f, 0.60f, 1.0f});
         glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){1.330f, 1.345f, -1.418f, 1.0f}); // TODO: same issue with the camera position manual derivation
-        DrawModelEx(model, (Vector3){0.0f, 1.0f, 0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, WHITE);
+        DrawModelEx(model, (Vector3){0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, WHITE);
 
         glShadeModel(GL_FLAT);
-        DrawModelEx(flat_model, (Vector3){0.0, -1.0f, 0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, WHITE);
+        // DrawModelEx(flat_model, (Vector3){0.0, -1.0f, 0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, WHITE);
         glShadeModel(GL_SMOOTH);
         glDisable(GL_LIGHTING);
 
-        DrawModelEx(model, (Vector3){0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, WHITE);
+        DrawModelEx(model, (Vector3){0.0f, -1.0f, 0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, WHITE);
         unsigned char* saved_colors = draw_mesh->colors;
 
         draw_mesh->colors = NULL;
-        DrawModelWiresEx(model, (Vector3){0.0f, 1.0f, 0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, BLUE);
-        DrawModelPointsEx(model, (Vector3){0.0f, -1.0f, 0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, MAGENTA);
+        // DrawModelWiresEx(model, (Vector3){0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, BLUE);
+        // DrawModelPointsEx(model, (Vector3){0.0f, 1.0f, 0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, MAGENTA);
+        DrawModelPointsEx(model, (Vector3){0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, BLUE);
+        DrawModelWiresEx(model, (Vector3){0.0f, -1.0f, 0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, MAGENTA);
         draw_mesh->colors = saved_colors;
 
         EndMode3D();
@@ -239,7 +242,7 @@ static void update_smooth_mesh_normals(Mesh* mesh) {
     }
 }
 
-static void build_rms_normal_height_field(void) {
+static void build_rms_vertex_color_field(void) {
     for (int i = 0; i < LANE_POINT_COUNT; i++) {
         float squared_sample_sum = 0.0f;
         int starting_sample_index = i * WAVEFORM_SAMPLES_PER_LANE_POINT;
@@ -248,7 +251,8 @@ static void build_rms_normal_height_field(void) {
             float sample_value = analysis_window_samples[k];
             squared_sample_sum += sample_value * sample_value;
         }
-        rms_normal_height_field[0][i] = sqrtf(squared_sample_sum / (float)WAVEFORM_SAMPLES_PER_LANE_POINT);
+        // RMS envelope convention references: https://www.mathworks.com/help/signal/ref/envelope.html and https://en.wikipedia.org/wiki/Root_mean_square
+        rms_vertex_color_field[0][i] = sqrtf(squared_sample_sum / (float)WAVEFORM_SAMPLES_PER_LANE_POINT);
     }
 }
 
@@ -265,6 +269,44 @@ static void build_peak_normal_height_field(void) {
         }
         peak_normal_height_field[0][i] = peak_magnitude;
     }
+}
+
+static void update_rms_mesh_colors(Color* colors) {
+    for (int i = 0; i < LANE_COUNT; i++) {
+        for (int j = 0; j < LANE_POINT_COUNT; j++) {
+            int k = i * LANE_POINT_COUNT + j;
+            colors[k] = sample_rms_pallete(rms_vertex_color_field[i][j]);
+        }
+    }
+}
+
+static Color sample_rms_pallete(float rms) {
+    const float visibility_threshold = 0.2f;
+    float t = (rms - visibility_threshold) / (1.0f - visibility_threshold);
+    if (t <= 0.0f) {
+        return (Color){0, 0, 0, 0}; //TODO: figure out a way to group colors, wavefomr is too sparse, fft will work better of course...
+    }
+
+    t = Clamp(t, 0.0f, 1.0f);
+    Color color_a = MAGENTA;
+    Color color_b = BLUE;
+    float blend = t * 3.0f;
+    if (t >= (2.0f / 3.0f)) {
+        color_a = RED;
+        color_b = YELLOW;
+        blend = (t - (2.0f / 3.0f)) * 3.0f;
+    } else if (t >= (1.0f / 3.0f)) {
+        color_a = BLUE;
+        color_b = RED;
+        blend = (t - (1.0f / 3.0f)) * 3.0f;
+    }
+
+    return (Color){
+        (unsigned char)Lerp((float)color_a.r, (float)color_b.r, blend),
+        (unsigned char)Lerp((float)color_a.g, (float)color_b.g, blend),
+        (unsigned char)Lerp((float)color_a.b, (float)color_b.b, blend),
+        DRAW_COLOR_CHANNEL_MAX,
+    };
 }
 
 static void update_envelopic_mesh_normals(Mesh* mesh, const float* height_field) {
