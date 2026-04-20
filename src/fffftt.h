@@ -53,6 +53,8 @@
 #define RES_SHADERTOY_EXPERIMENT_22K_WAV "src/resources/shadertoy_experiment_22050hz_pcm16_mono.wav"
 #define RD_SHADERTOY_ELECTRONEBULAE_ONE_FOURTH_22K_WAV "/rd/shadertoy_electronebulae_one_fourth_22050hz_pcm16_mono.wav"
 
+#define RD_DDS_FFM_22K_WAV "/rd/dds_ffm_22050hz_pcm16_mono.wav"
+
 #define SHADER_FFT "src/resources/fft.glsl"
 #define SHADER_WAVEFORM "src/resources/waveform.glsl"
 #define SHADER_SOUND_ENVELOPE_BUFFER_A "src/resources/sound_envelope_buffer_a.glsl"

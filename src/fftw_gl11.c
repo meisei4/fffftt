@@ -25,7 +25,7 @@ int main(void) {
     AudioStream audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
 
     PlayAudioStream(audio_stream);
-    size_t wave_cursor = 0;
+    unsigned int wave_cursor = 0;
     int16_t* wave_pcm16 = (int16_t*)wave.data;
     fftw_complex* fftw_input = fftw_malloc(sizeof(fftw_complex) * ANALYSIS_WINDOW_SIZE_IN_FRAMES);
     fftw_complex* fftw_output = fftw_malloc(sizeof(fftw_complex) * ANALYSIS_WINDOW_SIZE_IN_FRAMES);

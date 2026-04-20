@@ -360,6 +360,7 @@ sound-envelope-3d-audio-cadence-dc: $(DC_RAYLIB_DIR)/libraylib.a
 	@rm -f $(DB_OUT)
 	mkdir -p $(BIN_DIR) $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR) $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk
 	cp -f $(SRC_DIR)/resources/shadertoy_experiment_22050hz_pcm16_mono.wav $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk/
+#	cp -f $(SRC_DIR)/resources/dds_ffm_22050hz_pcm16_mono.wav $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk/
 	$(KOS_GENROMFS) -f $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk.img -d $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk -v -x .gitignore -x .DS_Store -x Thumbs.db
 	$(KOS_BASE)/utils/bin2c/bin2c $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk.img $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk_tmp.c romdisk
 	$(KOS_CC) $(KOS_CFLAGS) -o $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk_tmp.o -c $(SOUND_ENVELOPE_3D_AUDIO_CANDENCE_DC_TARGET_DIR)/romdisk_tmp.c
@@ -377,6 +378,7 @@ waveform-terrain-3d-dc: $(DC_RAYLIB_DIR)/libraylib.a
 	@rm -f $(DB_OUT)
 	mkdir -p $(BIN_DIR) $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR) $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk
 	cp -f $(SRC_DIR)/resources/shadertoy_experiment_22050hz_pcm16_mono.wav $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
+#	cp -f $(SRC_DIR)/resources/dds_ffm_22050hz_pcm16_mono.wav $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 	$(KOS_GENROMFS) -f $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk.img -d $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk -v -x .gitignore -x .DS_Store -x Thumbs.db
 	$(KOS_BASE)/utils/bin2c/bin2c $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk.img $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk_tmp.c romdisk
 	$(KOS_CC) $(KOS_CFLAGS) -o $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk_tmp.o -c $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk_tmp.c

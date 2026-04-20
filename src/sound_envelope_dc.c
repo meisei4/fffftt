@@ -24,7 +24,7 @@ int main(void) {
     AudioStream audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
 
-    size_t wave_cursor = 0;
+    unsigned int wave_cursor = 0;
     int16_t* wave_pcm16 = (int16_t*)wave.data;
 
     SetTargetFPS(15);

@@ -5,19 +5,16 @@ static const char* domain = "AUDIO-ONLY-WAV-DC";
 int main(void) {
     int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
 
-    unsigned int device_period_frames = 0;
-    //SetTraceLogLevel(LOG_WARNING); // TODO: note this should be commented out for testing logs on
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     InitAudioDevice();
-    device_period_frames = GetAudioDevicePeriodSizeInFrames();
     SetTargetFPS(60);
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
     Wave wave = LoadWave(RD_COUNTRY_22K_WAV);
     WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     AudioStream audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
-    size_t wave_cursor = 0;
-    size_t wave_sample_count = (size_t)wave.frameCount * (size_t)AUDIO_DEVICE_CHANNELS;
+    unsigned int wave_cursor = 0;
+    unsigned int wave_sample_count = wave.frameCount * AUDIO_DEVICE_CHANNELS;
     int16_t* wave_pcm16 = (int16_t*)wave.data;
 
     while (!WindowShouldClose()) {
@@ -39,7 +36,7 @@ int main(void) {
         BeginDrawing();
         ClearBackground(BLACK);
         DrawText(TextFormat("FILE: %.*s", (int)(sizeof(RD_COUNTRY_22K_WAV) - 1), RD_COUNTRY_22K_WAV), 16, 16, 20, WHITE);
-        DrawText(TextFormat("PERIOD: %u", device_period_frames), 16, 44, 20, WHITE);
+        DrawText(TextFormat("PERIOD: %u", AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES), 16, 44, 20, WHITE);
         EndDrawing();
     }
 
