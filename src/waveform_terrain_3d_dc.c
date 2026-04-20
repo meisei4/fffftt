@@ -15,8 +15,14 @@ static void update_flat_mesh_vertices(Mesh* dst_mesh, const Mesh* src_mesh);
 static void fill_flat_mesh_colors(Mesh* dst_mesh, const Mesh* src_mesh);
 static void update_flat_mesh_normals(Mesh* mesh);
 static void update_smooth_mesh_normals(Mesh* mesh);
+static void build_rms_normal_height_field(void);
+static void build_peak_normal_height_field(void);
+static void update_envelopic_mesh_normals(Mesh* mesh, const float* height_field);
+static Vector3 height_field_position(const float* height_field, int lane_index, int point_index);
 static float lane_point_values[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
+static float rms_normal_height_field[LANE_COUNT][LANE_POINT_COUNT] = {0};
+static float peak_normal_height_field[LANE_COUNT][LANE_POINT_COUNT] = {0};
 
 int main(void) {
     int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
@@ -47,9 +53,13 @@ int main(void) {
     mesh.colors = RL_CALLOC(mesh.vertexCount, sizeof(Color));
 
     update_terrain_mesh_vertices(mesh.vertices, &lane_point_values[0][0]);
-    update_smooth_mesh_normals(&mesh);
+    // update_smooth_mesh_normals(&mesh);
     // fill_mesh_indices_lane_topology(mesh.indices); //TODO: this would be for a direct drawElements call not a mesh draw, custom topology is a bit complicated
     fill_mesh_colors((Color*)mesh.colors);
+    // build_rms_normal_height_field();
+    // update_envelopic_mesh_normals(&mesh, &rms_normal_height_field[0][0]);
+    build_peak_normal_height_field();
+    update_envelopic_mesh_normals(&mesh, &peak_normal_height_field[0][0]);
 
     Model model = LoadModelFromMesh(mesh);
     Mesh* draw_mesh = &model.meshes[0];
@@ -89,13 +99,19 @@ int main(void) {
             }
 
             advance_lane_history(&lane_point_values[0][0]);
+            // advance_lane_history(&rms_normal_height_field[0][0]);
+            advance_lane_history(&peak_normal_height_field[0][0]);
             for (int i = 0; i < LANE_POINT_COUNT; i++) {
                 lane_point_values[0][i] = analysis_window_samples[(i * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (LANE_POINT_COUNT - 1)];
             }
         }
 
         update_terrain_mesh_vertices(mesh.vertices, &lane_point_values[0][0]);
-        update_smooth_mesh_normals(&mesh);
+        // update_smooth_mesh_normals(&mesh);
+        // build_rms_normal_height_field();
+        // update_envelopic_mesh_normals(&mesh, &rms_normal_height_field[0][0]);
+        build_peak_normal_height_field();
+        update_envelopic_mesh_normals(&mesh, &peak_normal_height_field[0][0]);
         update_flat_mesh_vertices(&flat_mesh, &mesh);
         update_flat_mesh_normals(&flat_mesh);
         update_camera_orbit(&camera, GetFrameTime());
@@ -113,18 +129,18 @@ int main(void) {
         glLightfv(GL_LIGHT0, GL_AMBIENT, (const GLfloat[]){0.08f, 0.08f, 0.08f, 1.0f});
         glLightfv(GL_LIGHT0, GL_DIFFUSE, (const GLfloat[]){0.60f, 0.60f, 0.60f, 1.0f});
         glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){1.330f, 1.345f, -1.418f, 1.0f}); // TODO: same issue with the camera position manual derivation
-        DrawModelEx(model, (Vector3){0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, WHITE);
+        DrawModelEx(model, (Vector3){0.0f, 1.0f, 0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, WHITE);
 
         glShadeModel(GL_FLAT);
         DrawModelEx(flat_model, (Vector3){0.0, -1.0f, 0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, WHITE);
         glShadeModel(GL_SMOOTH);
         glDisable(GL_LIGHTING);
 
-        DrawModelEx(model, (Vector3){0.0f, 1.0f, 0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, WHITE);
+        DrawModelEx(model, (Vector3){0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, WHITE);
         unsigned char* saved_colors = draw_mesh->colors;
 
         draw_mesh->colors = NULL;
-        DrawModelWiresEx(model, (Vector3){0.0f, 0.0f, 0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, BLUE);
+        DrawModelWiresEx(model, (Vector3){0.0f, 1.0f, 0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, BLUE);
         DrawModelPointsEx(model, (Vector3){0.0f, -1.0f, 0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, MAGENTA);
         draw_mesh->colors = saved_colors;
 
@@ -221,4 +237,67 @@ static void update_smooth_mesh_normals(Mesh* mesh) {
             normals[k_out + 2] = n.z;
         }
     }
+}
+
+static void build_rms_normal_height_field(void) {
+    for (int i = 0; i < LANE_POINT_COUNT; i++) {
+        float squared_sample_sum = 0.0f;
+        int starting_sample_index = i * WAVEFORM_SAMPLES_PER_LANE_POINT;
+        for (int j = 0; j < WAVEFORM_SAMPLES_PER_LANE_POINT; j++) {
+            int k = starting_sample_index + j;
+            float sample_value = analysis_window_samples[k];
+            squared_sample_sum += sample_value * sample_value;
+        }
+        rms_normal_height_field[0][i] = sqrtf(squared_sample_sum / (float)WAVEFORM_SAMPLES_PER_LANE_POINT);
+    }
+}
+
+static void build_peak_normal_height_field(void) {
+    for (int i = 0; i < LANE_POINT_COUNT; i++) {
+        float peak_magnitude = 0.0f;
+        int starting_sample_index = i * WAVEFORM_SAMPLES_PER_LANE_POINT;
+        for (int j = 0; j < WAVEFORM_SAMPLES_PER_LANE_POINT; j++) {
+            int k = starting_sample_index + j;
+            float sample_magnitude = fabsf(analysis_window_samples[k]);
+            if (sample_magnitude > peak_magnitude) {
+                peak_magnitude = sample_magnitude;
+            }
+        }
+        peak_normal_height_field[0][i] = peak_magnitude;
+    }
+}
+
+static void update_envelopic_mesh_normals(Mesh* mesh, const float* height_field) {
+    float* normals = mesh->normals;
+
+    for (int i = 0; i < LANE_COUNT; i++) {
+        int i_prev = (i > 0) ? i - 1 : i;
+        int i_next = (i < LANE_COUNT - 1) ? i + 1 : i;
+
+        for (int j = 0; j < LANE_POINT_COUNT; j++) {
+            int j_prev = (j > 0) ? j - 1 : j;
+            int j_next = (j < LANE_POINT_COUNT - 1) ? j + 1 : j;
+            int k_out = (i * LANE_POINT_COUNT + j) * 3;
+
+            Vector3 left = height_field_position(height_field, i, j_prev);
+            Vector3 right = height_field_position(height_field, i, j_next);
+            Vector3 back = height_field_position(height_field, i_prev, j);
+            Vector3 front = height_field_position(height_field, i_next, j);
+
+            Vector3 tangent_x = Vector3Subtract(right, left);
+            Vector3 tangent_z = Vector3Subtract(front, back);
+            Vector3 n = Vector3Normalize(Vector3CrossProduct(tangent_z, tangent_x));
+
+            normals[k_out + 0] = n.x;
+            normals[k_out + 1] = n.y;
+            normals[k_out + 2] = n.z;
+        }
+    }
+}
+
+static Vector3 height_field_position(const float* height_field, int lane_index, int point_index) {
+    float lane_offset = ((float)lane_index - 0.5f * (float)(LANE_COUNT - 1)) * LANE_SPACING_SCALE;
+    float x = (((float)point_index / (float)(LANE_POINT_COUNT - 1)) - HALF_SPAN) * LINE_LENGTH_SCALE;
+    float y = height_field[lane_index * LANE_POINT_COUNT + point_index] * AMPLITUDE_Y_SCALE;
+    return (Vector3){x, y, lane_offset};
 }
