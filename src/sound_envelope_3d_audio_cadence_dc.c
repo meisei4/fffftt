@@ -5,6 +5,10 @@
 
 #define LINE_WIDTH_RASTER_PIXELS 2.0f
 
+// TODO: current stupid trick for draining my understanding of the worst case scenario: mid-stream pause/resume of raylib/miniaudio stream + AICA buffer
+#define MAX_DRAIN_CHUNK_COUNT 3
+static int16_t drain_chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
+
 static const char* domain = "SOUND-ENVELOPE-3D-AUDIO-CADENCE-DC";
 
 static Vector3 envelope_mesh_vertices[LANE_COUNT][LANE_POINT_COUNT] = {0};
@@ -110,15 +114,36 @@ static void rebuild_envelope_history_from_wave(unsigned int wave_cursor, const i
 }
 
 static void update_playback_controls(AudioStream audio_stream, unsigned int* wave_cursor, const int16_t* wave_pcm16, unsigned int frame_count) {
+    int16_t resume_chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
+
     if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT)) {
         if (!is_paused) {
             is_paused = true;
-            PauseAudioStream(audio_stream);
+            // PauseAudioStream(audio_stream);
+            // *wave_cursor = (*wave_cursor + frame_count - AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % frame_count;
+            // rebuild_envelope_history_from_wave(*wave_cursor, wave_pcm16, frame_count);
             *wave_cursor = (*wave_cursor + frame_count - AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % frame_count;
+            for (int i = 0; i < MAX_DRAIN_CHUNK_COUNT; i++) {
+                while (!IsAudioStreamProcessed(audio_stream)) {
+                    /* KEEP DRAINING! */
+                }
+                UpdateAudioStream(audio_stream, drain_chunk_samples, AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
+            }
+            PauseAudioStream(audio_stream);
             rebuild_envelope_history_from_wave(*wave_cursor, wave_pcm16, frame_count);
         } else {
             is_paused = false;
-            ResumeAudioStream(audio_stream);
+            // ResumeAudioStream(audio_stream);
+            PlayAudioStream(audio_stream);
+            while (IsAudioStreamProcessed(audio_stream)) {
+                for (int i = 0; i < AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES; i++) {
+                    resume_chunk_samples[i] = wave_pcm16[*wave_cursor];
+                    if (++(*wave_cursor) >= frame_count) {
+                        *wave_cursor = 0;
+                    }
+                }
+                UpdateAudioStream(audio_stream, resume_chunk_samples, AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
+            }
         }
     }
     if (is_paused && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)) {
