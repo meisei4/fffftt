@@ -40,7 +40,7 @@ int main(void) {
     Camera3D camera = {
         .position = (Vector3){1.45625f * 2.0f, 1.345f * 2.0f, -1.36625f * 2.0f},
         .target = (Vector3){0.0f, 0.25f, 0.0f},
-        .up = (Vector3){0.0f, 1.0f, 0.0f},
+        .up = Y_AXIS,
         .fovy = 5.0f,
         .projection = CAMERA_ORTHOGRAPHIC,
     };
@@ -118,9 +118,9 @@ int main(void) {
         rlDisableStatePointer(GL_COLOR_ARRAY);
         rlDisableStatePointer(GL_VERTEX_ARRAY);
 
-        // DrawModelEx(model, (Vector3){0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, WHITE);
-        // DrawModelWiresEx(model, (Vector3){0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, BLUE);
-        // DrawModelPointsEx(model, (Vector3){0.0f}, (Vector3){0.0f, 1.0f, 0.0f}, 0.0f, (Vector3){1.0f, 1.0f, 1.0f}, MAGENTA);
+        // DrawModelEx(model, (Vector3){0.0f}, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+        // DrawModelWiresEx(model, (Vector3){0.0f}, Y_AXIS, 0.0f, DEFAULT_SCALE, BLUE);
+        // DrawModelPointsEx(model, (Vector3){0.0f}, Y_AXIS, 0.0f, DEFAULT_SCALE, MAGENTA);
 
         EndMode3D();
         // DrawFPS(540, 420);

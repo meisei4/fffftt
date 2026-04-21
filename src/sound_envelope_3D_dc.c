@@ -30,7 +30,7 @@ int main(void) {
     Camera3D camera = {
         .position = (Vector3){-1.093f, 1.126f, 1.165f}, //TODO: manually tuned alignment...
         .target = (Vector3){0.0f, 0.25f, 0.0f},
-        .up = (Vector3){0.0f, 1.0f, 0.0f},
+        .up = Y_AXIS,
         .fovy = 3.111f, //TODO: manually tuned alignment... 2D software isometric projection -> true 3D orthographic projection is tough
         .projection = CAMERA_ORTHOGRAPHIC,
     };

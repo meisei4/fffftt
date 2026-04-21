@@ -33,6 +33,9 @@
 
 #define AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES 2048
 
+#define Y_AXIS (Vector3){0.0f, 1.0f, 0.0f}
+#define DEFAULT_SCALE (Vector3){1.0f, 1.0f, 1.0f}
+
 #define CAMERA_FOVY_MIN 0.1f
 #define CAMERA_FOVY_MAX 6.0f
 #define CAMERA_FOVY_VELOCITY 6.0f
