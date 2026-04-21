@@ -4,14 +4,36 @@
 #include "raylib.h"
 #include "raymath.h"
 #include "../fftw_1997/fftw.h"
+#include "../sh4zam/include/sh4zam/shz_sh4zam.h"
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #ifdef PLATFORM_DREAMCAST
 #include <dc/perfctr.h>
 #endif // PLATFORM_DREAMCAST
+
+//TODO: investigate orbital camera!!!!
+#define SINF(x) shz_sinf((x))
+#define COSF(x) shz_cosf((x))
+#define TANF(x) shz_tanf((x))
+#define SQRTF(x) shz_sqrtf((x))
+#define ATAN2F(y, x) shz_atan2f((y), (x))
+#define ACOSF(x) shz_acosf((x))
+#define POWF(x, y) shz_powf((x), (y))
+#define EXPF(x) shz_expf((x))
+#define FLOORF(x) shz_floorf((x))
+#define CEILF(x) shz_ceilf((x))
+#define FMODF(x, y) shz_fmodf((x), (y))
+#define LOGF(x) shz_logf((x))
+#define FMAXF(x, y) shz_fmaxf((x), (y))
+#define FABSF(x) shz_fabsf((x))
+#define MEMCPY(dst, src, size) memcpy((dst), (src), (size)) //TODO: Colors... hmmm
+#define MEMCPY4(dst, src, size) shz_memcpy4((dst), (src), (size))
+#define CLAMP(x, min, max) shz_clampf((x), (min), (max))
+#define LERP(a, b, t) shz_lerpf((a), (b), (t))
 
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
@@ -37,11 +59,12 @@
 #define DEFAULT_SCALE (Vector3){1.0f, 1.0f, 1.0f}
 
 #define CAMERA_FOVY_MIN 0.1f
-#define CAMERA_FOVY_MAX 6.0f
+#define CAMERA_FOVY_MAX 10.0f
 #define CAMERA_FOVY_VELOCITY 6.0f
 #define CAMERA_ORBIT_VELOCITY 2.0f
-#define CAMERA_PITCH_MIN 0.1f
-#define CAMERA_PITCH_MAX 2.5f
+#define CAMERA_PITCH_MIN (-PI/2.0f + 0.1f)
+#define CAMERA_PITCH_MAX ( PI/2.0f - 0.1f)
+
 
 #define MILLISECONDS_PER_SECOND 1000
 #define SECONDS_PER_MINUTE 60
@@ -319,10 +342,11 @@ static inline void render_fft_frame(FFTData* fft_data) {
     #define AMPLITUDE_Y_SCALE 120.0f
     #define LINE_LENGTH_SCALE 4.0f
 #elif defined(FFFFTT_PROFILE_WAVEFORM_TERRAIN_3D)
-    #define LANE_COUNT 12
-    #define LANE_POINT_COUNT 32
-    #define AMPLITUDE_Y_SCALE 1.0f
-    #define LINE_LENGTH_SCALE 2.75f
+    #define LANE_COUNT 11
+    #define LANE_POINT_COUNT 33
+    #define AMPLITUDE_Y_SCALE 2.0f
+    // #define AMPLITUDE_Y_SCALE 0.66f
+    #define LINE_LENGTH_SCALE 5.0f
 #else
     #define LANE_COUNT 24
     #define LANE_POINT_COUNT 128
@@ -337,7 +361,7 @@ static inline void render_fft_frame(FFTData* fft_data) {
 #define FRONT_LANE_SMOOTHING 0.4f
 #define ISOMETRIC_LANE_SPACING 9.0f
 #define POINT_SIZE_RASTER_PIXELS 3.0f
-#define LANE_SPACING_SCALE 0.25f
+#define LANE_SPACING_SCALE 0.50f
 #define MESH_VERTEX_COUNT (LANE_COUNT * LANE_POINT_COUNT)
 #define LINE_SEGMENT_COUNT (LANE_COUNT * (LANE_POINT_COUNT - 1))
 #define LINE_INDEX_COUNT (LINE_SEGMENT_COUNT * 2)
