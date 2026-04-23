@@ -454,6 +454,97 @@ static inline void fill_mesh_indices_lane_topology(unsigned short* indices) {
     }
 }
 
+#define LANE_MASK_TEXTURE_WIDTH 8
+#define LANE_MASK_TEXTURE_HEIGHT 8
+#define LANE_MASK_STRIPE_OFFSET 4
+#define LANE_MASK_WIDTH_TEXELS 1
+#define LANE_MASK_TEXCOORD_S_CENTER (0.5f / (float)LANE_MASK_TEXTURE_WIDTH)
+#define LANE_MASK_TEXCOORD_FRONT_LANE_INNER_EDGE ((float)LANE_MASK_STRIPE_OFFSET / (float)LANE_MASK_TEXTURE_HEIGHT)
+#define LANE_MASK_TEXCOORD_MID_LANE_CENTER (((float)LANE_MASK_STRIPE_OFFSET + 0.5f) / (float)LANE_MASK_TEXTURE_HEIGHT)
+#define LANE_MASK_TEXCOORD_BACK_LANE_INNER_EDGE (((float)LANE_MASK_STRIPE_OFFSET + (float)LANE_MASK_WIDTH_TEXELS) / (float)LANE_MASK_TEXTURE_HEIGHT)
+
+static void fill_lane_mask_texcoords(float* texcoords) {
+    float s = LANE_MASK_TEXCOORD_S_CENTER;
+    for (int i = 0; i < LANE_COUNT; i++) {
+        float t = (float)i + LANE_MASK_TEXCOORD_MID_LANE_CENTER;
+        if (i == 0) {
+            t = LANE_MASK_TEXCOORD_FRONT_LANE_INNER_EDGE;
+        } else if (i == LANE_COUNT - 1) {
+            t = (float)i + LANE_MASK_TEXCOORD_BACK_LANE_INNER_EDGE;
+        }
+        for (int j = 0; j < LANE_POINT_COUNT; j++) {
+            int k = i * LANE_POINT_COUNT + j;
+            texcoords[k * 2 + 0] = s;
+            texcoords[k * 2 + 1] = t;
+        }
+    }
+}
+
+#define RGBA4444_WHITE_MASK 0xFFF0
+#define RGBA4444_ALPHA_MASK 0x000F
+#define ALPHA_NONE 0x0000
+#define ALPHA_SOFT 0x0003
+#define ALPHA_MEDIUM 0x0007
+#define ALPHA_FULL 0x000F
+
+//TODO: thought this would be fun, but maybe its silly... makes the procedural texture a little more explicit at least
+static const unsigned short GLOW_LUT[LANE_MASK_TEXTURE_HEIGHT] = {
+    // FOR 8x8 LANE MASK TEXTURE ONLY! BIGGER TEXTURES -> FINER GLOWS (I THINK)
+    ALPHA_NONE,
+    ALPHA_NONE,
+    ALPHA_SOFT,
+    ALPHA_MEDIUM,
+    ALPHA_FULL,
+    ALPHA_MEDIUM,
+    ALPHA_SOFT,
+    ALPHA_NONE,
+};
+
+static Texture2D build_lane_mask(float* texcoords) {
+    Image image = {
+        .data = RL_CALLOC(LANE_MASK_TEXTURE_WIDTH * LANE_MASK_TEXTURE_HEIGHT, sizeof(unsigned short)),
+        .width = LANE_MASK_TEXTURE_WIDTH,
+        .height = LANE_MASK_TEXTURE_HEIGHT,
+        .mipmaps = 1,
+        .format = PIXELFORMAT_UNCOMPRESSED_R4G4B4A4,
+    };
+    unsigned short* pixels = (unsigned short*)image.data;
+    fill_lane_mask_texcoords(texcoords);
+    for (int i = 0; i < LANE_MASK_TEXTURE_HEIGHT; i++) {
+        unsigned short pixel = RGBA4444_WHITE_MASK | ALPHA_NONE;
+        if (i >= LANE_MASK_STRIPE_OFFSET && i < LANE_MASK_STRIPE_OFFSET + LANE_MASK_WIDTH_TEXELS) {
+            pixel = RGBA4444_WHITE_MASK | ALPHA_FULL;
+        }
+        for (int j = 0; j < LANE_MASK_TEXTURE_WIDTH; j++) {
+            pixels[i * LANE_MASK_TEXTURE_WIDTH + j] = pixel;
+        }
+    }
+    Texture2D texture = LoadTextureFromImage(image);
+    UnloadImage(image);
+    return texture;
+}
+
+static Texture2D build_lane_mask_glow(float* texcoords) {
+    Image image = {
+        .data = RL_CALLOC(LANE_MASK_TEXTURE_WIDTH * LANE_MASK_TEXTURE_HEIGHT, sizeof(unsigned short)),
+        .width = LANE_MASK_TEXTURE_WIDTH,
+        .height = LANE_MASK_TEXTURE_HEIGHT,
+        .mipmaps = 1,
+        .format = PIXELFORMAT_UNCOMPRESSED_R4G4B4A4,
+    };
+    unsigned short* pixels = (unsigned short*)image.data;
+    fill_lane_mask_texcoords(texcoords);
+    for (int i = 0; i < LANE_MASK_TEXTURE_HEIGHT; i++) {
+        unsigned short pixel = RGBA4444_WHITE_MASK | (GLOW_LUT[i] & RGBA4444_ALPHA_MASK);
+        for (int j = 0; j < LANE_MASK_TEXTURE_WIDTH; j++) {
+            pixels[i * LANE_MASK_TEXTURE_WIDTH + j] = pixel;
+        }
+    }
+    Texture2D texture = LoadTextureFromImage(image);
+    UnloadImage(image);
+    return texture;
+}
+
 static inline void update_camera_orbit(Camera3D* camera, float dt) {
     Vector3 dist_from_target = Vector3Subtract(camera->position, camera->target);
     float orbit_radius = Vector3Length(dist_from_target);

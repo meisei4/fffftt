@@ -13,8 +13,6 @@ static Mesh mesh_a = {0};
 
 static Model model_a = {0};
 
-static Texture2D build_lane_mask(float* texcoords);
-
 static float lane_point_values[LANE_COUNT][LANE_POINT_COUNT] = {0};
 
 int main(void) {
@@ -48,8 +46,8 @@ int main(void) {
     };
 
     mesh_a = GenMeshPlane(1.0f, 1.0f, LANE_POINT_COUNT - 1, LANE_COUNT - 1);
+    // NOTE: FOR USING CUSTOM LANE TOPOLOGY APPROACH WITH "WIRE DRAWS":
     // mesh_a.triangleCount = LINE_SEGMENT_COUNT; // TODO: defeats the purpose of genMesh...
-
     // mesh_a.indices = RL_CALLOC(LINE_INDEX_COUNT, sizeof(unsigned short)); // TODO: defeats the purpose of genMesh...
     // fill_mesh_indices_lane_topology(mesh_a.indices);
 
@@ -58,6 +56,8 @@ int main(void) {
     fill_mesh_colors((Color*)mesh_a.colors);
 
     Texture2D lane_mask_texture = build_lane_mask(mesh_a.texcoords);
+    // Texture2D lane_mask_texture = build_lane_mask_glow(mesh_a.texcoords);
+
     model_a = LoadModelFromMesh(mesh_a);
     model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = lane_mask_texture;
 
@@ -103,16 +103,22 @@ int main(void) {
         rlSetLineWidth(LINE_WIDTH_RASTER_PIXELS);
         rlSetPointSize(POINT_SIZE_RASTER_PIXELS);
 
-        rlEnableStatePointer(GL_COLOR_ARRAY, mesh_a.colors);
-        rlEnableStatePointer(GL_VERTEX_ARRAY, mesh_a.vertices);
+        // NOTE: FOR USING CUSTOM LANE TOPOLOGY APPROACH WITH "WIRE DRAWS":
+        // rlEnableStatePointer(GL_COLOR_ARRAY, mesh_a.colors);
+        // rlEnableStatePointer(GL_VERTEX_ARRAY, mesh_a.vertices);
         // glDrawElements(RL_LINES, mesh_a.triangleCount * 2, GL_UNSIGNED_SHORT, (const unsigned short*)mesh_a.indices);
-        rlDisableStatePointer(GL_COLOR_ARRAY);
-        rlDisableStatePointer(GL_VERTEX_ARRAY);
+        // rlDisableStatePointer(GL_COLOR_ARRAY);
+        // rlDisableStatePointer(GL_VERTEX_ARRAY);
 
+        rlDisableDepthMask();
+        rlDisableBackfaceCulling();
         DrawModelEx(model_a, (Vector3){0.0f}, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
-        // DrawModelEx(model, (Vector3){0.0f}, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
-        // DrawModelWiresEx(model, (Vector3){0.0f}, Y_AXIS, 0.0f, DEFAULT_SCALE, BLUE);
-        // DrawModelPointsEx(model, (Vector3){0.0f}, Y_AXIS, 0.0f, DEFAULT_SCALE, MAGENTA);
+        rlEnableBackfaceCulling();
+        rlEnableDepthMask();
+
+        // DrawModelEx(model_a, (Vector3){0.0f}, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+        // DrawModelWiresEx(model_a, (Vector3){0.0f}, Y_AXIS, 0.0f, DEFAULT_SCALE, BLUE);
+        // DrawModelPointsEx(model_a, (Vector3){0.0f}, Y_AXIS, 0.0f, DEFAULT_SCALE, MAGENTA);
 
         EndMode3D();
         DrawFPS(550, 440);
@@ -129,57 +135,4 @@ int main(void) {
     RL_FREE(fft_data.work_buffer);
     CloseWindow();
     return 0;
-}
-
-#define WHITE_RGB565 0xFFFF
-
-#define LANE_MASK_TEXTURE_WIDTH 8
-#define LANE_MASK_TEXTURE_HEIGHT 8
-#define LANE_MASK_STRIPE_OFFSET 4
-#define LANE_MASK_WIDTH_TEXELS 1
-#define LANE_MASK_TEXTURE_WIDTH_F ((float)LANE_MASK_TEXTURE_WIDTH)
-#define LANE_MASK_TEXTURE_HEIGHT_F ((float)LANE_MASK_TEXTURE_HEIGHT)
-#define LANE_MASK_STRIPE_OFFSET_F ((float)LANE_MASK_STRIPE_OFFSET)
-#define LANE_MASK_WIDTH_TEXELS_F ((float)LANE_MASK_WIDTH_TEXELS)
-#define LANE_MASK_TEXCOORD_S_CENTER (0.5f / LANE_MASK_TEXTURE_WIDTH_F)
-#define LANE_MASK_TEXCOORD_FRONT_LANE_INNER_EDGE (LANE_MASK_STRIPE_OFFSET_F / LANE_MASK_TEXTURE_HEIGHT_F)
-#define LANE_MASK_TEXCOORD_MID_LANE_CENTER ((LANE_MASK_STRIPE_OFFSET_F + 0.5f) / LANE_MASK_TEXTURE_HEIGHT_F)
-#define LANE_MASK_TEXCOORD_BACK_LANE_INNER_EDGE ((LANE_MASK_STRIPE_OFFSET_F + LANE_MASK_WIDTH_TEXELS_F) / LANE_MASK_TEXTURE_HEIGHT_F)
-
-static Texture2D build_lane_mask(float* texcoords) {
-    Image image = {
-        .data = RL_CALLOC(LANE_MASK_TEXTURE_WIDTH * LANE_MASK_TEXTURE_HEIGHT, sizeof(unsigned short)),
-        .width = LANE_MASK_TEXTURE_WIDTH,
-        .height = LANE_MASK_TEXTURE_HEIGHT,
-        .mipmaps = 1,
-        .format = PIXELFORMAT_UNCOMPRESSED_R5G6B5,
-    };
-    unsigned short* pixels = (unsigned short*)image.data;
-
-    float s = LANE_MASK_TEXCOORD_S_CENTER;
-
-    for (int i = 0; i < LANE_COUNT; i++) {
-        float t = (float)i + LANE_MASK_TEXCOORD_MID_LANE_CENTER;
-        if (i == 0) {
-            t = LANE_MASK_TEXCOORD_FRONT_LANE_INNER_EDGE;
-        } else if (i == LANE_COUNT - 1) {
-            t = (float)i + LANE_MASK_TEXCOORD_BACK_LANE_INNER_EDGE;
-        }
-
-        for (int j = 0; j < LANE_POINT_COUNT; j++) {
-            int k = i * LANE_POINT_COUNT + j;
-            texcoords[k * 2 + 0] = s;
-            texcoords[k * 2 + 1] = t;
-        }
-    }
-
-    for (int i = LANE_MASK_STRIPE_OFFSET; i < LANE_MASK_STRIPE_OFFSET + LANE_MASK_WIDTH_TEXELS; i++) {
-        for (int j = 0; j < LANE_MASK_TEXTURE_WIDTH; j++) {
-            pixels[i * LANE_MASK_TEXTURE_WIDTH + j] = WHITE_RGB565;
-        }
-    }
-
-    Texture2D texture = LoadTextureFromImage(image);
-    UnloadImage(image);
-    return texture;
 }

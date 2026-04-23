@@ -95,7 +95,12 @@ int main(void) {
 
     mesh_a = GenMeshPlane(1.0f, 1.0f, LANE_POINT_COUNT - 1, LANE_COUNT - 1);
     mesh_a.colors = RL_CALLOC(mesh_a.vertexCount, sizeof(Color));
+    Texture2D lane_mask_texture = build_lane_mask(mesh_a.texcoords);
+
     model_a = LoadModelFromMesh(mesh_a);
+    model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = lane_mask_texture;
+    int saved_texture_id = model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id;
+    model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
 
     mesh_b = GenMeshPlane(1.0f, 1.0f, LANE_POINT_COUNT - 1, LANE_COUNT - 1);
     mesh_b.colors = RL_CALLOC(mesh_b.vertexCount, sizeof(Color));
@@ -238,13 +243,23 @@ int main(void) {
         // DrawModelPointsEx(model, Y_AXIS, Y_AXIS, 0.0f, DEFAULT_SCALE, MAGENTA);
         DrawModelPointsEx(model_a, TOP, Y_AXIS, 0.0f, DEFAULT_SCALE, BLUE);
         DrawModelWiresEx(model_a, BOTTOM, Y_AXIS, 0.0f, DEFAULT_SCALE, MAGENTA);
+
+        model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = saved_texture_id;
+        rlDisableDepthMask();
+        rlDisableBackfaceCulling();
+        DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+        rlEnableBackfaceCulling();
+        rlEnableDepthMask();
+
         model_a.meshes[0].colors = saved_colors;
+        model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
 
         EndMode3D();
         // DrawFPS(550, 440);
         EndDrawing();
     }
 
+    UnloadTexture(lane_mask_texture);
     UnloadModel(model_a);
     UnloadModel(model_b);
     UnloadModel(flat_model);
