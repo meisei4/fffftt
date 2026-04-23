@@ -5,16 +5,10 @@
 #include <GL/gl.h>
 #include <string.h>
 
-#define TOP (Vector3){0.0f, 2.0f, 0.0f}
-#define MIDDLE (Vector3){0.0f}
-#define BOTTOM (Vector3){0.0f, -1.0f, 0.0f}
-
 #define LINE_WIDTH_RASTER_PIXELS 1.0f
 #define POINT_SIZE_RASTER_PIXELS 3.0f
 #define ONSET_LIGHT_GAIN 28.0f
 #define ONSET_LIGHT_RELEASE 0.05f
-#define TERRAIN_TRIANGLE_COUNT (((LANE_COUNT - 1) * (LANE_POINT_COUNT - 1)) * 2)
-#define FLAT_VERTEX_COUNT (TERRAIN_TRIANGLE_COUNT * 3)
 
 static const char* domain = "WAVEFORM-TERRAIN-3D-DC";
 
@@ -26,23 +20,13 @@ static Model model_a = {0};
 static Model model_b = {0};
 static Model flat_model = {0};
 
-static void expand_mesh_normals_flat(float* dst_normals, const float* src_normals, const unsigned short* indices);
-static void expand_mesh_colors_flat(Color* dst_colors, const Color* src_colors, const unsigned short* indices);
-
-static void update_mesh_vertices_flat(float* dst_vertices, const float* src_vertices, const unsigned short* indices);
-static void update_mesh_normals_flat(float* normals, const float* vertices);
-static void update_mesh_normals_smooth(float* normals, const float* vertices);
-static void update_mesh_normals_hilbert(float* normals, const float* src_normals, const float* normal_field, const float* vertices);
-static void update_mesh_colors_rms(Color* colors);
-
 static void init_hilbert_filter(void);
 static void build_hilbert_normal_field(void);
+static void update_mesh_normals_hilbert(float* normals, const float* src_normals, const float* normal_field, const float* vertices);
 static void build_rms_color_field(void);
+static void update_mesh_colors_rms(Color* colors);
 static Color sample_rms_pallete(float rms);
 static void update_light_constants(void);
-
-static void build_mesh_smooth(Mesh* dst_mesh, const float* src_normals, const Color* src_colors);
-static void build_mesh_flat(Mesh* dst_mesh, const float* src_normals, const Color* src_colors);
 
 static float lane_point_values[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
@@ -98,6 +82,7 @@ int main(void) {
     Texture2D lane_mask_texture = build_lane_mask(mesh_a.texcoords);
 
     model_a = LoadModelFromMesh(mesh_a);
+    unsigned char* saved_colors = model_a.meshes[0].colors;
     model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = lane_mask_texture;
     int saved_texture_id = model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id;
     model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
@@ -120,7 +105,7 @@ int main(void) {
     expand_mesh_colors_flat(flat_colors, colors, mesh_a.indices);
     init_hilbert_filter();
 
-    update_terrain_mesh_vertices(vertices, &lane_point_values[0][0]);
+    update_mesh_vertices(vertices, &lane_point_values[0][0]);
     update_mesh_normals_smooth(normals, vertices);
 
     build_hilbert_normal_field();
@@ -131,16 +116,16 @@ int main(void) {
     update_mesh_normals_flat(flat_normals, flat_vertices);
     expand_mesh_normals_flat(flat_hilbert_normals, hilbert_normals, mesh_a.indices);
 
-    // build_mesh_smooth(&mesh_a, normals, colors);
-    build_mesh_smooth(&mesh_a, normals, colors);
-    // build_mesh_smooth(&mesh_a, hilbert_normals, colors);
+    // build_mesh_smooth(&mesh_a, vertices, normals, colors);
+    build_mesh_smooth(&mesh_a, vertices, normals, colors);
+    // build_mesh_smooth(&mesh_a, vertices, hilbert_normals, colors);
 
-    // build_mesh_smooth(&mesh_b, normals, colors);
-    build_mesh_smooth(&mesh_b, normals, rms_colors);
+    // build_mesh_smooth(&mesh_b, vertices, normals, colors);
+    build_mesh_smooth(&mesh_b, vertices, normals, rms_colors);
 
-    // build_mesh_flat(&flat_mesh, flat_normals, flat_colors);
-    // build_mesh_flat(&flat_mesh, flat_hilbert_normals, flat_colors);
-    build_mesh_flat(&flat_mesh, flat_hilbert_normals, flat_colors);
+    // build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors);
+    // build_mesh_flat(&flat_mesh, flat_vertices, flat_hilbert_normals, flat_colors);
+    build_mesh_flat(&flat_mesh, flat_vertices, flat_hilbert_normals, flat_colors);
 
     SetTargetFPS(60);
 
@@ -186,21 +171,21 @@ int main(void) {
         }
 
         if (audio_dirty) {
-            update_terrain_mesh_vertices(vertices, &lane_point_values[0][0]);
+            update_mesh_vertices(vertices, &lane_point_values[0][0]);
             update_mesh_normals_smooth(normals, vertices);
             update_mesh_normals_hilbert(hilbert_normals, normals, &hilbert_normal_field[0][0], vertices);
             update_mesh_colors_rms(rms_colors);
             update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices);
             expand_mesh_normals_flat(flat_hilbert_normals, hilbert_normals, mesh_a.indices);
 
-            build_mesh_smooth(&mesh_a, normals, colors);
-            // build_mesh_smooth(&mesh_a, hilbert_normals, colors);
+            build_mesh_smooth(&mesh_a, vertices, normals, colors);
+            // build_mesh_smooth(&mesh_a, vertices, hilbert_normals, colors);
 
-            // build_mesh_smooth(&mesh_b, normals, colors);
-            build_mesh_smooth(&mesh_b, normals, rms_colors);
+            // build_mesh_smooth(&mesh_b, vertices, normals, colors);
+            build_mesh_smooth(&mesh_b, vertices, normals, rms_colors);
 
-            // build_mesh_flat(&flat_mesh, flat_normals, flat_colors);
-            build_mesh_flat(&flat_mesh, flat_hilbert_normals, flat_colors);
+            // build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors);
+            build_mesh_flat(&flat_mesh, flat_vertices, flat_hilbert_normals, flat_colors);
         }
 
         update_camera_orbit(&camera, GetFrameTime());
@@ -216,15 +201,24 @@ int main(void) {
         glEnable(GL_LIGHTING);
         glEnable(GL_LIGHT0);
         glLightModelfv(GL_LIGHT_MODEL_AMBIENT, (const GLfloat[]){0.32f, 0.32f, 0.32f, 1.0f});
-        //base:
-        // glLightfv(GL_LIGHT0, GL_AMBIENT, (const GLfloat[]){0.08f, 0.08f, 0.08f, 1.0f});
-        // glLightfv(GL_LIGHT0, GL_DIFFUSE, (const GLfloat[]){0.60f, 0.60f, 0.60f, 1.0f});
-        //onset modulation:
         glLightfv(GL_LIGHT0, GL_AMBIENT, light0_ambient);
         glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
         glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){1.330f, 1.345f, -1.418f, 1.0f}); // TODO: same issue with the camera position manual derivation
         DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+        glDisable(GL_LIGHTING);
 
+        DrawModelEx(model_b, BOTTOM, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+
+        model_a.meshes[0].colors = NULL;
+        model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = saved_texture_id;
+        rlDisableDepthTest();
+        rlDisableBackfaceCulling();
+        DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+        rlEnableBackfaceCulling();
+        rlEnableDepthTest();
+        model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
+
+        glEnable(GL_LIGHTING);
         glShadeModel(GL_FLAT);
         glLightModelfv(GL_LIGHT_MODEL_AMBIENT, (const GLfloat[]){0.0f, 0.0f, 0.0f, 1.0f});
         glLightfv(GL_LIGHT0, GL_AMBIENT, (const GLfloat[]){0.0f, 0.0f, 0.0f, 1.0f});
@@ -232,27 +226,11 @@ int main(void) {
         DrawModelEx(flat_model, TOP, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         glShadeModel(GL_SMOOTH);
         glDisable(GL_LIGHTING);
-        // glDisable(GL_LIGHT0);
-        // glDisable(GL_COLOR_MATERIAL);
 
-        DrawModelEx(model_b, BOTTOM, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
-        unsigned char* saved_colors = model_a.meshes[0].colors;
-
-        model_a.meshes[0].colors = NULL;
-        // DrawModelWiresEx(model, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, BLUE);
-        // DrawModelPointsEx(model, Y_AXIS, Y_AXIS, 0.0f, DEFAULT_SCALE, MAGENTA);
         DrawModelPointsEx(model_a, TOP, Y_AXIS, 0.0f, DEFAULT_SCALE, BLUE);
         DrawModelWiresEx(model_a, BOTTOM, Y_AXIS, 0.0f, DEFAULT_SCALE, MAGENTA);
 
-        model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = saved_texture_id;
-        rlDisableDepthMask();
-        rlDisableBackfaceCulling();
-        DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
-        rlEnableBackfaceCulling();
-        rlEnableDepthMask();
-
         model_a.meshes[0].colors = saved_colors;
-        model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
 
         EndMode3D();
         // DrawFPS(550, 440);
@@ -268,83 +246,6 @@ int main(void) {
     CloseAudioDevice();
     CloseWindow();
     return 0;
-}
-
-static void update_mesh_vertices_flat(float* dst_vertices, const float* src_vertices, const unsigned short* indices) {
-    for (int i = 0; i < FLAT_VERTEX_COUNT; i++) {
-        int src_index = indices[i];
-        int src_vertex = src_index * 3;
-        int dst_vertex = i * 3;
-        dst_vertices[dst_vertex + 0] = src_vertices[src_vertex + 0];
-        dst_vertices[dst_vertex + 1] = src_vertices[src_vertex + 1];
-        dst_vertices[dst_vertex + 2] = src_vertices[src_vertex + 2];
-    }
-}
-
-static void expand_mesh_colors_flat(Color* dst_colors, const Color* src_colors, const unsigned short* indices) {
-    for (int i = 0; i < FLAT_VERTEX_COUNT; i++) {
-        int src_index = indices[i];
-        dst_colors[i] = src_colors[src_index];
-    }
-}
-
-static void expand_mesh_normals_flat(float* dst_normals, const float* src_normals, const unsigned short* indices) {
-    for (int i = 0; i < FLAT_VERTEX_COUNT; i++) {
-        int src_index = indices[i];
-        int src_normal = src_index * 3;
-        int dst_normal = i * 3;
-        dst_normals[dst_normal + 0] = src_normals[src_normal + 0];
-        dst_normals[dst_normal + 1] = src_normals[src_normal + 1];
-        dst_normals[dst_normal + 2] = src_normals[src_normal + 2];
-    }
-}
-
-static void update_mesh_normals_flat(float* normals, const float* vertices) {
-    for (int i = 0; i < TERRAIN_TRIANGLE_COUNT; i++) {
-        int tri_vertex = i * 9;
-        Vector3 p0 = {vertices[tri_vertex + 0], vertices[tri_vertex + 1], vertices[tri_vertex + 2]};
-        Vector3 p1 = {vertices[tri_vertex + 3], vertices[tri_vertex + 4], vertices[tri_vertex + 5]};
-        Vector3 p2 = {vertices[tri_vertex + 6], vertices[tri_vertex + 7], vertices[tri_vertex + 8]};
-        Vector3 e1 = Vector3Subtract(p1, p0);
-        Vector3 e2 = Vector3Subtract(p2, p0);
-        Vector3 normal = Vector3Normalize(Vector3CrossProduct(e1, e2));
-
-        for (int j = 0; j < 3; j++) {
-            int normal_vertex = tri_vertex + j * 3;
-            normals[normal_vertex + 0] = normal.x;
-            normals[normal_vertex + 1] = normal.y;
-            normals[normal_vertex + 2] = normal.z;
-        }
-    }
-}
-
-static void update_mesh_normals_smooth(float* normals, const float* vertices) {
-    for (int i = 0; i < LANE_COUNT; i++) {
-        int i_prev = (i > 0) ? i - 1 : i;
-        int i_next = (i < LANE_COUNT - 1) ? i + 1 : i;
-
-        for (int j = 0; j < LANE_POINT_COUNT; j++) {
-            int j_prev = (j > 0) ? j - 1 : j;
-            int j_next = (j < LANE_POINT_COUNT - 1) ? j + 1 : j;
-
-            int k_left = (i * LANE_POINT_COUNT + j_prev) * 3;
-            int k_right = (i * LANE_POINT_COUNT + j_next) * 3;
-            int k_back = (i_prev * LANE_POINT_COUNT + j) * 3;
-            int k_front = (i_next * LANE_POINT_COUNT + j) * 3;
-            int k_out = (i * LANE_POINT_COUNT + j) * 3;
-
-            //TODO: is there a more standarized way to do this? like can we anticipate tangents in dynamic vertex attributes or something???
-            float tangent_x_x = vertices[k_right + 0] - vertices[k_left + 0];
-            float tangent_x_y = vertices[k_right + 1] - vertices[k_left + 1];
-            float tangent_z_y = vertices[k_front + 1] - vertices[k_back + 1];
-            float tangent_z_z = vertices[k_front + 2] - vertices[k_back + 2];
-            Vector3 n = Vector3Normalize((Vector3){-tangent_z_z * tangent_x_y, tangent_z_z * tangent_x_x, -tangent_z_y * tangent_x_x});
-
-            normals[k_out + 0] = n.x;
-            normals[k_out + 1] = n.y;
-            normals[k_out + 2] = n.z;
-        }
-    }
 }
 
 static void init_hilbert_filter(void) {
@@ -624,16 +525,4 @@ static void update_light_constants(void) {
     light0_diffuse[1] = diffuse_strength;
     light0_diffuse[2] = diffuse_strength;
     light0_diffuse[3] = 1.0f;
-}
-
-static void build_mesh_smooth(Mesh* dst_mesh, const float* src_normals, const Color* src_colors) {
-    MEMCPY4(dst_mesh->vertices, vertices, sizeof(float) * MESH_VERTEX_COUNT * 3);
-    MEMCPY4(dst_mesh->normals, src_normals, sizeof(float) * MESH_VERTEX_COUNT * 3);
-    MEMCPY(dst_mesh->colors, src_colors, sizeof(Color) * MESH_VERTEX_COUNT);
-}
-
-static void build_mesh_flat(Mesh* dst_mesh, const float* src_normals, const Color* src_colors) {
-    MEMCPY4(dst_mesh->vertices, flat_vertices, sizeof(float) * FLAT_VERTEX_COUNT * 3);
-    MEMCPY4(dst_mesh->normals, src_normals, sizeof(float) * FLAT_VERTEX_COUNT * 3);
-    MEMCPY(dst_mesh->colors, src_colors, sizeof(Color) * FLAT_VERTEX_COUNT);
 }

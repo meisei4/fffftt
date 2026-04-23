@@ -347,12 +347,16 @@ static inline void render_fft_frame(FFTData* fft_data) {
     #define AMPLITUDE_Y_SCALE 2.0f
     // #define AMPLITUDE_Y_SCALE 0.66f
     #define LINE_LENGTH_SCALE 5.0f
-#else
+#else //FFFFTT_PROFILE_FFT_TERRAIN_3D...
     #define LANE_COUNT 11
-    #define LANE_POINT_COUNT 128
+    #define LANE_POINT_COUNT 33
     #define AMPLITUDE_Y_SCALE 3.0f
     #define LINE_LENGTH_SCALE 5.0f
 #endif
+
+#define TOP (Vector3){0.0f, 2.0f, 0.0f}
+#define MIDDLE (Vector3){0.0f}
+#define BOTTOM (Vector3){0.0f, -1.0f, 0.0f}
 
 #define HALF_SPAN 0.5f
 #define ISOMETRIC_ZOOM 3.0f
@@ -414,7 +418,7 @@ static inline void update_envelope_mesh_vertices(Vector3* vertices, float* lane_
     }
 }
 
-static inline void update_terrain_mesh_vertices(float* vertices, float* lane_point_values) {
+static inline void update_mesh_vertices(float* vertices, float* lane_point_values) {
     for (int i = 0; i < LANE_COUNT; i++) {
         float lane_offset = ((float)i - 0.5f * (float)(LANE_COUNT - 1)) * LANE_SPACING_SCALE;
         for (int j = 0; j < LANE_POINT_COUNT; j++) {
@@ -440,6 +444,98 @@ static inline void fill_mesh_colors(Color* colors) {
             colors[k] = (Color){(unsigned char)r, (unsigned char)g, (unsigned char)b, DRAW_COLOR_CHANNEL_MAX};
         }
     }
+}
+
+#define TERRAIN_TRIANGLE_COUNT (((LANE_COUNT - 1) * (LANE_POINT_COUNT - 1)) * 2)
+#define FLAT_VERTEX_COUNT (TERRAIN_TRIANGLE_COUNT * 3)
+
+static void update_mesh_vertices_flat(float* dst_vertices, const float* src_vertices, const unsigned short* indices) {
+    for (int i = 0; i < FLAT_VERTEX_COUNT; i++) {
+        int src_index = indices[i];
+        int src_vertex = src_index * 3;
+        int dst_vertex = i * 3;
+        dst_vertices[dst_vertex + 0] = src_vertices[src_vertex + 0];
+        dst_vertices[dst_vertex + 1] = src_vertices[src_vertex + 1];
+        dst_vertices[dst_vertex + 2] = src_vertices[src_vertex + 2];
+    }
+}
+
+static void expand_mesh_colors_flat(Color* dst_colors, const Color* src_colors, const unsigned short* indices) {
+    for (int i = 0; i < FLAT_VERTEX_COUNT; i++) {
+        int src_index = indices[i];
+        dst_colors[i] = src_colors[src_index];
+    }
+}
+
+static void expand_mesh_normals_flat(float* dst_normals, const float* src_normals, const unsigned short* indices) {
+    for (int i = 0; i < FLAT_VERTEX_COUNT; i++) {
+        int src_index = indices[i];
+        int src_normal = src_index * 3;
+        int dst_normal = i * 3;
+        dst_normals[dst_normal + 0] = src_normals[src_normal + 0];
+        dst_normals[dst_normal + 1] = src_normals[src_normal + 1];
+        dst_normals[dst_normal + 2] = src_normals[src_normal + 2];
+    }
+}
+
+static void update_mesh_normals_flat(float* normals, const float* vertices) {
+    for (int i = 0; i < TERRAIN_TRIANGLE_COUNT; i++) {
+        int tri_vertex = i * 9;
+        Vector3 p0 = {vertices[tri_vertex + 0], vertices[tri_vertex + 1], vertices[tri_vertex + 2]};
+        Vector3 p1 = {vertices[tri_vertex + 3], vertices[tri_vertex + 4], vertices[tri_vertex + 5]};
+        Vector3 p2 = {vertices[tri_vertex + 6], vertices[tri_vertex + 7], vertices[tri_vertex + 8]};
+        Vector3 e1 = Vector3Subtract(p1, p0);
+        Vector3 e2 = Vector3Subtract(p2, p0);
+        Vector3 normal = Vector3Normalize(Vector3CrossProduct(e1, e2));
+
+        for (int j = 0; j < 3; j++) {
+            int normal_vertex = tri_vertex + j * 3;
+            normals[normal_vertex + 0] = normal.x;
+            normals[normal_vertex + 1] = normal.y;
+            normals[normal_vertex + 2] = normal.z;
+        }
+    }
+}
+
+static void update_mesh_normals_smooth(float* normals, const float* vertices) {
+    for (int i = 0; i < LANE_COUNT; i++) {
+        int i_prev = (i > 0) ? i - 1 : i;
+        int i_next = (i < LANE_COUNT - 1) ? i + 1 : i;
+
+        for (int j = 0; j < LANE_POINT_COUNT; j++) {
+            int j_prev = (j > 0) ? j - 1 : j;
+            int j_next = (j < LANE_POINT_COUNT - 1) ? j + 1 : j;
+
+            int k_left = (i * LANE_POINT_COUNT + j_prev) * 3;
+            int k_right = (i * LANE_POINT_COUNT + j_next) * 3;
+            int k_back = (i_prev * LANE_POINT_COUNT + j) * 3;
+            int k_front = (i_next * LANE_POINT_COUNT + j) * 3;
+            int k_out = (i * LANE_POINT_COUNT + j) * 3;
+
+            //TODO: is there a more standarized way to do this? like can we anticipate tangents in dynamic vertex attributes or something???
+            float tangent_x_x = vertices[k_right + 0] - vertices[k_left + 0];
+            float tangent_x_y = vertices[k_right + 1] - vertices[k_left + 1];
+            float tangent_z_y = vertices[k_front + 1] - vertices[k_back + 1];
+            float tangent_z_z = vertices[k_front + 2] - vertices[k_back + 2];
+            Vector3 n = Vector3Normalize((Vector3){-tangent_z_z * tangent_x_y, tangent_z_z * tangent_x_x, -tangent_z_y * tangent_x_x});
+
+            normals[k_out + 0] = n.x;
+            normals[k_out + 1] = n.y;
+            normals[k_out + 2] = n.z;
+        }
+    }
+}
+
+static void build_mesh_smooth(Mesh* dst_mesh, const float* vertices, const float* src_normals, const Color* src_colors) {
+    MEMCPY4(dst_mesh->vertices, vertices, sizeof(float) * MESH_VERTEX_COUNT * 3);
+    MEMCPY4(dst_mesh->normals, src_normals, sizeof(float) * MESH_VERTEX_COUNT * 3);
+    MEMCPY(dst_mesh->colors, src_colors, sizeof(Color) * MESH_VERTEX_COUNT);
+}
+
+static void build_mesh_flat(Mesh* dst_mesh, const float* flat_vertices, const float* src_normals, const Color* src_colors) {
+    MEMCPY4(dst_mesh->vertices, flat_vertices, sizeof(float) * FLAT_VERTEX_COUNT * 3);
+    MEMCPY4(dst_mesh->normals, src_normals, sizeof(float) * FLAT_VERTEX_COUNT * 3);
+    MEMCPY(dst_mesh->colors, src_colors, sizeof(Color) * FLAT_VERTEX_COUNT);
 }
 
 static inline void fill_mesh_indices_lane_topology(unsigned short* indices) {
@@ -544,6 +640,8 @@ static Texture2D build_lane_mask_glow(float* texcoords) {
     UnloadImage(image);
     return texture;
 }
+
+
 
 static inline void update_camera_orbit(Camera3D* camera, float dt) {
     Vector3 dist_from_target = Vector3Subtract(camera->position, camera->target);
