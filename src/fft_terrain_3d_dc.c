@@ -3,7 +3,7 @@
 #include "raylib.h"
 #include "rlgl.h"
 
-#define LINE_WIDTH_RASTER_PIXELS 2.0f
+#define LINE_WIDTH_RASTER_PIXELS 1.0f
 #define POINT_SIZE_RASTER_PIXELS 3.0f
 #define ONSET_LAG_FRAMES 1
 #define ONSET_ENVELOPE_RADIUS 2
@@ -79,6 +79,10 @@ int main(void) {
     int saved_texture_id = model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id;
     model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
 
+    mesh_b = GenMeshPlane(1.0f, 1.0f, LANE_POINT_COUNT - 1, LANE_COUNT - 1);
+    mesh_b.colors = RL_CALLOC(mesh_b.vertexCount, sizeof(Color));
+    model_b = LoadModelFromMesh(mesh_b);
+
     flat_mesh = (Mesh){
         .vertexCount = mesh_a.triangleCount * 3,
         .triangleCount = mesh_a.triangleCount,
@@ -99,9 +103,8 @@ int main(void) {
     update_mesh_normals_flat(flat_normals, flat_vertices);
 
     build_mesh_smooth(&mesh_a, vertices, normals, colors);
-
-    // build_mesh_smooth(&mesh_b, vertices, normals, colors);
-    // build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors);
+    build_mesh_smooth(&mesh_b, vertices, normals, colors);
+    build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors);
 
     SetTargetFPS(60);
 
@@ -140,7 +143,23 @@ int main(void) {
         }
 
         if (audio_dirty) {
-            update_mesh_vertices(mesh_a.vertices, &lane_point_values[0][0]);
+            update_mesh_vertices(vertices, &lane_point_values[0][0]);
+
+            //NOTE: by pure accident i was forgetting to update the normals here. This lead me to an intersting finding... position lights actually shade faces based on:
+            // 1. Normals themselves (ofc -- in this case static, and the result of `GenMeshPlane` filling everything as {0.0f, 1.0f, 0.0f})
+            // 2. BUT ALSO "direction from vertex -> position light" **This will actually CHANGE as the vertex positions animate with the terrain!!!!**
+            //    - what results with static upfacing normals and then animated/dynamic vertex positions is a very strange but cool effect of like a thundercloud where
+            //    - the lightings actual source is very hard to see but in a way that emulates faint almost curtain like shading...
+            /*
+            update_mesh_normals_smooth(normals, vertices);
+            */
+
+            // update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices);
+            // update_mesh_normals_flat(flat_normals, flat_vertices);
+
+            build_mesh_smooth(&mesh_a, vertices, normals, colors);
+            // build_mesh_smooth(&mesh_b, vertices, normals, colors);
+            // build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors);
         }
         update_camera_orbit(&camera, GetFrameTime());
         update_light_constants();
@@ -169,6 +188,15 @@ int main(void) {
         DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         glDisable(GL_LIGHTING);
 
+        // glEnable(GL_LIGHTING);
+        // glShadeModel(GL_FLAT);
+        // glLightModelfv(GL_LIGHT_MODEL_AMBIENT, (const GLfloat[]){0.0f, 0.0f, 0.0f, 1.0f});
+        // glLightfv(GL_LIGHT0, GL_AMBIENT, (const GLfloat[]){0.0f, 0.0f, 0.0f, 1.0f});
+        // glLightfv(GL_LIGHT0, GL_DIFFUSE, (const GLfloat[]){1.0f, 1.0f, 1.0f, 1.0f});
+        // DrawModelEx(flat_model, TOP, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+        // glShadeModel(GL_SMOOTH);
+        // glDisable(GL_LIGHTING);
+
         model_a.meshes[0].colors = NULL;
         // model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = saved_texture_id;
         // rlDisableDepthTest();
@@ -190,6 +218,8 @@ int main(void) {
 
     UnloadTexture(lane_mask_texture);
     UnloadModel(model_a);
+    UnloadModel(model_b);
+    UnloadModel(flat_model);
     UnloadAudioStream(audio_stream);
     UnloadWave(wave);
     CloseAudioDevice();

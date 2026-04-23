@@ -103,6 +103,7 @@ int main(void) {
 
     build_hilbert_normal_field();
     update_mesh_normals_hilbert(hilbert_normals, normals, &hilbert_normal_field[0][0], vertices);
+    build_rms_color_field();
     update_mesh_colors_rms(rms_colors);
 
     update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices);
@@ -160,6 +161,7 @@ int main(void) {
             update_mesh_normals_hilbert(hilbert_normals, normals, &hilbert_normal_field[0][0], vertices);
             update_mesh_colors_rms(rms_colors);
             update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices);
+            update_mesh_normals_flat(flat_normals, flat_vertices);
             expand_mesh_normals_flat(flat_hilbert_normals, hilbert_normals, mesh_a.indices);
 
             build_mesh_smooth(&mesh_a, vertices, normals, colors);
