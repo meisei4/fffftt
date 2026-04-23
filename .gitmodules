@@ -13,4 +13,4 @@
 [submodule "sh4zam"]
 	path = sh4zam
 	url = https://github.com/gyrovorbis/sh4zam.git
-	branch = complex
+	branch = master

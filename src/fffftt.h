@@ -348,10 +348,10 @@ static inline void render_fft_frame(FFTData* fft_data) {
     // #define AMPLITUDE_Y_SCALE 0.66f
     #define LINE_LENGTH_SCALE 5.0f
 #else
-    #define LANE_COUNT 24
+    #define LANE_COUNT 11
     #define LANE_POINT_COUNT 128
-    #define AMPLITUDE_Y_SCALE 2.0f
-    #define LINE_LENGTH_SCALE 4.0f
+    #define AMPLITUDE_Y_SCALE 3.0f
+    #define LINE_LENGTH_SCALE 5.0f
 #endif
 
 #define HALF_SPAN 0.5f

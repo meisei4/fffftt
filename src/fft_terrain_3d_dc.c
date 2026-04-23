@@ -9,19 +9,21 @@
 
 static const char* domain = "FFT-TERRAIN-3D-DC";
 
-static Mesh mesh = {0};
+static Mesh mesh_a = {0};
+
+static Model model_a = {0};
+
+static Texture2D build_lane_mask(float* texcoords);
+
 static float lane_point_values[LANE_COUNT][LANE_POINT_COUNT] = {0};
 
 int main(void) {
     FFTData fft_data = {0};
-    float fft_compute_ms = 0.0f;
     float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
     int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
 
     SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
-    float start_time = (float)GetTime();
-    FFT_PROFILE_DEFINE(fft_profile_data);
     fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;
     fft_data.work_buffer = RL_CALLOC(ANALYSIS_WINDOW_SIZE_IN_FRAMES, sizeof(FFTComplex));
     fft_data.prev_spectrum_bin_levels = RL_CALLOC(ANALYSIS_SPECTRUM_BIN_COUNT, sizeof(float));
@@ -38,32 +40,26 @@ int main(void) {
     int16_t* wave_pcm16 = (int16_t*)wave.data;
 
     Camera3D camera = {
-        .position = (Vector3){1.45625f * 2.0f, 1.345f * 2.0f, -1.36625f * 2.0f},
+        .position = (Vector3){1.45625f * 3.0f, 1.345f * 3.0f, -1.36625f * 3.0f},
         .target = (Vector3){0.0f, 0.25f, 0.0f},
         .up = Y_AXIS,
-        .fovy = 5.0f,
+        .fovy = 8.0f,
         .projection = CAMERA_ORTHOGRAPHIC,
     };
 
-    // mesh = (Mesh){
-    //     .vertexCount = MESH_VERTEX_COUNT,
-    //     .triangleCount = LINE_SEGMENT_COUNT,
-    //     .vertices = RL_CALLOC(MESH_VERTEX_COUNT * 3, sizeof(float)),
-    //     .indices = RL_CALLOC(LINE_INDEX_COUNT, sizeof(unsigned short)),
-    // };
+    mesh_a = GenMeshPlane(1.0f, 1.0f, LANE_POINT_COUNT - 1, LANE_COUNT - 1);
+    // mesh_a.triangleCount = LINE_SEGMENT_COUNT; // TODO: defeats the purpose of genMesh...
 
-    mesh = GenMeshPlane(1.0f, 1.0f, LANE_POINT_COUNT - 1, LANE_COUNT - 1);
-    mesh.triangleCount = LINE_SEGMENT_COUNT; // TODO: defeats the purpose of genMesh...
+    // mesh_a.indices = RL_CALLOC(LINE_INDEX_COUNT, sizeof(unsigned short)); // TODO: defeats the purpose of genMesh...
+    // fill_mesh_indices_lane_topology(mesh_a.indices);
 
-    // mesh.indices = RL_CALLOC(LINE_INDEX_COUNT, sizeof(unsigned short)); // TODO: defeats the purpose of genMesh...
-    fill_mesh_indices_lane_topology(mesh.indices);
+    update_terrain_mesh_vertices(mesh_a.vertices, &lane_point_values[0][0]);
+    mesh_a.colors = RL_CALLOC(mesh_a.vertexCount, sizeof(Color));
+    fill_mesh_colors((Color*)mesh_a.colors);
 
-    update_terrain_mesh_vertices(mesh.vertices, &lane_point_values[0][0]);
-    mesh.colors = RL_CALLOC(mesh.vertexCount, sizeof(Color));
-    fill_mesh_colors((Color*)mesh.colors);
-
-    Model model = LoadModelFromMesh(mesh);
-    Mesh* draw_mesh = &model.meshes[0];
+    Texture2D lane_mask_texture = build_lane_mask(mesh_a.texcoords);
+    model_a = LoadModelFromMesh(mesh_a);
+    model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = lane_mask_texture;
 
     SetTargetFPS(60);
 
@@ -87,13 +83,8 @@ int main(void) {
             }
 
             apply_blackman_window(&fft_data, analysis_window_samples);
-            uint64_t fft_start = time_nanoseconds();
             shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)ANALYSIS_WINDOW_SIZE_IN_FRAMES);
-            fft_compute_ms = elapsed_milliseconds(fft_start);
-
             build_spectrum(&fft_data);
-
-            FFT_PROFILE_SAMPLE(fft_profile_data, domain, fft_compute_ms, (float)GetTime() - start_time, &fft_data);
 
             float* spectrum_bin_levels =
                 fft_data.spectrum_history_levels[(fft_data.history_pos - 1 + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT];
@@ -103,7 +94,7 @@ int main(void) {
             }
         }
 
-        update_terrain_mesh_vertices(mesh.vertices, &lane_point_values[0][0]);
+        update_terrain_mesh_vertices(mesh_a.vertices, &lane_point_values[0][0]);
         update_camera_orbit(&camera, GetFrameTime());
 
         BeginDrawing();
@@ -112,22 +103,24 @@ int main(void) {
         rlSetLineWidth(LINE_WIDTH_RASTER_PIXELS);
         rlSetPointSize(POINT_SIZE_RASTER_PIXELS);
 
-        rlEnableStatePointer(GL_COLOR_ARRAY, mesh.colors);
-        rlEnableStatePointer(GL_VERTEX_ARRAY, mesh.vertices);
-        glDrawElements(RL_LINES, mesh.triangleCount * 2, GL_UNSIGNED_SHORT, (const unsigned short*)mesh.indices);
+        rlEnableStatePointer(GL_COLOR_ARRAY, mesh_a.colors);
+        rlEnableStatePointer(GL_VERTEX_ARRAY, mesh_a.vertices);
+        // glDrawElements(RL_LINES, mesh_a.triangleCount * 2, GL_UNSIGNED_SHORT, (const unsigned short*)mesh_a.indices);
         rlDisableStatePointer(GL_COLOR_ARRAY);
         rlDisableStatePointer(GL_VERTEX_ARRAY);
 
+        DrawModelEx(model_a, (Vector3){0.0f}, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         // DrawModelEx(model, (Vector3){0.0f}, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         // DrawModelWiresEx(model, (Vector3){0.0f}, Y_AXIS, 0.0f, DEFAULT_SCALE, BLUE);
         // DrawModelPointsEx(model, (Vector3){0.0f}, Y_AXIS, 0.0f, DEFAULT_SCALE, MAGENTA);
 
         EndMode3D();
-        // DrawFPS(540, 420);
+        DrawFPS(550, 440);
         EndDrawing();
     }
 
-    UnloadModel(model);
+    UnloadTexture(lane_mask_texture);
+    UnloadModel(model_a);
     UnloadAudioStream(audio_stream);
     UnloadWave(wave);
     CloseAudioDevice();
@@ -136,4 +129,57 @@ int main(void) {
     RL_FREE(fft_data.work_buffer);
     CloseWindow();
     return 0;
+}
+
+#define WHITE_RGB565 0xFFFF
+
+#define LANE_MASK_TEXTURE_WIDTH 8
+#define LANE_MASK_TEXTURE_HEIGHT 8
+#define LANE_MASK_STRIPE_OFFSET 4
+#define LANE_MASK_WIDTH_TEXELS 1
+#define LANE_MASK_TEXTURE_WIDTH_F ((float)LANE_MASK_TEXTURE_WIDTH)
+#define LANE_MASK_TEXTURE_HEIGHT_F ((float)LANE_MASK_TEXTURE_HEIGHT)
+#define LANE_MASK_STRIPE_OFFSET_F ((float)LANE_MASK_STRIPE_OFFSET)
+#define LANE_MASK_WIDTH_TEXELS_F ((float)LANE_MASK_WIDTH_TEXELS)
+#define LANE_MASK_TEXCOORD_S_CENTER (0.5f / LANE_MASK_TEXTURE_WIDTH_F)
+#define LANE_MASK_TEXCOORD_FRONT_LANE_INNER_EDGE (LANE_MASK_STRIPE_OFFSET_F / LANE_MASK_TEXTURE_HEIGHT_F)
+#define LANE_MASK_TEXCOORD_MID_LANE_CENTER ((LANE_MASK_STRIPE_OFFSET_F + 0.5f) / LANE_MASK_TEXTURE_HEIGHT_F)
+#define LANE_MASK_TEXCOORD_BACK_LANE_INNER_EDGE ((LANE_MASK_STRIPE_OFFSET_F + LANE_MASK_WIDTH_TEXELS_F) / LANE_MASK_TEXTURE_HEIGHT_F)
+
+static Texture2D build_lane_mask(float* texcoords) {
+    Image image = {
+        .data = RL_CALLOC(LANE_MASK_TEXTURE_WIDTH * LANE_MASK_TEXTURE_HEIGHT, sizeof(unsigned short)),
+        .width = LANE_MASK_TEXTURE_WIDTH,
+        .height = LANE_MASK_TEXTURE_HEIGHT,
+        .mipmaps = 1,
+        .format = PIXELFORMAT_UNCOMPRESSED_R5G6B5,
+    };
+    unsigned short* pixels = (unsigned short*)image.data;
+
+    float s = LANE_MASK_TEXCOORD_S_CENTER;
+
+    for (int i = 0; i < LANE_COUNT; i++) {
+        float t = (float)i + LANE_MASK_TEXCOORD_MID_LANE_CENTER;
+        if (i == 0) {
+            t = LANE_MASK_TEXCOORD_FRONT_LANE_INNER_EDGE;
+        } else if (i == LANE_COUNT - 1) {
+            t = (float)i + LANE_MASK_TEXCOORD_BACK_LANE_INNER_EDGE;
+        }
+
+        for (int j = 0; j < LANE_POINT_COUNT; j++) {
+            int k = i * LANE_POINT_COUNT + j;
+            texcoords[k * 2 + 0] = s;
+            texcoords[k * 2 + 1] = t;
+        }
+    }
+
+    for (int i = LANE_MASK_STRIPE_OFFSET; i < LANE_MASK_STRIPE_OFFSET + LANE_MASK_WIDTH_TEXELS; i++) {
+        for (int j = 0; j < LANE_MASK_TEXTURE_WIDTH; j++) {
+            pixels[i * LANE_MASK_TEXTURE_WIDTH + j] = WHITE_RGB565;
+        }
+    }
+
+    Texture2D texture = LoadTextureFromImage(image);
+    UnloadImage(image);
+    return texture;
 }
