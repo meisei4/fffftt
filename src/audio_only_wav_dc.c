@@ -3,19 +3,17 @@
 static const char* domain = "AUDIO-ONLY-WAV-DC";
 
 int main(void) {
-    int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
-
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     InitAudioDevice();
     SetTargetFPS(60);
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
-    Wave wave = LoadWave(RD_COUNTRY_22K_WAV);
+    wave = LoadWave(RD_COUNTRY_22K_WAV);
     WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
-    AudioStream audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
-    unsigned int wave_cursor = 0;
+
     unsigned int wave_sample_count = wave.frameCount * AUDIO_DEVICE_CHANNELS;
-    int16_t* wave_pcm16 = (int16_t*)wave.data;
+    wave_pcm16 = (int16_t*)wave.data;
 
     while (!WindowShouldClose()) {
         if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_MIDDLE_RIGHT) && IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {

@@ -1,7 +1,6 @@
+#define FFFFTT_PROFILE_FFT_TERRAIN_3D
 #include "fffftt.h"
-#include "../sh4zam/include/sh4zam/shz_sh4zam.h"
-#include "raylib.h"
-#include "rlgl.h"
+#include <GL/gl.h>
 
 #define LINE_WIDTH_RASTER_PIXELS 1.0f
 #define POINT_SIZE_RASTER_PIXELS 3.0f
@@ -20,9 +19,6 @@ static Model flat_model = {0};
 
 static void update_onset_interpolation_factor(FFTData* fft_data);
 
-static float lane_point_values[LANE_COUNT][LANE_POINT_COUNT] = {0};
-static float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
-
 static float vertices[MESH_VERTEX_COUNT * 3] = {0};
 static float normals[MESH_VERTEX_COUNT * 3] = {0};
 static Color colors[MESH_VERTEX_COUNT] = {0};
@@ -32,9 +28,6 @@ static float flat_normals[FLAT_VERTEX_COUNT * 3] = {0};
 static Color flat_colors[FLAT_VERTEX_COUNT] = {0};
 
 int main(void) {
-    FFTData fft_data = {0};
-    int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
-
     SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;
@@ -44,14 +37,13 @@ int main(void) {
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
-    // Wave wave = LoadWave(RD_DDS_FFM_22K_WAV);
-    Wave wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
+    // wave = LoadWave(RD_DDS_FFM_22K_WAV);
+    wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
     WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
-    AudioStream audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
 
-    unsigned int wave_cursor = 0;
-    int16_t* wave_pcm16 = (int16_t*)wave.data;
+    wave_pcm16 = (int16_t*)wave.data;
 
     Camera3D camera = {
         .position = (Vector3){1.45625f * 3.0f, 1.345f * 3.0f, -1.36625f * 3.0f},
@@ -67,7 +59,7 @@ int main(void) {
     // mesh_a.indices = RL_CALLOC(LINE_INDEX_COUNT, sizeof(unsigned short)); // TODO: defeats the purpose of genMesh...
     // fill_mesh_indices_lane_topology(mesh_a.indices);
 
-    update_mesh_vertices(mesh_a.vertices, &lane_point_values[0][0]);
+    update_mesh_vertices(mesh_a.vertices);
     mesh_a.colors = RL_CALLOC(mesh_a.vertexCount, sizeof(Color));
 
     Texture2D lane_mask_texture = build_lane_mask(mesh_a.texcoords);
@@ -96,7 +88,7 @@ int main(void) {
     fill_mesh_colors(colors);
     expand_mesh_colors_flat(flat_colors, colors, mesh_a.indices);
 
-    update_mesh_vertices(vertices, &lane_point_values[0][0]);
+    update_mesh_vertices(vertices);
     update_mesh_normals_smooth(normals, vertices);
 
     update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices);
@@ -128,9 +120,9 @@ int main(void) {
                 analysis_window_samples[i] = (float)chunk_samples[i] / ANALYSIS_PCM16_UPPER_BOUND;
             }
 
-            apply_blackman_window(&fft_data, analysis_window_samples);
+            apply_blackman_window();
             shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)ANALYSIS_WINDOW_SIZE_IN_FRAMES);
-            build_spectrum(&fft_data);
+            build_spectrum();
 
             float* spectrum_bin_levels =
                 fft_data.spectrum_history_levels[(fft_data.history_pos - 1 + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT];
@@ -143,7 +135,7 @@ int main(void) {
         }
 
         if (audio_dirty) {
-            update_mesh_vertices(vertices, &lane_point_values[0][0]);
+            update_mesh_vertices(vertices);
 
             //NOTE: by pure accident i was forgetting to update the normals here. This lead me to an intersting finding... position lights actually shade faces based on:
             // 1. Normals themselves (ofc -- in this case static, and the result of `GenMeshPlane` filling everything as {0.0f, 1.0f, 0.0f})

@@ -1,5 +1,4 @@
 #include "fffftt.h"
-#include "../sh4zam/include/sh4zam/shz_sh4zam.h"
 
 static const char* domain = "PICKING-OUT-NOTES-DC";
 
@@ -119,11 +118,6 @@ static void picking_out_the_notes(const FFTData* fft_data) {
 }
 
 int main(void) {
-    int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
-
-    FFTData fft_data = {0};
-    float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
-
     SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
@@ -134,12 +128,13 @@ int main(void) {
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
-    Wave wave = LoadWave(RD_SHADERTOY_ELECTRONEBULAE_ONE_FOURTH_22K_WAV);
+    wave = LoadWave(RD_SHADERTOY_ELECTRONEBULAE_ONE_FOURTH_22K_WAV);
     WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
-    AudioStream audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
-    unsigned int wave_cursor = 0;
-    int16_t* wave_pcm16 = (int16_t*)wave.data;
+
+    wave_pcm16 = (int16_t*)wave.data;
+
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
@@ -162,9 +157,9 @@ int main(void) {
             }
         }
 
-        apply_blackman_window(&fft_data, analysis_window_samples);
+        apply_blackman_window();
         shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)ANALYSIS_WINDOW_SIZE_IN_FRAMES);
-        build_spectrum(&fft_data);
+        build_spectrum();
         BeginDrawing();
         ClearBackground(BLACK);
         picking_out_the_notes(&fft_data);

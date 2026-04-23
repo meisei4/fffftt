@@ -3,11 +3,7 @@
 static const char* domain = "FFTW-GL11";
 
 int main(void) {
-    int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
-
-    FFTData fft_data = {0};
     float fft_compute_ms = 0.0f;
-    float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
 
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     float start_time = (float)GetTime();
@@ -19,17 +15,17 @@ int main(void) {
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
-    Wave wave = LoadWave(RES_COUNTRY_STEREO_44K_WAV);
-
+    wave = LoadWave(RES_COUNTRY_STEREO_44K_WAV);
     WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
-    AudioStream audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
-
+    audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
-    unsigned int wave_cursor = 0;
-    int16_t* wave_pcm16 = (int16_t*)wave.data;
+
+    wave_pcm16 = (int16_t*)wave.data;
+
     fftw_complex* fftw_input = fftw_malloc(sizeof(fftw_complex) * ANALYSIS_WINDOW_SIZE_IN_FRAMES);
     fftw_complex* fftw_output = fftw_malloc(sizeof(fftw_complex) * ANALYSIS_WINDOW_SIZE_IN_FRAMES);
     fftw_plan fftw_plan_state = fftw_create_plan(ANALYSIS_WINDOW_SIZE_IN_FRAMES, FFTW_FORWARD, FFTW_ESTIMATE);
+
     SetTargetFPS(60);
 
     FFT_PROFILE_DEFINE(fft_profile_data);
@@ -50,7 +46,7 @@ int main(void) {
             }
         }
 
-        apply_blackman_window(&fft_data, analysis_window_samples);
+        apply_blackman_window();
         float fft_start = (float)GetTime();
         for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
             fftw_input[i].re = (fftw_real)fft_data.work_buffer[i].real;
@@ -63,13 +59,13 @@ int main(void) {
         }
         fft_compute_ms = ((float)GetTime() - fft_start) * 1000.0f;
 
-        build_spectrum(&fft_data);
+        build_spectrum();
 
         FFT_PROFILE_SAMPLE(fft_profile_data, domain, fft_compute_ms, (float)GetTime() - start_time, &fft_data);
 
         BeginDrawing();
         ClearBackground(BLACK);
-        render_fft_frame(&fft_data);
+        render_fft_frame();
         EndDrawing();
     }
 

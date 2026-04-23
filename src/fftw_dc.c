@@ -4,14 +4,10 @@ static const char* domain = "FFTW-DC";
 static const int fftw_plan_flags = FFTW_ESTIMATE;
 
 int main(void) {
-    int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
-
-    FFTData fft_data = {0};
     float fft_compute_ms = 0.0f;
     fftw_plan fftw_plan_state;
     fftw_complex* fftw_input;
     fftw_complex* fftw_output;
-    float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
 
     SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
@@ -29,12 +25,13 @@ int main(void) {
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
-    Wave wave = LoadWave(RD_COUNTRY_22K_WAV);
+    wave = LoadWave(RD_COUNTRY_22K_WAV);
     WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
-    AudioStream audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
-    unsigned int wave_cursor = 0;
-    int16_t* wave_pcm16 = (int16_t*)wave.data;
+
+    wave_pcm16 = (int16_t*)wave.data;
+
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
@@ -57,18 +54,18 @@ int main(void) {
             }
         }
 
-        apply_blackman_window_fftw_complex(fftw_input, analysis_window_samples);
+        apply_blackman_window_fftw_complex(fftw_input);
         uint64_t fft_start = time_nanoseconds();
         fftw_one(fftw_plan_state, fftw_input, fftw_output);
         fft_compute_ms = elapsed_milliseconds(fft_start);
 
-        build_spectrum_fftw(&fft_data, fftw_output);
+        build_spectrum_fftw(fftw_output);
 
         FFT_PROFILE_SAMPLE(fft_profile_data, domain, fft_compute_ms, (float)GetTime() - start_time, &fft_data);
 
         BeginDrawing();
         ClearBackground(BLACK);
-        render_fft_frame(&fft_data);
+        render_fft_frame();
         EndDrawing();
     }
 

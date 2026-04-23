@@ -9,25 +9,20 @@ static const char* domain = "SOUND-ENVELOPE-GL33";
 #define ENVELOPE_LINE_WIDTH_DISTANCE_PIXELS 0.5f
 #define AUDIO_TEXTURE_ROW_COUNT 2
 
-static float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
-
 static void update_audio_texture_pixels(Color* audio_texture_pixels);
 
 int main(void) {
-    int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
-
     SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
-    Wave wave = LoadWave(RES_SHADERTOY_EXPERIMENT_22K_WAV);
+    wave = LoadWave(RES_SHADERTOY_EXPERIMENT_22K_WAV);
     WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
-    AudioStream audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
 
-    unsigned int wave_cursor = 0;
-    int16_t* wave_pcm16 = (int16_t*)wave.data;
+    wave_pcm16 = (int16_t*)wave.data;
 
     Image audio_texture_image = GenImageColor(ANALYSIS_WAVEFORM_SAMPLE_COUNT, AUDIO_TEXTURE_ROW_COUNT, BLACK);
     Color* audio_texture_pixels = (Color*)audio_texture_image.data;

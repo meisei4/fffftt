@@ -1,8 +1,6 @@
 #define FFFFTT_PROFILE_WAVEFORM_TERRAIN_3D
 #include "fffftt.h"
-#include "raylib.h"
-#include "rlgl.h"
-#include <string.h>
+#include <GL/gl.h>
 
 #define LINE_WIDTH_RASTER_PIXELS 1.0f
 #define POINT_SIZE_RASTER_PIXELS 3.0f
@@ -25,8 +23,6 @@ static void update_mesh_colors_rms(Color* colors);
 static Color sample_rms_pallete(float rms);
 static void update_onset_interpolation_factor(void);
 
-static float lane_point_values[LANE_COUNT][LANE_POINT_COUNT] = {0};
-static float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
 static float hilbert_normal_field[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float rms_color_field[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static int hilbert_center_sample_indices[LANE_POINT_COUNT] = {0};
@@ -45,21 +41,18 @@ static float flat_hilbert_normals[FLAT_VERTEX_COUNT * 3] = {0};
 static Color flat_colors[FLAT_VERTEX_COUNT] = {0};
 
 int main(void) {
-    int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
-
     SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
-    // Wave wave = LoadWave(RD_DDS_FFM_22K_WAV);
-    Wave wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
+    // wave = LoadWave(RD_DDS_FFM_22K_WAV);
+    wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
     WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
-    AudioStream audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
 
-    int wave_cursor = 0;
-    int16_t* wave_pcm16 = (int16_t*)wave.data;
+    wave_pcm16 = (int16_t*)wave.data;
 
     Camera3D camera = {
         .position = (Vector3){1.456f * 2.0, 1.345f * 2.0, -1.366f * 2.0},
@@ -98,7 +91,7 @@ int main(void) {
     expand_mesh_colors_flat(flat_colors, colors, mesh_a.indices);
     init_hilbert_filter();
 
-    update_mesh_vertices(vertices, &lane_point_values[0][0]);
+    update_mesh_vertices(vertices);
     update_mesh_normals_smooth(normals, vertices);
 
     build_hilbert_normal_field();
@@ -156,7 +149,7 @@ int main(void) {
         }
 
         if (audio_dirty) {
-            update_mesh_vertices(vertices, &lane_point_values[0][0]);
+            update_mesh_vertices(vertices);
             update_mesh_normals_smooth(normals, vertices);
             update_mesh_normals_hilbert(hilbert_normals, normals, &hilbert_normal_field[0][0], vertices);
             update_mesh_colors_rms(rms_colors);

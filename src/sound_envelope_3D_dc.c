@@ -1,30 +1,23 @@
 #define FFFFTT_PROFILE_SOUND_ENVELOPE_3D
 #include "fffftt.h"
-#include "rlgl.h"
 
 #define LINE_WIDTH_RASTER_PIXELS 2.0f
 
 static const char* domain = "SOUND-ENVELOPE-3D-DC";
 
 static Vector3 envelope_mesh_vertices[LANE_COUNT][LANE_POINT_COUNT] = {0};
-static float lane_point_values[LANE_COUNT][LANE_POINT_COUNT] = {0};
-static float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
 
 int main(void) {
-    int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
-
     //SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
-    Wave wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
+    wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
     WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
-    AudioStream audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
-
-    unsigned int wave_cursor = 0;
-    int16_t* wave_pcm16 = (int16_t*)wave.data;
+    wave_pcm16 = (int16_t*)wave.data;
 
     Camera3D camera = {
         .position = (Vector3){-1.093f, 1.126f, 1.165f}, //TODO: manually tuned alignment...
@@ -41,7 +34,8 @@ int main(void) {
             break;
         }
 
-        while (IsAudioStreamProcessed(audio_stream)) {
+        update_playback_controls();
+        while (!is_paused && IsAudioStreamProcessed(audio_stream)) {
             for (int i = 0; i < AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES; i++) {
                 chunk_samples[i] = wave_pcm16[wave_cursor];
                 if (++wave_cursor >= wave.frameCount) {
@@ -54,11 +48,11 @@ int main(void) {
             for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
                 analysis_window_samples[i] = (float)chunk_samples[i] / ANALYSIS_PCM16_UPPER_BOUND;
             }
+            advance_lane_history(&lane_point_values[0][0]);
+            smooth_front_lane();
         }
 
-        advance_lane_history(&lane_point_values[0][0]);
-        smooth_front_lane(&lane_point_values[0][0], analysis_window_samples);
-        update_envelope_mesh_vertices(&envelope_mesh_vertices[0][0], &lane_point_values[0][0]);
+        update_envelope_mesh_vertices(&envelope_mesh_vertices[0][0]);
         update_camera_orbit(&camera, (float)GetFrameTime());
 
         BeginDrawing();

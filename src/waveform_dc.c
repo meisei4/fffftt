@@ -1,12 +1,11 @@
 #include "fffftt.h"
-#include "rlgl.h"
 
 static const char* domain = "WAVEFORM-DC";
 static Vector3 waveform_vertices[ANALYSIS_WAVEFORM_SAMPLE_COUNT] = {0};
 
 #define WAVEFORM_LINE_WIDTH 5.0f // waveform.glsl#L7 #define LINE_WIDTH 1.0
 
-static void update_waveform_vertices(float* analysis_window_samples) {
+static void update_waveform_vertices(void) {
     int sample_stride = ANALYSIS_WINDOW_SIZE_IN_FRAMES / ANALYSIS_WAVEFORM_SAMPLE_COUNT;
     float sample_column_width = (float)SCREEN_WIDTH / (float)ANALYSIS_WAVEFORM_SAMPLE_COUNT;
     for (int sample_index = 0; sample_index < ANALYSIS_WAVEFORM_SAMPLE_COUNT; sample_index++) {
@@ -21,7 +20,7 @@ static void update_waveform_vertices(float* analysis_window_samples) {
     }
 }
 
-static void render_waveform_frame(float* analysis_window_samples) {
+static void render_waveform_frame(void) {
     int sample_stride = ANALYSIS_WINDOW_SIZE_IN_FRAMES / ANALYSIS_WAVEFORM_SAMPLE_COUNT;
     float sample_column_width = (float)SCREEN_WIDTH / (float)ANALYSIS_WAVEFORM_SAMPLE_COUNT;
     int line_thickness_px = (int)floorf(WAVEFORM_LINE_WIDTH + 0.5f); // waveform.glsl#L7 #define LINE_WIDTH 1.0
@@ -56,20 +55,18 @@ static void render_waveform_frame(float* analysis_window_samples) {
 }
 
 int main(void) {
-    int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
-    float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
-
     SetTraceLogLevel(LOG_WARNING); // TODO: note this should be commented out for testing logs on
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
-    Wave wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
+    wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
     WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
-    AudioStream audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
-    unsigned int wave_cursor = 0;
-    int16_t* wave_pcm16 = (int16_t*)wave.data;
+
+    wave_pcm16 = (int16_t*)wave.data;
+
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
@@ -95,8 +92,8 @@ int main(void) {
         BeginDrawing();
         ClearBackground(BLACK);
         // TODO: BELOW IS FOR EXPERIMENTING WITH DIFFERENT DRAW TYPES
-        // render_waveform_frame(analysis_window_samples); // TODO: pendantic shadertoy parity example
-        update_waveform_vertices(analysis_window_samples);
+        // render_waveform_frame(); // TODO: pendantic shadertoy parity example
+        update_waveform_vertices();
         rlEnableStatePointer(GL_VERTEX_ARRAY, waveform_vertices);
         rlSetLineWidth(WAVEFORM_LINE_WIDTH);
         glDrawArrays(GL_LINE_STRIP, 0, ANALYSIS_WAVEFORM_SAMPLE_COUNT);
