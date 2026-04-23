@@ -354,6 +354,7 @@ waveform-terrain-3d-dc: $(DC_RAYLIB_DIR)/libraylib.a
 fft-terrain-3d-dc: $(DC_RAYLIB_DIR)/libraylib.a
 	mkdir -p $(BIN_DIR) $(FFT_TERRAIN_3D_DC_TARGET_DIR) $(FFT_TERRAIN_3D_DC_TARGET_DIR)/romdisk
 	cp -f $(SRC_DIR)/resources/shadertoy_experiment_22050hz_pcm16_mono.wav $(FFT_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
+#	cp -f $(SRC_DIR)/resources/dds_ffm_22050hz_pcm16_mono.wav $(FFT_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 	$(KOS_GENROMFS) -f $(FFT_TERRAIN_3D_DC_TARGET_DIR)/romdisk.img -d $(FFT_TERRAIN_3D_DC_TARGET_DIR)/romdisk -v -x .gitignore -x .DS_Store -x Thumbs.db
 	$(KOS_BASE)/utils/bin2c/bin2c $(FFT_TERRAIN_3D_DC_TARGET_DIR)/romdisk.img $(FFT_TERRAIN_3D_DC_TARGET_DIR)/romdisk_tmp.c romdisk
 	$(KOS_CC) $(KOS_CFLAGS) -o $(FFT_TERRAIN_3D_DC_TARGET_DIR)/romdisk_tmp.o -c $(FFT_TERRAIN_3D_DC_TARGET_DIR)/romdisk_tmp.c

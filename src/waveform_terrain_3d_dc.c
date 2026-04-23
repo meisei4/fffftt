@@ -2,13 +2,10 @@
 #include "fffftt.h"
 #include "raylib.h"
 #include "rlgl.h"
-#include <GL/gl.h>
 #include <string.h>
 
 #define LINE_WIDTH_RASTER_PIXELS 1.0f
 #define POINT_SIZE_RASTER_PIXELS 3.0f
-#define ONSET_LIGHT_GAIN 28.0f
-#define ONSET_LIGHT_RELEASE 0.05f
 
 static const char* domain = "WAVEFORM-TERRAIN-3D-DC";
 
@@ -26,7 +23,7 @@ static void update_mesh_normals_hilbert(float* normals, const float* src_normals
 static void build_rms_color_field(void);
 static void update_mesh_colors_rms(Color* colors);
 static Color sample_rms_pallete(float rms);
-static void update_light_constants(void);
+static void update_onset_interpolation_factor(void);
 
 static float lane_point_values[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
@@ -35,10 +32,6 @@ static float rms_color_field[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static int hilbert_center_sample_indices[LANE_POINT_COUNT] = {0};
 static float hilbert_filter_ideal[65] = {0};
 static float hilbert_filter_window[65] = {0};
-static float onset_attack_pulse = 0.0f;
-static float onset_attack_light_modulator = 0.0f;
-static GLfloat light0_ambient[4] = {0.01f, 0.01f, 0.01f, 1.0f};
-static GLfloat light0_diffuse[4] = {0.16f, 0.16f, 0.16f, 1.0f};
 
 static float vertices[MESH_VERTEX_COUNT * 3] = {0};
 static float normals[MESH_VERTEX_COUNT * 3] = {0};
@@ -155,16 +148,7 @@ int main(void) {
             for (int i = 0; i < LANE_POINT_COUNT; i++) {
                 lane_point_values[0][i] = analysis_window_samples[(i * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (LANE_POINT_COUNT - 1)];
             }
-            float onset_row_delta = 0.0f;
-            for (int i = 0; i < LANE_POINT_COUNT; i++) {
-                float row_delta = lane_point_values[0][i] - lane_point_values[1][i];
-                onset_row_delta += row_delta * row_delta;
-            }
-            onset_row_delta /= (float)LANE_POINT_COUNT;
-            float target_attack_pulse = CLAMP(onset_row_delta * ONSET_LIGHT_GAIN, 0.0f, 1.0f);
-            if (target_attack_pulse > onset_attack_pulse) {
-                onset_attack_pulse = target_attack_pulse;
-            }
+            update_onset_interpolation_factor();
             build_hilbert_normal_field();
             build_rms_color_field();
             audio_dirty = 1;
@@ -200,8 +184,8 @@ int main(void) {
         glEnable(GL_COLOR_MATERIAL);
         glEnable(GL_LIGHTING);
         glEnable(GL_LIGHT0);
-        glLightModelfv(GL_LIGHT_MODEL_AMBIENT, (const GLfloat[]){0.32f, 0.32f, 0.32f, 1.0f});
-        glLightfv(GL_LIGHT0, GL_AMBIENT, light0_ambient);
+        glLightModelfv(GL_LIGHT_MODEL_AMBIENT, (const GLfloat[]){0.2f, 0.2f, 0.2f, 1.0f});
+        glLightfv(GL_LIGHT0, GL_AMBIENT, (const GLfloat[]){0.0f, 0.0f, 0.0f, 1.0f});
         glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
         glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){1.330f, 1.345f, -1.418f, 1.0f}); // TODO: same issue with the camera position manual derivation
         DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
@@ -497,32 +481,23 @@ static Color sample_rms_pallete(float rms) {
     };
 }
 
-static void update_light_constants(void) {
+static void update_onset_interpolation_factor(void) {
     // raw waveform signal derived onset  LIMITATIONS!!!:
     // https://www.iro.umontreal.ca/~pift6080/H09/documents/papers/bello_onset_tutorial.pdf
     // https://mural.maynoothuniversity.ie/id/eprint/4204/1/JT_Real-Time_Detection.pdf
-    // TODO: LATER FOR FFT/SPECTRUM ONSET STUFF!!!!!!!!!!!:
-    // https://librosa.org/doc/main/generated/librosa.onset.onset_strength.html
-    // https://librosa.org/doc/main/generated/librosa.onset.onset_detect.html
-    float target_attack_pulse = onset_attack_pulse;
-    onset_attack_pulse = 0.0f;
-    if (target_attack_pulse > onset_attack_light_modulator) {
-        onset_attack_light_modulator = target_attack_pulse;
-    } else {
-        onset_attack_light_modulator = LERP(onset_attack_light_modulator, 0.0f, ONSET_LIGHT_RELEASE);
+    float onset_strength = 0.0f;
+    for (int i = 0; i < LANE_POINT_COUNT; i++) {
+        float row_delta = lane_point_values[0][i] - lane_point_values[1][i];
+        onset_strength += row_delta * row_delta;
     }
-    const float base_light0_ambient = 0.01f;
-    const float base_light0_diffuse = 0.16f;
-    const float ambient_pulse_range = 0.01f;
-    const float diffuse_pulse_range = 0.82f;
-    float ambient_strength = base_light0_ambient + onset_attack_light_modulator * ambient_pulse_range;
-    float diffuse_strength = base_light0_diffuse + onset_attack_light_modulator * diffuse_pulse_range;
-    light0_ambient[0] = ambient_strength;
-    light0_ambient[1] = ambient_strength;
-    light0_ambient[2] = ambient_strength;
-    light0_ambient[3] = 1.0f;
-    light0_diffuse[0] = diffuse_strength;
-    light0_diffuse[1] = diffuse_strength;
-    light0_diffuse[2] = diffuse_strength;
-    light0_diffuse[3] = 1.0f;
+    onset_strength /= (float)LANE_POINT_COUNT;
+
+    float onset_strength_normalized = CLAMP((onset_strength - ONSET_STRENGTH_MIN) / (ONSET_STRENGTH_MAX - ONSET_STRENGTH_MIN), 0.0f, 1.0f);
+    float onset_rate = ONSET_DECAY_RATE;
+    if (onset_strength_normalized > onset_interpolation_factor) {
+        onset_rate = ONSET_ATTACK_RATE;
+    }
+
+    onset_interpolation_factor = LERP(onset_interpolation_factor, onset_strength_normalized, onset_rate);
+    onset_interpolation_factor = CLAMP(onset_interpolation_factor, 0.0f, 1.0f);
 }

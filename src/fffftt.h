@@ -5,6 +5,7 @@
 #include "raymath.h"
 #include "../fftw_1997/fftw.h"
 #include "../sh4zam/include/sh4zam/shz_sh4zam.h"
+#include <GL/gl.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -641,7 +642,23 @@ static Texture2D build_lane_mask_glow(float* texcoords) {
     return texture;
 }
 
+#define ONSET_STRENGTH_MIN 0.0f
+#define ONSET_STRENGTH_MAX 0.025f
+#define ONSET_ATTACK_RATE 0.95f
+#define ONSET_DECAY_RATE 0.10f
+#define LIGHT0_DIFFUSE_MIN 0.0f
+#define LIGHT0_DIFFUSE_MAX 1.5f
 
+static float onset_interpolation_factor = 0.0f;
+static GLfloat light0_diffuse[4] = {LIGHT0_DIFFUSE_MIN, LIGHT0_DIFFUSE_MIN, LIGHT0_DIFFUSE_MIN, 1.0f};
+
+static void update_light_constants(void) {
+    float light0_diffuse_strength = LERP(LIGHT0_DIFFUSE_MIN, LIGHT0_DIFFUSE_MAX, onset_interpolation_factor);
+    light0_diffuse[0] = light0_diffuse_strength;
+    light0_diffuse[1] = light0_diffuse_strength;
+    light0_diffuse[2] = light0_diffuse_strength;
+    light0_diffuse[3] = 1.0f;
+}
 
 static inline void update_camera_orbit(Camera3D* camera, float dt) {
     Vector3 dist_from_target = Vector3Subtract(camera->position, camera->target);

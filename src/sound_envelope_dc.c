@@ -1,7 +1,6 @@
 #define FFFFTT_PROFILE_SOUND_ENVELOPE_ISO
 #include "fffftt.h"
 #include "rlgl.h"
-#include <GL/gl.h>
 
 #define LINE_WIDTH_RASTER_PIXELS 2.0f
 

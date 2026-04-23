@@ -2,18 +2,11 @@
 #include "../sh4zam/include/sh4zam/shz_sh4zam.h"
 #include "raylib.h"
 #include "rlgl.h"
-#include <GL/gl.h>
 
 #define LINE_WIDTH_RASTER_PIXELS 2.0f
 #define POINT_SIZE_RASTER_PIXELS 3.0f
 #define ONSET_LAG_FRAMES 1
 #define ONSET_ENVELOPE_RADIUS 2
-#define ONSET_STRENGTH_MIN 0.0f
-#define ONSET_STRENGTH_MAX 0.025f
-#define ONSET_ATTACK_RATE 0.95f
-#define ONSET_DECAY_RATE 0.10f
-#define LIGHT0_DIFFUSE_MIN 0.0f
-#define LIGHT0_DIFFUSE_MAX 1.5f
 
 static const char* domain = "FFT-TERRAIN-3D-DC";
 
@@ -26,12 +19,9 @@ static Model model_b = {0};
 static Model flat_model = {0};
 
 static void update_onset_interpolation_factor(FFTData* fft_data);
-static void update_light_constants(void);
 
 static float lane_point_values[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
-static float onset_interpolation_factor = 0.0f;
-static GLfloat light0_diffuse[4] = {LIGHT0_DIFFUSE_MIN, LIGHT0_DIFFUSE_MIN, LIGHT0_DIFFUSE_MIN, 1.0f};
 
 static float vertices[MESH_VERTEX_COUNT * 3] = {0};
 static float normals[MESH_VERTEX_COUNT * 3] = {0};
@@ -246,12 +236,4 @@ static void update_onset_interpolation_factor(FFTData* fft_data) {
     }
     onset_interpolation_factor = LERP(onset_interpolation_factor, onset_strength_normalized, onset_rate);
     onset_interpolation_factor = CLAMP(onset_interpolation_factor, 0.0f, 1.0f);
-}
-
-static void update_light_constants(void) {
-    float light0_diffuse_strength = LERP(LIGHT0_DIFFUSE_MIN, LIGHT0_DIFFUSE_MAX, onset_interpolation_factor);
-    light0_diffuse[0] = light0_diffuse_strength;
-    light0_diffuse[1] = light0_diffuse_strength;
-    light0_diffuse[2] = light0_diffuse_strength;
-    light0_diffuse[3] = 1.0f;
 }
