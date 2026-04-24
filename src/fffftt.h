@@ -40,6 +40,11 @@
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 
+#define SUNFLOWER CLITERAL(Color){255, 204, 153, 255}  // #FFCC99FF
+#define BAHAMA_BLUE CLITERAL(Color){0, 102, 153, 255}  // #006699FF
+#define MARINER CLITERAL(Color){51, 102, 204, 255}     // #3366CCFF
+#define NEON_CARROT CLITERAL(Color){255, 153, 51, 255} // #FF9933FF
+
 // https://en.wikipedia.org/wiki/Wuxing_(Chinese_philosophy)#Music swatches: https://chinesecolor.xyz/
 // TODO: Western antiquity concepts maybe https://en.wikipedia.org/wiki/Pythagorean_tuning, https://en.wikipedia.org/wiki/Diatonic_and_chromatic#Greek_genera
 #define GONG_GAO3_HUANG2 CLITERAL(Color){255, 247, 153, 255}      // #FFF799
@@ -99,6 +104,9 @@
 #define RD_DDS_FFM_22K_WAV "/rd/dds_ffm_22050hz_pcm16_mono.wav"
 #define RD_RAMA_22K_WAV "/rd/rama_22050hz_pcm16_mono.wav"
 
+//#define RD_FONT "/rd/small_text_8_16px.fnt"
+#define RD_FONT "/rd/vga_rom_f16.fnt"
+
 #define SHADER_FFT "src/resources/fft.glsl"
 #define SHADER_WAVEFORM "src/resources/waveform.glsl"
 #define SHADER_SOUND_ENVELOPE_BUFFER_A "src/resources/sound_envelope_buffer_a.glsl"
@@ -122,6 +130,14 @@ typedef struct FFTData {
 #define SECONDS_PER_MINUTE 60
 #define MILLISECONDS_PER_MINUTE (MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE)
 #define LOG_TIMESTAMP_SIZE 32
+#define SAMPLE_CURSOR_TO_MS(sample_cursor) (((sample_cursor) * MILLISECONDS_PER_SECOND) / SRC_SAMPLE_RATE)
+#define FORMAT_MMSSMMM(timestamp, elapsed_ms)                                                                                                                  \
+    snprintf((timestamp),                                                                                                                                      \
+             sizeof(timestamp),                                                                                                                                \
+             "%02d:%02d.%03d",                                                                                                                                 \
+             (elapsed_ms) / MILLISECONDS_PER_MINUTE,                                                                                                           \
+             ((elapsed_ms) / MILLISECONDS_PER_SECOND) % SECONDS_PER_MINUTE,                                                                                    \
+             (elapsed_ms) % MILLISECONDS_PER_SECOND)
 
 typedef struct FFTProfileData {
     int last_log_sec;
@@ -161,12 +177,9 @@ typedef struct FFTProfileData {
             if (fftprof_domain != NULL && fftprof_fft_data != NULL) {                                                                                          \
                 char fftprof_timestamp[LOG_TIMESTAMP_SIZE];                                                                                                    \
                 int fftprof_elapsed_ms = (int)(fftprof_elapsed_s * (float)MILLISECONDS_PER_SECOND);                                                            \
-                int fftprof_elapsed_minutes = fftprof_elapsed_ms / MILLISECONDS_PER_MINUTE;                                                                    \
-                int fftprof_seconds = (fftprof_elapsed_ms / MILLISECONDS_PER_SECOND) % SECONDS_PER_MINUTE;                                                     \
-                int fftprof_millis = fftprof_elapsed_ms % MILLISECONDS_PER_SECOND;                                                                             \
                 float fftprof_avg_ms = fftprof_profile->dur_sum_ms / (float)fftprof_profile->run_count;                                                        \
                                                                                                                                                                \
-                snprintf(fftprof_timestamp, sizeof(fftprof_timestamp), "%02d:%02d.%03d", fftprof_elapsed_minutes, fftprof_seconds, fftprof_millis);            \
+                FORMAT_MMSSMMM(fftprof_timestamp, fftprof_elapsed_ms);                                                                                         \
                 TraceLog(LOG_INFO,                                                                                                                             \
                          "[%s] [%s] frame=%u; fft_run_count=%d; fft_run_dur_min_ms=%.3f; "                                                                     \
                          "fft_run_dur_max_ms=%.3f; fft_run_dur_avg_ms=%.3f",                                                                                   \
@@ -209,6 +222,8 @@ static float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
 static int16_t drain_chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
 static int16_t resume_chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
 static int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
+static int seek_delta_chunks = 0;
+static int paused_wave_cursor = 0;
 static bool is_paused = false;
 
 #define ANALYSIS_TAPBACK_POS_DEFAULT 0.01f
@@ -787,12 +802,123 @@ static void rebuild_envelope_history_from_wave(void) {
     }
 }
 
+static Font font = {0};
+#define WAVE_CURSOR_BLINK_RATE 8.0f
+static Model* wave_cursor_model = NULL;
+static Texture2D wave_cursor_texture = {0};
+static Color wave_cursor_colors[MESH_VERTEX_COUNT] = {0};
+
+static void draw_paused_wave_cursor_lane_marker(void) {
+    float blink = SINF((float)GetTime() * WAVE_CURSOR_BLINK_RATE);
+    int lane_index = seek_delta_chunks;
+    float z_shift = 0.0f;
+    Color marker_color = CLITERAL(Color){
+        (unsigned char)((float)NEON_CARROT.r * (0.725f + 0.275f * blink)),
+        (unsigned char)((float)NEON_CARROT.g * (0.725f + 0.275f * blink)),
+        (unsigned char)((float)NEON_CARROT.b * (0.725f + 0.275f * blink)),
+        (unsigned char)(175.5f + 79.5f * blink),
+    };
+    if (lane_index < 0) {
+        lane_index = 0;
+        z_shift = -0.75f * LANE_SPACING_SCALE;
+    } else if (lane_index >= LANE_COUNT) {
+        lane_index = LANE_COUNT - 1;
+        z_shift = 0.75f * LANE_SPACING_SCALE;
+    }
+    for (int i = 0; i < MESH_VERTEX_COUNT; i++) {
+        wave_cursor_colors[i] = BLANK;
+    }
+    for (int i = 0; i < LANE_POINT_COUNT; i++) {
+        wave_cursor_colors[lane_index * LANE_POINT_COUNT + i] = marker_color;
+    }
+
+    wave_cursor_model->meshes[0].colors = (unsigned char*)wave_cursor_colors;
+    wave_cursor_model->materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = wave_cursor_texture.id;
+    rlDisableDepthTest();
+    rlDisableBackfaceCulling();
+    DrawModelEx(*wave_cursor_model, (Vector3){0.0f, 0.0f, z_shift}, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+    rlEnableBackfaceCulling();
+    rlEnableDepthTest();
+    wave_cursor_model->materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
+    wave_cursor_model->meshes[0].colors = NULL;
+}
+
+static inline void draw_inspection_hud_cells(const char* s, float x, float y, Color c) {
+    char g[2] = {0};
+    for (int i = 0; s[i]; i++) {
+        if (s[i] == ' ')
+            continue;
+        g[0] = s[i];
+        DrawTextEx(font, g, (Vector2){x + (float)i * 7.0f, y}, 16.0f, 0.0f, c);
+    }
+}
+
+static inline void draw_inspection_hud_slot(const char* fmt, int v, int n, float x, float y, Color c) {
+    char s[24];
+    snprintf(s, sizeof(s), fmt, v);
+    int l = (int)strlen(s);
+    draw_inspection_hud_cells(l > n ? s + l - n : s, x + (float)(n - (l > n ? n : l)) * 7.0f, y, c);
+}
+
+static inline int inspection_hud_wrapped_cursor(int cursor) {
+    cursor %= wave.frameCount;
+    return cursor < 0 ? cursor + wave.frameCount : cursor;
+}
+
+static inline void draw_inspection_hud_wheel_row(int indent, float y, int row_offset, Color row_color) {
+    char ts[LOG_TIMESTAMP_SIZE];
+    int row_cursor = inspection_hud_wrapped_cursor(paused_wave_cursor + row_offset * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
+    int row_delta_chunks = seek_delta_chunks + row_offset;
+    int row_delta_ms = (row_delta_chunks * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES * MILLISECONDS_PER_SECOND) / SRC_SAMPLE_RATE;
+    bool selected = row_delta_chunks == 0;
+    int display_cursor = inspection_hud_wrapped_cursor(selected ? paused_wave_cursor : row_cursor);
+    Color color = selected ? SUNFLOWER : row_color;
+    float x = 376.0f + (float)indent * 7.0f;
+    FORMAT_MMSSMMM(ts, SAMPLE_CURSOR_TO_MS(display_cursor));
+    if (selected)
+        draw_inspection_hud_cells(">", x - 14.0f, y, NEON_CARROT);
+    draw_inspection_hud_slot("%6d", display_cursor, 6, x, y, color);
+    DrawTextEx(font, ":", (Vector2){x + 42.0f, y}, 16.0f, 0.0f, color);
+    draw_inspection_hud_slot("%+04d", row_delta_chunks, 4, x + 56.0f, y, color);
+    DrawTextEx(font, "c", (Vector2){x + 84.0f, y}, 16.0f, 0.0f, color);
+    draw_inspection_hud_slot("%+04d", row_delta_ms, 4, x + 98.0f, y, color);
+    DrawTextEx(font, "ms", (Vector2){x + 126.0f, y}, 16.0f, 0.0f, color);
+    draw_inspection_hud_cells(ts, x + 147.0f, y, color);
+}
+
+static void draw_playback_inspection_hud(void) {
+    char s[96], ts[LOG_TIMESTAMP_SIZE];
+    int cursor = is_paused ? paused_wave_cursor : wave_cursor;
+    Color top_color = is_paused ? SUNFLOWER : MARINER;
+    FORMAT_MMSSMMM(ts, SAMPLE_CURSOR_TO_MS(cursor));
+    snprintf(s, sizeof(s), "[CURSOR:%6d]", cursor);
+    draw_inspection_hud_cells(s, 7.0f + 20.0f, 25.0f, top_color);
+    snprintf(s, sizeof(s), "[STEP:%4d]", AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
+    draw_inspection_hud_cells(s, 140.0f + 20.0f, 25.0f, top_color);
+    snprintf(s, sizeof(s), "[SAMPLE_RATE:%5d]", SRC_SAMPLE_RATE);
+    draw_inspection_hud_cells(s, 244.0f + 20.0f, 25.0f, top_color);
+    snprintf(s, sizeof(s), "[TIME:%s]", ts);
+    draw_inspection_hud_cells(s, 402.0f + 20.0f, 25.0f, top_color);
+    draw_inspection_hud_cells(is_paused ? "[PAUSED]" : "[PLAYING]", 533.0f + 20.0f, 25.0f, is_paused ? NEON_CARROT : SUNFLOWER);
+    if (is_paused) {
+        draw_inspection_hud_cells("        [...]", 376.0f, 352.0f - 5.0f, seek_delta_chunks < -2 ? NEON_CARROT : MARINER);
+        draw_inspection_hud_wheel_row(6, 368.0f - 5.0f, 2, BAHAMA_BLUE);
+        draw_inspection_hud_wheel_row(4, 384.0f - 5.0f, 1, MARINER);
+        draw_inspection_hud_wheel_row(2, 400.0f - 5.0f, 0, SUNFLOWER);
+        draw_inspection_hud_wheel_row(4, 416.0f - 5.0f, -1, MARINER);
+        draw_inspection_hud_wheel_row(6, 432.0f - 5.0f, -2, BAHAMA_BLUE);
+        draw_inspection_hud_cells("        [...]", 376.0f, 448.0f - 5.0f, seek_delta_chunks > 2 ? NEON_CARROT : MARINER);
+    }
+}
+
 static void update_playback_controls(void) {
     if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT)) {
         reset_sticky_nav();
         if (!is_paused) {
             is_paused = true;
             wave_cursor = (wave_cursor + wave.frameCount - AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
+            paused_wave_cursor = wave_cursor;
+            seek_delta_chunks = 0;
             for (int i = 0; i < MAX_DRAIN_CHUNK_COUNT; i++) {
                 while (!IsAudioStreamProcessed(audio_stream)) {
                     /* KEEP DRAINING! */
@@ -826,9 +952,11 @@ static void update_playback_controls(void) {
     }
     if (is_paused && sticky_nav(GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)) {
         wave_cursor = (wave_cursor + wave.frameCount - AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
+        seek_delta_chunks--;
         rebuild_envelope_history_from_wave();
     } else if (is_paused && sticky_nav(GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
         wave_cursor = (wave_cursor + AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
+        seek_delta_chunks++;
         rebuild_envelope_history_from_wave();
     }
 }

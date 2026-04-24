@@ -44,6 +44,7 @@ static Color flat_colors[FLAT_VERTEX_COUNT] = {0};
 int main(void) {
     SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
+    font = LoadFont(RD_FONT);
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
@@ -68,12 +69,14 @@ int main(void) {
     mesh_a = GenMeshPlane(1.0f, 1.0f, LANE_POINT_COUNT - 1, LANE_COUNT - 1);
     mesh_a.colors = RL_CALLOC(mesh_a.vertexCount, sizeof(Color));
     Texture2D lane_mask_texture = build_lane_mask(mesh_a.texcoords);
+    wave_cursor_texture = build_lane_mask_glow(mesh_a.texcoords);
 
     model_a = LoadModelFromMesh(mesh_a);
     unsigned char* saved_colors = model_a.meshes[0].colors;
     model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = lane_mask_texture;
     int saved_texture_id = model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id;
     model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
+    wave_cursor_model = &model_a;
 
     mesh_b = GenMeshPlane(1.0f, 1.0f, LANE_POINT_COUNT - 1, LANE_COUNT - 1);
     mesh_b.colors = RL_CALLOC(mesh_b.vertexCount, sizeof(Color));
@@ -212,21 +215,26 @@ int main(void) {
 
         DrawModelPointsEx(model_a, TOP, Y_AXIS, 0.0f, DEFAULT_SCALE, BLUE);
         DrawModelWiresEx(model_a, BOTTOM, Y_AXIS, 0.0f, DEFAULT_SCALE, MAGENTA);
+        if (is_paused) {
+            draw_paused_wave_cursor_lane_marker();
+        }
 
         model_a.meshes[0].colors = saved_colors;
 
         EndMode3D();
-        // DrawFPS(550, 440);
+        draw_playback_inspection_hud();
         EndDrawing();
     }
 
     UnloadTexture(lane_mask_texture);
+    UnloadTexture(wave_cursor_texture);
     UnloadModel(model_a);
     UnloadModel(model_b);
     UnloadModel(flat_model);
     UnloadAudioStream(audio_stream);
     UnloadWave(wave);
     CloseAudioDevice();
+    UnloadFont(font);
     CloseWindow();
     return 0;
 }
@@ -510,6 +518,8 @@ static void update_playback_controls_waveform(void) {
         if (!is_paused) {
             is_paused = true;
             wave_cursor = (wave_cursor + wave.frameCount - AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
+            paused_wave_cursor = wave_cursor;
+            seek_delta_chunks = 0;
             for (int i = 0; i < MAX_DRAIN_CHUNK_COUNT; i++) {
                 while (!IsAudioStreamProcessed(audio_stream)) {
                     /* KEEP DRAINING! */
@@ -550,9 +560,11 @@ static void update_playback_controls_waveform(void) {
 
     if (is_paused && sticky_nav(GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)) {
         wave_cursor = (wave_cursor + wave.frameCount - AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
+        seek_delta_chunks--;
         rebuild_from_cursor = 1;
     } else if (is_paused && sticky_nav(GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
         wave_cursor = (wave_cursor + AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
+        seek_delta_chunks++;
         rebuild_from_cursor = 1;
     }
 
