@@ -40,6 +40,34 @@
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 
+// https://en.wikipedia.org/wiki/Wuxing_(Chinese_philosophy)#Music swatches: https://chinesecolor.xyz/
+// TODO: Western antiquity concepts maybe https://en.wikipedia.org/wiki/Pythagorean_tuning, https://en.wikipedia.org/wiki/Diatonic_and_chromatic#Greek_genera
+#define GONG_GAO3_HUANG2 CLITERAL(Color){255, 247, 153, 255}      // #FFF799
+#define GONG_JIN1_HUANG2 CLITERAL(Color){255, 182, 30, 255}       // #FFB61E
+#define SHANG_XIANG4_YA2_BAI2 CLITERAL(Color){255, 251, 240, 255} // #FFFBF0
+#define SHANG_YIN2_BAI2 CLITERAL(Color){241, 242, 244, 255}       // #F1F2F4
+#define JUE_CUI4_QING1 CLITERAL(Color){27, 167, 132, 255}         // #1BA784
+#define JUE_BI4_QING1 CLITERAL(Color){59, 129, 140, 255}          // #3B818C
+#define JUE_ZHAN4_LAN2 CLITERAL(Color){15, 89, 164, 255}          // #0F59A4
+#define ZHI_DAN1_ZHU1 CLITERAL(Color){190, 0, 47, 255}            // #BE002F
+#define ZHI_QIU1_HONG2 CLITERAL(Color){192, 44, 56, 255}          // #C02C38
+#define YU_XUAN2_QING1 CLITERAL(Color){61, 59, 79, 255}           // #3D3B4F
+#define YU_MU4_LAN2_ZI3 CLITERAL(Color){128, 109, 158, 255}       // #806D9E
+#define RETURN_HU3_PO4 CLITERAL(Color){202, 105, 36, 255}         // #CA6924
+#define WUXING_PITCH_CLASS_LUT                                                                                                                                 \
+    {GONG_GAO3_HUANG2,                                                                                                                                         \
+     GONG_JIN1_HUANG2,                                                                                                                                         \
+     SHANG_XIANG4_YA2_BAI2,                                                                                                                                    \
+     SHANG_YIN2_BAI2,                                                                                                                                          \
+     JUE_CUI4_QING1,                                                                                                                                           \
+     JUE_BI4_QING1,                                                                                                                                            \
+     JUE_ZHAN4_LAN2,                                                                                                                                           \
+     ZHI_DAN1_ZHU1,                                                                                                                                            \
+     ZHI_QIU1_HONG2,                                                                                                                                           \
+     YU_XUAN2_QING1,                                                                                                                                           \
+     YU_MU4_LAN2_ZI3,                                                                                                                                          \
+     RETURN_HU3_PO4}
+
 #define SRC_CHANNELS 1
 #define AUDIO_DEVICE_CHANNELS 2
 
@@ -387,6 +415,14 @@ static inline void render_fft_frame(void) {
 static float lane_point_values[LANE_COUNT][LANE_POINT_COUNT] = {0};
 
 static inline void advance_lane_history(float* lane_point_values) {
+    for (int i = LANE_COUNT - 1; i > 0; i--) {
+        for (int j = 0; j < LANE_POINT_COUNT; j++) {
+            lane_point_values[i * LANE_POINT_COUNT + j] = lane_point_values[(i - 1) * LANE_POINT_COUNT + j];
+        }
+    }
+}
+
+static inline void advance_lane_history_u8(unsigned char* lane_point_values) {
     for (int i = LANE_COUNT - 1; i > 0; i--) {
         for (int j = 0; j < LANE_POINT_COUNT; j++) {
             lane_point_values[i * LANE_POINT_COUNT + j] = lane_point_values[(i - 1) * LANE_POINT_COUNT + j];

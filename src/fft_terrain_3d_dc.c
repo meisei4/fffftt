@@ -17,16 +17,48 @@ static Model model_a = {0};
 static Model model_b = {0};
 static Model flat_model = {0};
 
+#define PITCH_CLASS_COUNT 12
+//https://en.wikipedia.org/wiki/Equal_temperament
+#define PITCH_CLASS_A4_FREQUENCY_HZ 440.0f
+#define PITCH_CLASS_INVERSE_LN_2 1.4426950408889634f
+#define PITCH_CLASS_SEMITONES_PER_OCTAVE 12.0f
+#define PITCH_CLASS_TUNING_RADIUS_SEMITONES 0.85f
+#define PITCH_CLASS_VISIBILITY_MIN 0.02f
+#define PITCH_CLASS_VISIBILITY_MAX 0.75f
+#define C9 8372.02f
+#define Db9 8870.0f
+#define D9 9398.0f
+#define Eb9 9974.0f
+#define E9 10548.0f
+#define F9 11176.0f
+#define Gb9 11840.0f
+#define G9 12544.0f
+#define Ab9 13290.0f
+#define A9 14080.0f
+#define Bb9 14918.0f
+#define B9 15804.0f
+#define REF_HZ_LUT {C9, Db9, D9, Eb9, E9, F9, Gb9, G9, Ab9, A9, Bb9, B9}
+#define REF_HZ_LOOKUP(index) (((const float[PITCH_CLASS_COUNT])REF_HZ_LUT)[(index)])
+#define ACCIDENTALS_LUT {1.0f, 0.5f, 1.0f, 0.5f, 1.0f, 1.0f, 0.5f, 1.0f, 0.5f, 1.0f, 0.5f, 1.0f}
+#define ACCIDENTAL_LOOKUP(index) (((const float[PITCH_CLASS_COUNT])ACCIDENTALS_LUT)[(index)])
+#define WUXING_COLOR_LOOKUP(index) (((const Color[PITCH_CLASS_COUNT])WUXING_PITCH_CLASS_LUT)[(index)])
+
 static void update_onset_interpolation_factor(FFTData* fft_data);
+static void build_pitch_class_color_field(void);
+static void update_mesh_colors_pitch_class(Color* colors);
+static Color sample_pitch_class_palette(unsigned char chroma_index, float confidence);
 static void update_playback_controls_fft(void);
 
 static float vertices[MESH_VERTEX_COUNT * 3] = {0};
 static float normals[MESH_VERTEX_COUNT * 3] = {0};
 static Color colors[MESH_VERTEX_COUNT] = {0};
+static Color pitch_class_colors[MESH_VERTEX_COUNT] = {0};
 
 static float flat_vertices[FLAT_VERTEX_COUNT * 3] = {0};
 static float flat_normals[FLAT_VERTEX_COUNT * 3] = {0};
 static Color flat_colors[FLAT_VERTEX_COUNT] = {0};
+static unsigned char chroma_index_field[LANE_COUNT][LANE_POINT_COUNT] = {0};
+static float chroma_strength_field[LANE_COUNT][LANE_POINT_COUNT] = {0};
 
 int main(void) {
     SetTraceLogLevel(LOG_WARNING);
@@ -39,7 +71,8 @@ int main(void) {
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
     // wave = LoadWave(RD_DDS_FFM_22K_WAV);
-    wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
+    wave = LoadWave(RD_RAMA_22K_WAV);
+    //wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
     WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
@@ -91,12 +124,13 @@ int main(void) {
 
     update_mesh_vertices(vertices);
     update_mesh_normals_smooth(normals, vertices);
+    update_mesh_colors_pitch_class(pitch_class_colors);
 
     update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices);
     update_mesh_normals_flat(flat_normals, flat_vertices);
 
     build_mesh_smooth(&mesh_a, vertices, normals, colors);
-    build_mesh_smooth(&mesh_b, vertices, normals, colors);
+    build_mesh_smooth(&mesh_b, vertices, normals, pitch_class_colors);
     build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors);
 
     SetTargetFPS(60);
@@ -130,15 +164,19 @@ int main(void) {
             float* spectrum_bin_levels =
                 fft_data.spectrum_history_levels[(fft_data.history_pos - 1 + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT];
             advance_lane_history(&lane_point_values[0][0]);
+            advance_lane_history_u8(&chroma_index_field[0][0]);
+            advance_lane_history(&chroma_strength_field[0][0]);
             for (int i = 0; i < LANE_POINT_COUNT; i++) {
                 lane_point_values[0][i] = spectrum_bin_levels[(i * (ANALYSIS_SPECTRUM_BIN_COUNT - 1)) / (LANE_POINT_COUNT - 1)];
             }
+            build_pitch_class_color_field();
             update_onset_interpolation_factor(&fft_data);
             audio_dirty = 1;
         }
 
         if (audio_dirty) {
             update_mesh_vertices(vertices);
+            update_mesh_colors_pitch_class(pitch_class_colors);
 
             //NOTE: by pure accident i was forgetting to update the normals here. This lead me to an intersting finding... position lights actually shade faces based on:
             // 1. Normals themselves (ofc -- in this case static, and the result of `GenMeshPlane` filling everything as {0.0f, 1.0f, 0.0f})
@@ -153,7 +191,7 @@ int main(void) {
             // update_mesh_normals_flat(flat_normals, flat_vertices);
 
             build_mesh_smooth(&mesh_a, vertices, normals, colors);
-            // build_mesh_smooth(&mesh_b, vertices, normals, colors);
+            build_mesh_smooth(&mesh_b, vertices, normals, pitch_class_colors);
             // build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors);
         }
         update_camera_orbit(&camera, GetFrameTime());
@@ -180,7 +218,7 @@ int main(void) {
         // glLightfv(GL_LIGHT0, GL_DIFFUSE, (const GLfloat[]){0.6f, 0.6f, 0.6f, 1.0f});
         glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
         glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){1.330f, 1.345f, -1.418f, 1.0f});
-        DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+        // DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         glDisable(GL_LIGHTING);
 
         // glEnable(GL_LIGHTING);
@@ -192,6 +230,8 @@ int main(void) {
         // glShadeModel(GL_SMOOTH);
         // glDisable(GL_LIGHTING);
 
+        DrawModelEx(model_b, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+
         model_a.meshes[0].colors = NULL;
         // model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = saved_texture_id;
         // rlDisableDepthTest();
@@ -201,8 +241,8 @@ int main(void) {
         // rlEnableDepthTest();
         // model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
 
-        DrawModelPointsEx(model_a, TOP, Y_AXIS, 0.0f, DEFAULT_SCALE, BLUE);
-        DrawModelWiresEx(model_a, BOTTOM, Y_AXIS, 0.0f, DEFAULT_SCALE, MAGENTA);
+        // DrawModelPointsEx(model_a, TOP, Y_AXIS, 0.0f, DEFAULT_SCALE, BLUE);
+        // DrawModelWiresEx(model_a, BOTTOM, Y_AXIS, 0.0f, DEFAULT_SCALE, MAGENTA);
 
         model_a.meshes[0].colors = saved_colors;
 
@@ -263,6 +303,128 @@ static void update_onset_interpolation_factor(FFTData* fft_data) {
     onset_interpolation_factor = CLAMP(onset_interpolation_factor, 0.0f, 1.0f);
 }
 
+static void build_pitch_class_color_field(void) {
+    // https://librosa.org/doc/main/generated/librosa.feature.chroma_stft.html
+    for (int i = 0; i < LANE_POINT_COUNT; i++) {
+        int center_bin = (i * (ANALYSIS_SPECTRUM_BIN_COUNT - 1)) / (LANE_POINT_COUNT - 1);
+        int left_center_bin = center_bin;
+        int right_center_bin = center_bin;
+        if (i > 0) {
+            left_center_bin = ((i - 1) * (ANALYSIS_SPECTRUM_BIN_COUNT - 1)) / (LANE_POINT_COUNT - 1);
+        }
+        if (i < LANE_POINT_COUNT - 1) {
+            right_center_bin = ((i + 1) * (ANALYSIS_SPECTRUM_BIN_COUNT - 1)) / (LANE_POINT_COUNT - 1);
+        }
+
+        int bin_min = (i > 0) ? ((left_center_bin + center_bin) / 2) : 1;
+        int bin_max = (i < LANE_POINT_COUNT - 1) ? ((center_bin + right_center_bin + 1) / 2) : (ANALYSIS_SPECTRUM_BIN_COUNT - 1);
+        if (bin_max < bin_min) {
+            bin_max = bin_min;
+        }
+
+        float chroma_energy[PITCH_CLASS_COUNT] = {0};
+        float band_energy_sum = 0.0f;
+        float band_peak = 0.0f;
+        float locality_radius_bins = 0.5f * (float)(bin_max - bin_min + 1);
+        if (locality_radius_bins < 1.0f) {
+            locality_radius_bins = 1.0f;
+        }
+
+        for (int j = bin_min; j <= bin_max; j++) {
+            float re = fft_data.work_buffer[j].real;
+            float im = fft_data.work_buffer[j].imaginary;
+            float bin_mag = SQRTF(re * re + im * im) / (float)ANALYSIS_WINDOW_SIZE_IN_FRAMES;
+            if (bin_mag <= ANALYSIS_MIN_LOG_MAGNITUDE) {
+                continue;
+            }
+
+            float bin_hz = ((float)j * (float)ANALYSIS_SAMPLE_RATE) / (float)ANALYSIS_WINDOW_SIZE_IN_FRAMES;
+            if (bin_hz <= 0.0f) {
+                continue;
+            }
+
+            float locality_gain = 1.0f - (FABSF((float)j - (float)center_bin) / locality_radius_bins);
+            locality_gain = CLAMP(locality_gain, 0.0f, 1.0f);
+            locality_gain = LERP(0.35f, 1.0f, locality_gain);
+
+            band_energy_sum += bin_mag;
+            band_peak = FMAXF(band_peak, bin_mag);
+
+            for (int k = 0; k < PITCH_CLASS_COUNT; k++) {
+                float ref_hz = REF_HZ_LOOKUP(k);
+                float octave_offset = FLOORF((LOGF(ref_hz / bin_hz) * PITCH_CLASS_INVERSE_LN_2) + 0.5f);
+                float folded_hz = ref_hz / POWF(2.0f, octave_offset);
+                float semitone_error = FABSF(PITCH_CLASS_SEMITONES_PER_OCTAVE * LOGF(bin_hz / folded_hz) * PITCH_CLASS_INVERSE_LN_2);
+                float tuning_gain = CLAMP(1.0f - (semitone_error / PITCH_CLASS_TUNING_RADIUS_SEMITONES), 0.0f, 1.0f);
+                tuning_gain = tuning_gain * tuning_gain * (3.0f - 2.0f * tuning_gain);
+                if (tuning_gain <= 0.0f) {
+                    continue;
+                }
+
+                chroma_energy[k] += bin_mag * locality_gain * tuning_gain;
+            }
+        }
+
+        int best_chroma = 0;
+        float best_energy = 0.0f;
+        float next_energy = 0.0f;
+        for (int j = 0; j < PITCH_CLASS_COUNT; j++) {
+            float energy = chroma_energy[j];
+            if (energy > best_energy) {
+                next_energy = best_energy;
+                best_energy = energy;
+                best_chroma = j;
+            } else if (energy > next_energy) {
+                next_energy = energy;
+            }
+        }
+
+        float ridge_level = lane_point_values[0][i];
+        float dominance = best_energy / FMAXF(band_energy_sum, 1e-6f);
+        float separation = (best_energy - next_energy) / FMAXF(best_energy, 1e-6f);
+        float peak_strength = CLAMP(band_peak * 18.0f, 0.0f, 1.0f);
+        float chroma_strength = ridge_level * 0.55f + peak_strength * 0.20f + CLAMP(dominance, 0.0f, 1.0f) * 0.15f + CLAMP(separation, 0.0f, 1.0f) * 0.10f;
+        chroma_strength = CLAMP(chroma_strength, 0.0f, 1.0f);
+        chroma_strength = POWF(chroma_strength, 0.65f);
+
+        if (best_energy <= 0.0f || ridge_level <= 0.0f) {
+            chroma_strength = 0.0f;
+        }
+
+        chroma_index_field[0][i] = best_chroma;
+        chroma_strength_field[0][i] = chroma_strength;
+    }
+}
+
+static void update_mesh_colors_pitch_class(Color* colors) {
+    for (int i = 0; i < LANE_COUNT; i++) {
+        for (int j = 0; j < LANE_POINT_COUNT; j++) {
+            int k = i * LANE_POINT_COUNT + j;
+            colors[k] = sample_pitch_class_palette(chroma_index_field[i][j], chroma_strength_field[i][j]);
+        }
+    }
+}
+
+static Color sample_pitch_class_palette(unsigned char chroma_index, float confidence) {
+    Color base_color = WUXING_COLOR_LOOKUP(chroma_index);
+    float visibility = CLAMP((confidence - PITCH_CLASS_VISIBILITY_MIN) / (PITCH_CLASS_VISIBILITY_MAX - PITCH_CLASS_VISIBILITY_MIN), 0.0f, 1.0f);
+    if (visibility <= 0.0f) {
+        return BLACK;
+    }
+
+    visibility = POWF(visibility, 0.45f);
+    float accidental_gain = 0.70f + 0.30f * ACCIDENTAL_LOOKUP(chroma_index);
+    float brightness = (0.35f + 0.65f * visibility) * accidental_gain;
+    brightness = CLAMP(brightness, 0.0f, 1.0f);
+
+    return (Color){
+        (unsigned char)((float)base_color.r * brightness),
+        (unsigned char)((float)base_color.g * brightness),
+        (unsigned char)((float)base_color.b * brightness),
+        DRAW_COLOR_CHANNEL_MAX,
+    };
+}
+
 static void update_playback_controls_fft(void) {
     int analysis_dirty = 0;
     int rebuild_from_cursor = 0;
@@ -303,9 +465,12 @@ static void update_playback_controls_fft(void) {
                 float* spectrum_bin_levels =
                     fft_data.spectrum_history_levels[(fft_data.history_pos - 1 + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT];
                 advance_lane_history(&lane_point_values[0][0]);
+                advance_lane_history_u8(&chroma_index_field[0][0]);
+                advance_lane_history(&chroma_strength_field[0][0]);
                 for (int i = 0; i < LANE_POINT_COUNT; i++) {
                     lane_point_values[0][i] = spectrum_bin_levels[(i * (ANALYSIS_SPECTRUM_BIN_COUNT - 1)) / (LANE_POINT_COUNT - 1)];
                 }
+                build_pitch_class_color_field();
                 update_onset_interpolation_factor(&fft_data);
                 analysis_dirty = 1;
             }
@@ -324,17 +489,19 @@ static void update_playback_controls_fft(void) {
         MEMSET(fft_data.prev_spectrum_bin_levels, 0, sizeof(float) * ANALYSIS_SPECTRUM_BIN_COUNT);
         MEMSET(fft_data.spectrum_history_levels, 0, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]) * ANALYSIS_FFT_HISTORY_FRAME_COUNT);
         MEMSET(lane_point_values, 0, sizeof(lane_point_values));
+        MEMSET(chroma_index_field, 0, sizeof(chroma_index_field));
+        MEMSET(chroma_strength_field, 0, sizeof(chroma_strength_field));
         fft_data.history_pos = 0;
         fft_data.frame_index = 0;
         onset_interpolation_factor = 0.0f;
 
-        for (int replay_index = ANALYSIS_FFT_HISTORY_FRAME_COUNT - 1; replay_index >= 0; replay_index--) {
-            int replay_frame_offset = (replay_index * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
+        for (int i = ANALYSIS_FFT_HISTORY_FRAME_COUNT - 1; i >= 0; i--) {
+            int replay_frame_offset = (i * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
             int chunk_start_frame = (wave_cursor + wave.frameCount - replay_frame_offset) % wave.frameCount;
 
-            for (int sample_index = 0; sample_index < ANALYSIS_WINDOW_SIZE_IN_FRAMES; sample_index++) {
-                int src = (chunk_start_frame + sample_index) % wave.frameCount;
-                analysis_window_samples[sample_index] = (float)wave_pcm16[src] / ANALYSIS_PCM16_UPPER_BOUND;
+            for (int j = 0; j < ANALYSIS_WINDOW_SIZE_IN_FRAMES; j++) {
+                int src = (chunk_start_frame + j) % wave.frameCount;
+                analysis_window_samples[j] = (float)wave_pcm16[src] / ANALYSIS_PCM16_UPPER_BOUND;
             }
 
             apply_blackman_window();
@@ -344,9 +511,12 @@ static void update_playback_controls_fft(void) {
             float* spectrum_bin_levels =
                 fft_data.spectrum_history_levels[(fft_data.history_pos - 1 + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT];
             advance_lane_history(&lane_point_values[0][0]);
+            advance_lane_history_u8(&chroma_index_field[0][0]);
+            advance_lane_history(&chroma_strength_field[0][0]);
             for (int i = 0; i < LANE_POINT_COUNT; i++) {
                 lane_point_values[0][i] = spectrum_bin_levels[(i * (ANALYSIS_SPECTRUM_BIN_COUNT - 1)) / (LANE_POINT_COUNT - 1)];
             }
+            build_pitch_class_color_field();
             update_onset_interpolation_factor(&fft_data);
         }
 
@@ -355,11 +525,12 @@ static void update_playback_controls_fft(void) {
 
     if (analysis_dirty) {
         update_mesh_vertices(vertices);
+        update_mesh_colors_pitch_class(pitch_class_colors);
         update_mesh_normals_smooth(normals, vertices);
         update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices);
         update_mesh_normals_flat(flat_normals, flat_vertices);
         build_mesh_smooth(&mesh_a, vertices, normals, colors);
-        build_mesh_smooth(&mesh_b, vertices, normals, colors);
+        build_mesh_smooth(&mesh_b, vertices, normals, pitch_class_colors);
         build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors);
     }
 }
