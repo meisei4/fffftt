@@ -142,6 +142,7 @@ int main(void) {
             break;
         }
 
+        //TODO: this is not the correct approach, it causes way too much churn to rebuild the envelope, should just figure out a compromise
         update_playback_controls_fft();
 
         int audio_dirty = 0;
@@ -197,7 +198,8 @@ int main(void) {
             // build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors);
         }
         update_camera_orbit(&camera, GetFrameTime());
-        update_light_constants();
+        update_padmouse(GetFrameTime(), &camera);
+        update_diffuse_strength();
 
         BeginDrawing();
         ClearBackground(BLACK);
@@ -219,9 +221,10 @@ int main(void) {
         glLightfv(GL_LIGHT0, GL_AMBIENT, (const GLfloat[]){0.0f, 0.0f, 0.0f, 1.0f});
         // glLightfv(GL_LIGHT0, GL_DIFFUSE, (const GLfloat[]){0.6f, 0.6f, 0.6f, 1.0f});
         glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
-        glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){1.330f, 1.345f, -1.418f, 1.0f});
+        glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){light0_position.x, light0_position.y, light0_position.z, 1.0f});
         DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         glDisable(GL_LIGHTING);
+        draw_light_position_marker();
 
         // glEnable(GL_LIGHTING);
         // glShadeModel(GL_FLAT);
@@ -232,7 +235,7 @@ int main(void) {
         // glShadeModel(GL_SMOOTH);
         // glDisable(GL_LIGHTING);
 
-        // DrawModelEx(model_b, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+        DrawModelEx(model_b, BOTTOM, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
 
         model_a.meshes[0].colors = NULL;
         // model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = saved_texture_id;
@@ -243,8 +246,8 @@ int main(void) {
         // rlEnableDepthTest();
         // model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
 
-        DrawModelPointsEx(model_a, TOP, Y_AXIS, 0.0f, DEFAULT_SCALE, BLUE);
-        DrawModelWiresEx(model_a, BOTTOM, Y_AXIS, 0.0f, DEFAULT_SCALE, MAGENTA);
+        // DrawModelPointsEx(model_a, TOP, Y_AXIS, 0.0f, DEFAULT_SCALE, BLUE);
+        // DrawModelWiresEx(model_a, BOTTOM, Y_AXIS, 0.0f, DEFAULT_SCALE, MAGENTA);
         if (is_paused) {
             draw_paused_wave_cursor_lane_marker();
         }
@@ -252,7 +255,9 @@ int main(void) {
         model_a.meshes[0].colors = saved_colors;
 
         EndMode3D();
+        DrawFPS(50, 440);
         draw_playback_inspection_hud();
+        draw_padmouse();
         EndDrawing();
     }
 
@@ -387,8 +392,14 @@ static void build_pitch_class_color_field(void) {
         }
 
         float ridge_level = lane_point_values[0][i];
-        float dominance = best_energy / FMAXF(band_energy_sum, 1e-6f);
-        float separation = (best_energy - next_energy) / FMAXF(best_energy, 1e-6f);
+        float dominance = 0.0f;
+        float separation = 0.0f;
+        if (band_energy_sum > 0.0f) {
+            dominance = best_energy / band_energy_sum;
+        }
+        if (best_energy > 0.0f) {
+            separation = (best_energy - next_energy) / best_energy;
+        }
         float peak_strength = CLAMP(band_peak * 18.0f, 0.0f, 1.0f);
         float chroma_strength = ridge_level * 0.55f + peak_strength * 0.20f + CLAMP(dominance, 0.0f, 1.0f) * 0.15f + CLAMP(separation, 0.0f, 1.0f) * 0.10f;
         chroma_strength = CLAMP(chroma_strength, 0.0f, 1.0f);

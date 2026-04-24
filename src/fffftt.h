@@ -710,16 +710,47 @@ static Texture2D build_lane_mask_glow(float* texcoords) {
 #define ONSET_DECAY_RATE 0.10f
 #define LIGHT0_DIFFUSE_MIN 0.0f
 #define LIGHT0_DIFFUSE_MAX 1.5f
+#define LIGHT0_MARKER_RADIUS 0.5f
+#define LIGHT0_MARKER_RING_COUNT 4
+#define LIGHT0_MARKER_SEGMENTS 16
 
 static float onset_interpolation_factor = 0.0f;
 static float light0_diffuse[4] = {LIGHT0_DIFFUSE_MIN, LIGHT0_DIFFUSE_MIN, LIGHT0_DIFFUSE_MIN, 1.0f};
+static Vector3 light0_position = {1.330f, 1.345f, -1.418f};
 
-static void update_light_constants(void) {
+static void update_diffuse_strength(void) {
     float light0_diffuse_strength = LERP(LIGHT0_DIFFUSE_MIN, LIGHT0_DIFFUSE_MAX, onset_interpolation_factor);
     light0_diffuse[0] = light0_diffuse_strength;
     light0_diffuse[1] = light0_diffuse_strength;
     light0_diffuse[2] = light0_diffuse_strength;
     light0_diffuse[3] = 1.0f;
+}
+
+static inline void draw_light_position_marker(void) {
+    for (int i = 0; i < LIGHT0_MARKER_SEGMENTS; i++) {
+        float angle_0_rad = ((float)i / (float)LIGHT0_MARKER_SEGMENTS) * (2.0f * PI);
+        float angle_1_rad = ((float)(i + 1) / (float)LIGHT0_MARKER_SEGMENTS) * (2.0f * PI);
+        float ring_cos_0 = COSF(angle_0_rad) * LIGHT0_MARKER_RADIUS;
+        float ring_sin_0 = SINF(angle_0_rad) * LIGHT0_MARKER_RADIUS;
+        float ring_cos_1 = COSF(angle_1_rad) * LIGHT0_MARKER_RADIUS;
+        float ring_sin_1 = SINF(angle_1_rad) * LIGHT0_MARKER_RADIUS;
+        for (int j = 0; j < LIGHT0_MARKER_RING_COUNT; j++) {
+            float ring_angle_rad = ((float)j / (float)LIGHT0_MARKER_RING_COUNT) * PI;
+            float ring_x = COSF(ring_angle_rad);
+            float ring_y = SINF(ring_angle_rad);
+            Vector3 point_0 = {
+                light0_position.x + ring_cos_0 * ring_x,
+                light0_position.y + ring_cos_0 * ring_y,
+                light0_position.z + ring_sin_0,
+            };
+            Vector3 point_1 = {
+                light0_position.x + ring_cos_1 * ring_x,
+                light0_position.y + ring_cos_1 * ring_y,
+                light0_position.z + ring_sin_1,
+            };
+            DrawLine3D(point_0, point_1, NEON_CARROT);
+        }
+    }
 }
 
 #define CAMERA_FOVY_MIN 0.1f
@@ -760,6 +791,52 @@ static inline void update_camera_orbit(Camera3D* camera, float dt) {
     camera->position.y = camera->target.y + orbit_radius * sinf(pitch);
     camera->position.z = camera->target.z + orbit_radius * cosf(pitch) * sinf(yaw);
     camera->fovy = fovy;
+}
+
+#define PADMOUSE_DEADZONE 0.20f
+#define PADMOUSE_SPEED 600.0f
+#define PADMOUSE_HOVER_RADIUS_PIXELS 18.0f
+static Vector2 padmouse_pos = {0.5f * SCREEN_WIDTH, 0.5f * SCREEN_HEIGHT};
+
+static inline void update_padmouse(float dt, const Camera3D* camera) {
+    static bool light0_grabbed = false;
+    float axis_x = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
+    float axis_y = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
+    if (FABSF(axis_x) < PADMOUSE_DEADZONE)
+        axis_x = 0.0f;
+    if (FABSF(axis_y) < PADMOUSE_DEADZONE)
+        axis_y = 0.0f;
+
+    padmouse_pos.x += axis_x * PADMOUSE_SPEED * dt;
+    padmouse_pos.y += axis_y * PADMOUSE_SPEED * dt;
+    padmouse_pos.x = CLAMP(padmouse_pos.x, 0.0f, (float)(GetScreenWidth() - 1));
+    padmouse_pos.y = CLAMP(padmouse_pos.y, 0.0f, (float)(GetScreenHeight() - 1));
+    Vector2 light_screen_pos = GetWorldToScreen(light0_position, *camera);
+    float light_dx = padmouse_pos.x - light_screen_pos.x;
+    float light_dy = padmouse_pos.y - light_screen_pos.y;
+    float light_dist_sq = light_dx * light_dx + light_dy * light_dy;
+    float light_hover_radius_sq = PADMOUSE_HOVER_RADIUS_PIXELS * PADMOUSE_HOVER_RADIUS_PIXELS;
+    if (light0_grabbed && !IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
+        light0_grabbed = false;
+    } else if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN) && light_dist_sq <= light_hover_radius_sq) {
+        light0_grabbed = true;
+    }
+
+    if (light0_grabbed) {
+        Ray screen_ray = GetScreenToWorldRay(padmouse_pos, *camera);
+        Vector3 plane_normal = Vector3Normalize(Vector3Subtract(camera->position, camera->target));
+        float plane_dist = Vector3DotProduct(light0_position, plane_normal);
+        float denom = Vector3DotProduct(screen_ray.direction, plane_normal);
+        float intersection_dist = (plane_dist - Vector3DotProduct(screen_ray.position, plane_normal)) / denom;
+        if (intersection_dist > 0.0f) {
+            light0_position = Vector3Add(screen_ray.position, Vector3Scale(screen_ray.direction, intersection_dist));
+        }
+    }
+}
+
+static inline void draw_padmouse(void) {
+    DrawCircleLines((int)padmouse_pos.x, (int)padmouse_pos.y, 7.0f, Fade(WHITE, 0.8f));
+    DrawPixel((int)padmouse_pos.x, (int)padmouse_pos.y, WHITE);
 }
 
 static float sticky_nav_at[2] = {0};

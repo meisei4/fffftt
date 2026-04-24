@@ -175,7 +175,8 @@ int main(void) {
         }
 
         update_camera_orbit(&camera, GetFrameTime());
-        update_light_constants();
+        update_padmouse(GetFrameTime(), &camera);
+        update_diffuse_strength();
 
         BeginDrawing();
         ClearBackground(BLACK);
@@ -189,9 +190,10 @@ int main(void) {
         glLightModelfv(GL_LIGHT_MODEL_AMBIENT, (const GLfloat[]){0.2f, 0.2f, 0.2f, 1.0f});
         glLightfv(GL_LIGHT0, GL_AMBIENT, (const GLfloat[]){0.0f, 0.0f, 0.0f, 1.0f});
         glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
-        glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){1.330f, 1.345f, -1.418f, 1.0f}); // TODO: same issue with the camera position manual derivation
+        glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){light0_position.x, light0_position.y, light0_position.z, 1.0f});
         DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         glDisable(GL_LIGHTING);
+        draw_light_position_marker();
 
         DrawModelEx(model_b, BOTTOM, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
 
@@ -222,7 +224,9 @@ int main(void) {
         model_a.meshes[0].colors = saved_colors;
 
         EndMode3D();
+        DrawFPS(50, 440);
         draw_playback_inspection_hud();
+        draw_padmouse();
         EndDrawing();
     }
 
@@ -285,7 +289,6 @@ static void build_hilbert_normal_field(void) {
     //https://www.mathworks.com/help/signal/ref/hilbert.html
     // also
     const int hilbert_filter_radius = 65 / 2;
-    const float denominator_epsilon = 1e-12f;
     const float contact_ratio_min = 0.72f;
     const float curvature_min = 0.012f;
     const float curvature_max = 0.075f;
@@ -327,7 +330,10 @@ static void build_hilbert_normal_field(void) {
         float local_lower_envelope_value = analysis_mean - local_analytic_envelope_value;
         float local_envelope_reference_value = (waveform_sample >= analysis_mean) ? local_upper_envelope_value : local_lower_envelope_value;
 
-        float contact_ratio = 1.0f - (FABSF(waveform_sample - local_envelope_reference_value) / FMAXF(local_analytic_envelope_value, denominator_epsilon));
+        float contact_ratio = 0.0f;
+        if (local_analytic_envelope_value > 0.0f) {
+            contact_ratio = 1.0f - (FABSF(waveform_sample - local_envelope_reference_value) / local_analytic_envelope_value);
+        }
         contact_ratio = CLAMP((contact_ratio - contact_ratio_min) / (1.0f - contact_ratio_min), 0.0f, 1.0f);
         contact_ratio = contact_ratio * contact_ratio * (3.0f - 2.0f * contact_ratio);
 
@@ -373,8 +379,6 @@ static void build_hilbert_normal_field(void) {
 }
 
 static void update_mesh_normals_hilbert(float* normals, const float* src_normals, const float* normal_field, const float* vertices) {
-    const Vector3 light_position = {1.330f, 1.345f, -1.418f};
-
     for (int i = 0; i < LANE_COUNT; i++) {
         for (int j = 0; j < LANE_POINT_COUNT; j++) {
             int k = (i * LANE_POINT_COUNT + j) * 3;
@@ -392,7 +396,7 @@ static void update_mesh_normals_hilbert(float* normals, const float* src_normals
                 vertices[k + 1],
                 vertices[k + 2],
             };
-            Vector3 light_direction = Vector3Normalize(Vector3Subtract(light_position, vertex_position));
+            Vector3 light_direction = Vector3Normalize(Vector3Subtract(light0_position, vertex_position));
 
             if (Vector3DotProduct(waveform_normal, light_direction) < 0.0f) {
                 waveform_normal = Vector3Negate(waveform_normal);
@@ -400,17 +404,7 @@ static void update_mesh_normals_hilbert(float* normals, const float* src_normals
 
             float light_component = Vector3DotProduct(waveform_normal, light_direction);
             Vector3 cancel_normal = Vector3Subtract(waveform_normal, Vector3Scale(light_direction, light_component));
-            float cancel_normal_length = Vector3Length(cancel_normal);
-
-            if (cancel_normal_length <= 1e-6f) {
-                Vector3 fallback_axis = {0.0f, 1.0f, 0.0f};
-                if (FABSF(light_direction.y) > 0.98f) {
-                    fallback_axis = (Vector3){1.0f, 0.0f, 0.0f};
-                }
-                cancel_normal = Vector3Normalize(Vector3CrossProduct(light_direction, fallback_axis));
-            } else {
-                cancel_normal = Vector3Scale(cancel_normal, 1.0f / cancel_normal_length);
-            }
+            cancel_normal = Vector3Normalize(cancel_normal);
 
             if (contact_mask_value <= 0.0f) {
                 normals[k + 0] = cancel_normal.x;
