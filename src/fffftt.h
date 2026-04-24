@@ -31,6 +31,7 @@
 #define LOGF(x) shz_logf((x))
 #define FMAXF(x, y) shz_fmaxf((x), (y))
 #define FABSF(x) shz_fabsf((x))
+#define MEMSET(dst, value, size) memset((dst), (value), (size))
 #define MEMCPY(dst, src, size) memcpy((dst), (src), (size)) //TODO: Colors... hmmm
 #define MEMCPY4(dst, src, size) shz_memcpy4((dst), (src), (size))
 #define CLAMP(x, min, max) shz_clampf((x), (min), (max))
@@ -68,6 +69,7 @@
 #define RD_SHADERTOY_ELECTRONEBULAE_ONE_FOURTH_22K_WAV "/rd/shadertoy_electronebulae_one_fourth_22050hz_pcm16_mono.wav"
 
 #define RD_DDS_FFM_22K_WAV "/rd/dds_ffm_22050hz_pcm16_mono.wav"
+#define RD_RAMA_22K_WAV "/rd/rama_22050hz_pcm16_mono.wav"
 
 #define SHADER_FFT "src/resources/fft.glsl"
 #define SHADER_WAVEFORM "src/resources/waveform.glsl"
@@ -397,7 +399,7 @@ static inline void smooth_front_lane(void) {
         float sample_sum = 0.0f;
         int k = i * WAVEFORM_SAMPLES_PER_LANE_POINT;
         for (int j = 0; j < WAVEFORM_SAMPLES_PER_LANE_POINT; j++) {
-            sample_sum += fabsf(analysis_window_samples[k + j]);
+            sample_sum += FABSF(analysis_window_samples[k + j]);
         }
 
         lane_point_values[0][i] = (sample_sum / (float)WAVEFORM_SAMPLES_PER_LANE_POINT) * FRONT_LANE_SMOOTHING;
@@ -675,6 +677,10 @@ static void update_light_constants(void) {
 #define CAMERA_ORBIT_VELOCITY 2.0f
 #define CAMERA_PITCH_MIN (-PI / 2.0f + 0.1f)
 #define CAMERA_PITCH_MAX (PI / 2.0f - 0.1f)
+#define BUTTON_DOWN_NAV_INITIAL_DELAY_SECONDS 0.35f
+//TODO: hardmode-> find the exact lane advance cadence for this value, lock it to playback rate a default,
+// then somehow allow for playback snippets to get fed to the device at player controlled update rates...??
+#define BUTTON_DOWN_NAV_INTERVAL_SECONDS (0.125f / 2.0f)
 
 static inline void update_camera_orbit(Camera3D* camera, float dt) {
     Vector3 dist_from_target = Vector3Subtract(camera->position, camera->target);
@@ -705,19 +711,41 @@ static inline void update_camera_orbit(Camera3D* camera, float dt) {
     camera->fovy = fovy;
 }
 
+static float sticky_nav_at[2] = {0};
+
+static inline void reset_sticky_nav(void) {
+    sticky_nav_at[0] = 0.0f;
+    sticky_nav_at[1] = 0.0f;
+}
+
+static inline int sticky_nav(int button) {
+    int i = (button == GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
+    float now = (float)GetTime();
+    int nav_flag = 0;
+    if (IsGamepadButtonPressed(0, button)) {
+        sticky_nav_at[i] = now + BUTTON_DOWN_NAV_INITIAL_DELAY_SECONDS;
+        nav_flag = 1;
+    } else if (!IsGamepadButtonDown(0, button)) {
+        sticky_nav_at[i] = 0.0f;
+    } else if (now >= sticky_nav_at[i]) {
+        sticky_nav_at[i] = now + BUTTON_DOWN_NAV_INTERVAL_SECONDS;
+        nav_flag = 1;
+    }
+    return nav_flag;
+}
+
 static void rebuild_envelope_history_from_wave(void) {
     for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
-        unsigned int src = (wave_cursor + i) % wave.frameCount;
+        int src = (wave_cursor + i) % wave.frameCount;
         analysis_window_samples[i] = (float)wave_pcm16[src] / ANALYSIS_PCM16_UPPER_BOUND;
     }
 
     for (int i = 0; i < LANE_COUNT; i++) {
-        unsigned int start_frame =
-            (wave_cursor + wave.frameCount - (((unsigned int)i * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount)) % wave.frameCount;
+        int start_frame = (wave_cursor + wave.frameCount - ((i * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount)) % wave.frameCount;
 
         for (int j = 0; j < LANE_POINT_COUNT; j++) {
-            unsigned int window_sample = (j * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (LANE_POINT_COUNT - 1);
-            unsigned int src = (start_frame + window_sample) % wave.frameCount;
+            int window_sample = (j * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (LANE_POINT_COUNT - 1);
+            int src = (start_frame + window_sample) % wave.frameCount;
             lane_point_values[i][j] = (float)wave_pcm16[src] / ANALYSIS_PCM16_UPPER_BOUND;
         }
     }
@@ -725,6 +753,7 @@ static void rebuild_envelope_history_from_wave(void) {
 
 static void update_playback_controls(void) {
     if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT)) {
+        reset_sticky_nav();
         if (!is_paused) {
             is_paused = true;
             wave_cursor = (wave_cursor + wave.frameCount - AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
@@ -747,13 +776,22 @@ static void update_playback_controls(void) {
                     }
                 }
                 UpdateAudioStream(audio_stream, resume_chunk_samples, AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
+
+                for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
+                    analysis_window_samples[i] = (float)resume_chunk_samples[i] / ANALYSIS_PCM16_UPPER_BOUND;
+                }
+
+                advance_lane_history(&lane_point_values[0][0]);
+                for (int i = 0; i < LANE_POINT_COUNT; i++) {
+                    lane_point_values[0][i] = analysis_window_samples[(i * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (LANE_POINT_COUNT - 1)];
+                }
             }
         }
     }
-    if (is_paused && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)) {
+    if (is_paused && sticky_nav(GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)) {
         wave_cursor = (wave_cursor + wave.frameCount - AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
         rebuild_envelope_history_from_wave();
-    } else if (is_paused && IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
+    } else if (is_paused && sticky_nav(GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
         wave_cursor = (wave_cursor + AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
         rebuild_envelope_history_from_wave();
     }

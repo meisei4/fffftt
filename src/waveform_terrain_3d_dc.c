@@ -22,6 +22,7 @@ static void build_rms_color_field(void);
 static void update_mesh_colors_rms(Color* colors);
 static Color sample_rms_pallete(float rms);
 static void update_onset_interpolation_factor(void);
+static void update_playback_controls_waveform(void);
 
 static float hilbert_normal_field[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float rms_color_field[LANE_COUNT][LANE_POINT_COUNT] = {0};
@@ -47,6 +48,7 @@ int main(void) {
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
     // wave = LoadWave(RD_DDS_FFM_22K_WAV);
+    // wave = LoadWave(RD_RAMA_22K_WAV);
     wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
     WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
@@ -121,8 +123,10 @@ int main(void) {
             break;
         }
 
+        update_playback_controls_waveform();
+
         int audio_dirty = 0;
-        while (IsAudioStreamProcessed(audio_stream)) {
+        while (!is_paused && IsAudioStreamProcessed(audio_stream)) {
             for (int i = 0; i < AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES; i++) {
                 chunk_samples[i] = wave_pcm16[wave_cursor];
                 if (++wave_cursor >= wave.frameCount) {
@@ -495,4 +499,101 @@ static void update_onset_interpolation_factor(void) {
 
     onset_interpolation_factor = LERP(onset_interpolation_factor, onset_strength_normalized, onset_rate);
     onset_interpolation_factor = CLAMP(onset_interpolation_factor, 0.0f, 1.0f);
+}
+
+static void update_playback_controls_waveform(void) {
+    int analysis_dirty = 0;
+    int rebuild_from_cursor = 0;
+
+    if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT)) {
+        reset_sticky_nav();
+        if (!is_paused) {
+            is_paused = true;
+            wave_cursor = (wave_cursor + wave.frameCount - AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
+            for (int i = 0; i < MAX_DRAIN_CHUNK_COUNT; i++) {
+                while (!IsAudioStreamProcessed(audio_stream)) {
+                    /* KEEP DRAINING! */
+                }
+                UpdateAudioStream(audio_stream, drain_chunk_samples, AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
+            }
+            PauseAudioStream(audio_stream);
+            rebuild_from_cursor = 1;
+        } else {
+            is_paused = false;
+            PlayAudioStream(audio_stream);
+            while (IsAudioStreamProcessed(audio_stream)) {
+                for (int i = 0; i < AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES; i++) {
+                    resume_chunk_samples[i] = wave_pcm16[wave_cursor];
+                    if (++wave_cursor >= wave.frameCount) {
+                        wave_cursor = 0;
+                    }
+                }
+                UpdateAudioStream(audio_stream, resume_chunk_samples, AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
+
+                for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
+                    analysis_window_samples[i] = (float)resume_chunk_samples[i] / ANALYSIS_PCM16_UPPER_BOUND;
+                }
+
+                advance_lane_history(&lane_point_values[0][0]);
+                advance_lane_history(&hilbert_normal_field[0][0]);
+                advance_lane_history(&rms_color_field[0][0]);
+                for (int i = 0; i < LANE_POINT_COUNT; i++) {
+                    lane_point_values[0][i] = analysis_window_samples[(i * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (LANE_POINT_COUNT - 1)];
+                }
+                update_onset_interpolation_factor();
+                build_hilbert_normal_field();
+                build_rms_color_field();
+                analysis_dirty = 1;
+            }
+        }
+    }
+
+    if (is_paused && sticky_nav(GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)) {
+        wave_cursor = (wave_cursor + wave.frameCount - AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
+        rebuild_from_cursor = 1;
+    } else if (is_paused && sticky_nav(GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
+        wave_cursor = (wave_cursor + AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
+        rebuild_from_cursor = 1;
+    }
+
+    if (rebuild_from_cursor) {
+        MEMSET(lane_point_values, 0, sizeof(lane_point_values));
+        MEMSET(hilbert_normal_field, 0, sizeof(hilbert_normal_field));
+        MEMSET(rms_color_field, 0, sizeof(rms_color_field));
+        onset_interpolation_factor = 0.0f;
+
+        for (int history_index = LANE_COUNT - 1; history_index >= 0; history_index--) {
+            int start_frame = (wave_cursor + wave.frameCount - ((history_index * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount)) % wave.frameCount;
+
+            for (int sample_index = 0; sample_index < ANALYSIS_WINDOW_SIZE_IN_FRAMES; sample_index++) {
+                int src = (start_frame + sample_index) % wave.frameCount;
+                analysis_window_samples[sample_index] = (float)wave_pcm16[src] / ANALYSIS_PCM16_UPPER_BOUND;
+            }
+
+            advance_lane_history(&lane_point_values[0][0]);
+            advance_lane_history(&hilbert_normal_field[0][0]);
+            advance_lane_history(&rms_color_field[0][0]);
+            for (int i = 0; i < LANE_POINT_COUNT; i++) {
+                lane_point_values[0][i] = analysis_window_samples[(i * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (LANE_POINT_COUNT - 1)];
+            }
+            update_onset_interpolation_factor();
+            build_hilbert_normal_field();
+            build_rms_color_field();
+        }
+
+        analysis_dirty = 1;
+    }
+
+    if (analysis_dirty) {
+        update_mesh_vertices(vertices);
+        update_mesh_normals_smooth(normals, vertices);
+        update_mesh_normals_hilbert(hilbert_normals, normals, &hilbert_normal_field[0][0], vertices);
+        update_mesh_colors_rms(rms_colors);
+        update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices);
+        update_mesh_normals_flat(flat_normals, flat_vertices);
+        expand_mesh_normals_flat(flat_hilbert_normals, hilbert_normals, mesh_a.indices);
+        build_mesh_smooth(&mesh_a, vertices, normals, colors);
+        build_mesh_smooth(&mesh_b, vertices, normals, rms_colors);
+        build_mesh_flat(&flat_mesh, flat_vertices, flat_hilbert_normals, flat_colors);
+    }
 }
