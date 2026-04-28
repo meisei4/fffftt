@@ -347,6 +347,7 @@ waveform-terrain-3d-dc: $(DC_RAYLIB_DIR)/libraylib.a
 #	cp -f $(SRC_DIR)/resources/rama_22050hz_pcm16_mono.wav $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/ct_lor_22050hz_pcm16_mono.wav $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/at_untitled_22050hz_pcm16_mono.wav $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
+#	cp -f $(SRC_DIR)/resources/tj_sayo_22050hz_pcm16_mono.wav $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/vga_rom_f16.fnt $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/vga_rom_f16.png $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/vga_rom_f16_1px_tight.fnt $(WAVEFORM_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
@@ -373,6 +374,7 @@ fft-terrain-3d-dc: $(DC_RAYLIB_DIR)/libraylib.a
 #	cp -f $(SRC_DIR)/resources/rama_22050hz_pcm16_mono.wav $(FFT_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/ct_lor_22050hz_pcm16_mono.wav $(FFT_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/at_untitled_22050hz_pcm16_mono.wav $(FFT_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
+#	cp -f $(SRC_DIR)/resources/tj_sayo_22050hz_pcm16_mono.wav $(FFT_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/vga_rom_f16.fnt $(FFT_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/vga_rom_f16.png $(FFT_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/vga_rom_f16_1px_tight.fnt $(FFT_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
@@ -406,6 +408,7 @@ fft-bands-terrain-3d-dc: $(DC_RAYLIB_DIR)/libraylib.a
 #	cp -f $(SRC_DIR)/resources/rama_22050hz_pcm16_mono.wav $(FFT_BAND_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/ct_lor_22050hz_pcm16_mono.wav $(FFT_BAND_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/at_untitled_22050hz_pcm16_mono.wav $(FFT_BAND_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
+#	cp -f $(SRC_DIR)/resources/tj_sayo_22050hz_pcm16_mono.wav $(FFT_BAND_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/vga_rom_f16.fnt $(FFT_BAND_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/vga_rom_f16.png $(FFT_BAND_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/vga_rom_f16_1px_tight.fnt $(FFT_BAND_TERRAIN_3D_DC_TARGET_DIR)/romdisk/

@@ -101,9 +101,22 @@
 #define RD_SHADERTOY_ELECTRONEBULAE_ONE_FOURTH_22K_WAV "/rd/shadertoy_electronebulae_one_fourth_22050hz_pcm16_mono.wav"
 
 #define RD_DDS_FFM_22K_WAV "/rd/dds_ffm_22050hz_pcm16_mono.wav"
+#define RD_DDS_FFM_FULL_22K_WAV "/rd/dds_ffm_full_22050hz_pcm16_mono.wav"
+
 #define RD_RAMA_22K_WAV "/rd/rama_22050hz_pcm16_mono.wav"
+#define RD_RAMA_FULL_22K_WAV "/rd/rama_full_22050hz_pcm16_mono.wav"
+
 #define RD_CT_LOR_22K_WAV "/rd/ct_lor_22050hz_pcm16_mono.wav"
+#define RD_CT_LOR_FULL_22K_WAV "/rd/ct_lor_full_22050hz_pcm16_mono.wav"
+
 #define RD_AT_UNTITLED_22K_WAV "/rd/at_untitled_22050hz_pcm16_mono.wav"
+#define RD_AT_UNTITLED_FULL_22K_WAV "/rd/at_untitled_full_22050hz_pcm16_mono.wav"
+
+#define RD_RAMA_22K_WAV "/rd/rama_22050hz_pcm16_mono.wav"
+#define RD_RAMA_FULL_22K_WAV "/rd/rama_full_22050hz_pcm16_mono.wav"
+
+#define RD_TJ_SAYO_22K_WAV "/rd/tj_sayo_22050hz_pcm16_mono.wav"
+#define RD_TJ_SAYO_FULL_22K_WAV "/rd/tj_sayo_full_22050hz_pcm16_mono.wav"
 
 // #define RD_FONT "/rd/vga_rom_f16.fnt"
 // #define RD_FONT "/rd/vga_rom_f16_1px_tight.fnt"
@@ -713,6 +726,8 @@ static Texture2D build_lane_mask_glow(float* texcoords, int point_count) {
 #define ONSET_STRENGTH_MAX 0.025f
 #define ONSET_ATTACK_RATE 0.95f
 #define ONSET_DECAY_RATE 0.10f
+#define ONSET_LAG_FRAMES 1
+#define ONSET_ENVELOPE_RADIUS 2
 #define LIGHT0_DIFFUSE_MIN 0.0f
 #define LIGHT0_DIFFUSE_MAX 1.5f
 #define LIGHT0_MARKER_RADIUS 0.5f
@@ -722,6 +737,44 @@ static Texture2D build_lane_mask_glow(float* texcoords, int point_count) {
 static float onset_interpolation_factor = 0.0f;
 static float light0_diffuse[4] = {LIGHT0_DIFFUSE_MIN, LIGHT0_DIFFUSE_MIN, LIGHT0_DIFFUSE_MIN, 1.0f};
 static Vector3 light0_position = {1.330f, 1.345f, -1.418f};
+
+static void update_onset_interpolation_factor_fft(FFTData* fft_data) {
+    // librosa onset_strength convention:
+    // https://librosa.org/doc/main/generated/librosa.onset.onset_strength.html
+    // TODO: onset_detect would be a later peak-pick stage is more complicated...
+    // https://librosa.org/doc/main/generated/librosa.onset.onset_detect.html
+    if (fft_data->frame_index <= ONSET_LAG_FRAMES) {
+        return;
+    }
+
+    int current_index = (fft_data->history_pos - 1 + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
+    int lag_index = (fft_data->history_pos - 1 - ONSET_LAG_FRAMES + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
+    float* spectrum = fft_data->spectrum_history_levels[current_index];
+    float* lag_spectrum = fft_data->spectrum_history_levels[lag_index];
+    float flux_sum = 0.0f;
+    for (int i = 0; i < ANALYSIS_SPECTRUM_BIN_COUNT; i++) {
+        float ref = lag_spectrum[i];
+        for (int j = -ONSET_ENVELOPE_RADIUS; j <= ONSET_ENVELOPE_RADIUS; j++) {
+            int k = i + j;
+            if (k < 0 || k >= ANALYSIS_SPECTRUM_BIN_COUNT) {
+                continue;
+            }
+            ref = FMAXF(ref, lag_spectrum[k]);
+        }
+        float flux = spectrum[i] - ref;
+        if (flux > 0.0f) {
+            flux_sum += flux;
+        }
+    }
+    float onset_strength = flux_sum / (float)ANALYSIS_SPECTRUM_BIN_COUNT;
+    float onset_strength_normalized = CLAMP((onset_strength - ONSET_STRENGTH_MIN) / (ONSET_STRENGTH_MAX - ONSET_STRENGTH_MIN), 0.0f, 1.0f);
+    float onset_rate = ONSET_DECAY_RATE;
+    if (onset_strength_normalized > onset_interpolation_factor) {
+        onset_rate = ONSET_ATTACK_RATE;
+    }
+    onset_interpolation_factor = LERP(onset_interpolation_factor, onset_strength_normalized, onset_rate);
+    onset_interpolation_factor = CLAMP(onset_interpolation_factor, 0.0f, 1.0f);
+}
 
 static void update_diffuse_strength(void) {
     float light0_diffuse_strength = LERP(LIGHT0_DIFFUSE_MIN, LIGHT0_DIFFUSE_MAX, onset_interpolation_factor);
@@ -935,16 +988,13 @@ static inline void draw_wave_cursor_wheel_hud_row(const char* s, float x, float 
     }
 }
 
-static inline int inspection_hud_wrapped_cursor(int cursor) {
-    cursor %= wave.frameCount;
-    return cursor < 0 ? cursor + wave.frameCount : cursor;
-}
-
 static inline void draw_inspection_hud_wheel_row(int indent, float y, int row_offset, Color row_color) {
     int row_delta_chunks = seek_delta_chunks + row_offset;
     int row_delta_ms = (row_delta_chunks * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES * MILLISECONDS_PER_SECOND) / SRC_SAMPLE_RATE;
     bool selected = row_delta_chunks == 0;
-    int display_cursor = inspection_hud_wrapped_cursor(paused_wave_cursor + row_delta_chunks * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
+    int display_cursor = (paused_wave_cursor + row_delta_chunks * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
+    if (display_cursor < 0)
+        display_cursor += wave.frameCount;
     int display_cursor_ms = SAMPLE_CURSOR_TO_MS(display_cursor);
     Color color = selected ? SUNFLOWER : row_color;
     float x = 376.0f + (float)indent * 7.0f;
@@ -1030,8 +1080,6 @@ static void update_playback_controls(void) {
 }
 
 #define PITCH_CLASS_COUNT 12
-#define ONSET_LAG_FRAMES 1
-#define ONSET_ENVELOPE_RADIUS 2
 #define PITCH_CLASS_INVERSE_LN_2 1.4426950408889634f
 #define PITCH_CLASS_SEMITONES_PER_OCTAVE 12.0f
 #define PITCH_CLASS_TUNING_RADIUS_SEMITONES 0.85f
@@ -1054,44 +1102,6 @@ static void update_playback_controls(void) {
 #define ACCIDENTALS_LUT {1.0f, 0.5f, 1.0f, 0.5f, 1.0f, 1.0f, 0.5f, 1.0f, 0.5f, 1.0f, 0.5f, 1.0f}
 #define ACCIDENTAL_LOOKUP(index) (((const float[PITCH_CLASS_COUNT])ACCIDENTALS_LUT)[(index)])
 #define WUXING_COLOR_LOOKUP(index) (((const Color[PITCH_CLASS_COUNT])WUXING_PITCH_CLASS_LUT)[(index)])
-
-static void update_onset_interpolation_factor_fft(FFTData* fft_data) {
-    // librosa onset_strength convention:
-    // https://librosa.org/doc/main/generated/librosa.onset.onset_strength.html
-    // TODO: onset_detect would be a later peak-pick stage is more complicated...
-    // https://librosa.org/doc/main/generated/librosa.onset.onset_detect.html
-    if (fft_data->frame_index <= ONSET_LAG_FRAMES) {
-        return;
-    }
-
-    int current_index = (fft_data->history_pos - 1 + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
-    int lag_index = (fft_data->history_pos - 1 - ONSET_LAG_FRAMES + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
-    float* spectrum = fft_data->spectrum_history_levels[current_index];
-    float* lag_spectrum = fft_data->spectrum_history_levels[lag_index];
-    float flux_sum = 0.0f;
-    for (int i = 0; i < ANALYSIS_SPECTRUM_BIN_COUNT; i++) {
-        float ref = lag_spectrum[i];
-        for (int j = -ONSET_ENVELOPE_RADIUS; j <= ONSET_ENVELOPE_RADIUS; j++) {
-            int k = i + j;
-            if (k < 0 || k >= ANALYSIS_SPECTRUM_BIN_COUNT) {
-                continue;
-            }
-            ref = FMAXF(ref, lag_spectrum[k]);
-        }
-        float flux = spectrum[i] - ref;
-        if (flux > 0.0f) {
-            flux_sum += flux;
-        }
-    }
-    float onset_strength = flux_sum / (float)ANALYSIS_SPECTRUM_BIN_COUNT;
-    float onset_strength_normalized = CLAMP((onset_strength - ONSET_STRENGTH_MIN) / (ONSET_STRENGTH_MAX - ONSET_STRENGTH_MIN), 0.0f, 1.0f);
-    float onset_rate = ONSET_DECAY_RATE;
-    if (onset_strength_normalized > onset_interpolation_factor) {
-        onset_rate = ONSET_ATTACK_RATE;
-    }
-    onset_interpolation_factor = LERP(onset_interpolation_factor, onset_strength_normalized, onset_rate);
-    onset_interpolation_factor = CLAMP(onset_interpolation_factor, 0.0f, 1.0f);
-}
 
 static Color sample_pitch_class_palette(unsigned char chroma_index, float confidence) {
     Color base_color = WUXING_COLOR_LOOKUP(chroma_index);
@@ -1122,6 +1132,26 @@ static void update_mesh_colors_pitch_class(Color* colors, const unsigned char* c
     }
 }
 
+static inline Vector2 spectrum_band_point_sample_bin_bounds(int point_index, int point_count, int band_bin_min, int band_bin_max) {
+    int point_span = point_count - 1;
+    int bin_span = band_bin_max - band_bin_min;
+    int center_bin = band_bin_min;
+    int left_neighbor_center_bin = band_bin_min;
+    int right_neighbor_center_bin = band_bin_min;
+
+    if (point_count > 1) {
+        center_bin = band_bin_min + (point_index * bin_span) / point_span;
+        left_neighbor_center_bin = (point_index > 0) ? band_bin_min + ((point_index - 1) * bin_span) / point_span : center_bin;
+        right_neighbor_center_bin = (point_index < point_span) ? band_bin_min + ((point_index + 1) * bin_span) / point_span : center_bin;
+    }
+
+    int sample_bin_min = (point_index > 0) ? ((left_neighbor_center_bin + center_bin) / 2) : band_bin_min;
+    int sample_bin_max = (point_index < point_span) ? ((center_bin + right_neighbor_center_bin + 1) / 2) : band_bin_max;
+    sample_bin_min = CLAMP(sample_bin_min, band_bin_min, band_bin_max);
+    sample_bin_max = CLAMP(sample_bin_max, sample_bin_min, band_bin_max);
+    return (Vector2){(float)sample_bin_min, (float)sample_bin_max};
+}
+
 static void build_pitch_class_color_field(unsigned char* chroma_index_field,
                                           float* chroma_strength_field,
                                           const float* front_lane_point_values,
@@ -1130,50 +1160,24 @@ static void build_pitch_class_color_field(unsigned char* chroma_index_field,
                                           int band_bin_min,
                                           int band_bin_max) {
     // https://librosa.org/doc/main/generated/librosa.feature.chroma_stft.html
-    int bin_span = band_bin_max - band_bin_min;
-    int point_span = point_count - 1;
     for (int i = 0; i < point_count; i++) {
+        int point_span = point_count - 1;
+        int bin_span = band_bin_max - band_bin_min;
         int center_bin = band_bin_min;
-        int left_center_bin = band_bin_min;
-        int right_center_bin = band_bin_min;
+        Vector2 point_bin_bounds = spectrum_band_point_sample_bin_bounds(i, point_count, band_bin_min, band_bin_max);
+        int bin_min = point_bin_bounds.x;
+        int bin_max = point_bin_bounds.y;
         if (point_count > 1) {
             center_bin = band_bin_min + (i * bin_span) / point_span;
-            left_center_bin = center_bin;
-            right_center_bin = center_bin;
-            if (i > 0) {
-                left_center_bin = band_bin_min + ((i - 1) * bin_span) / point_span;
-            }
-            if (i < point_span) {
-                right_center_bin = band_bin_min + ((i + 1) * bin_span) / point_span;
-            }
-        }
-
-        int bin_min = (i > 0) ? ((left_center_bin + center_bin) / 2) : band_bin_min;
-        int bin_max = (i < point_span) ? ((center_bin + right_center_bin + 1) / 2) : band_bin_max;
-        if (bin_min < band_bin_min) {
-            bin_min = band_bin_min;
-        }
-        if (bin_max > band_bin_max) {
-            bin_max = band_bin_max;
-        }
-        if (bin_max < bin_min) {
-            bin_max = bin_min;
         }
 
         float chroma_energy[PITCH_CLASS_COUNT] = {0};
         float band_energy_sum = 0.0f;
         float band_peak = 0.0f;
-        float locality_radius_bins = 0.5f * (float)(bin_max - bin_min + 1);
-        if (locality_radius_bins < 1.0f) {
-            locality_radius_bins = 1.0f;
-        }
+        float locality_radius_bins = FMAXF(0.5f * (float)(bin_max - bin_min + 1), 1.0f);
 
         for (int j = bin_min; j <= bin_max; j++) {
             float bin_hz = ((float)j * (float)ANALYSIS_SAMPLE_RATE) / (float)ANALYSIS_WINDOW_SIZE_IN_FRAMES;
-            if (bin_hz <= 0.0f) {
-                continue;
-            }
-
             float bin_level = bin_levels[j];
             if (bin_level <= 0.0f) {
                 continue;
@@ -1228,7 +1232,6 @@ static void build_pitch_class_color_field(unsigned char* chroma_index_field,
         float chroma_strength = ridge_level * 0.55f + peak_strength * 0.20f + CLAMP(dominance, 0.0f, 1.0f) * 0.15f + CLAMP(separation, 0.0f, 1.0f) * 0.10f;
         chroma_strength = CLAMP(chroma_strength, 0.0f, 1.0f);
         chroma_strength = POWF(chroma_strength, 0.65f);
-
         if (best_energy <= 0.0f || ridge_level <= 0.0f) {
             chroma_strength = 0.0f;
         }
