@@ -9,7 +9,6 @@
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 #ifdef PLATFORM_DREAMCAST
@@ -103,9 +102,13 @@
 
 #define RD_DDS_FFM_22K_WAV "/rd/dds_ffm_22050hz_pcm16_mono.wav"
 #define RD_RAMA_22K_WAV "/rd/rama_22050hz_pcm16_mono.wav"
+#define RD_CT_LOR_22K_WAV "/rd/ct_lor_22050hz_pcm16_mono.wav"
+#define RD_AT_UNTITLED_22K_WAV "/rd/at_untitled_22050hz_pcm16_mono.wav"
 
-//#define RD_FONT "/rd/small_text_8_16px.fnt"
-#define RD_FONT "/rd/vga_rom_f16.fnt"
+// #define RD_FONT "/rd/vga_rom_f16.fnt"
+// #define RD_FONT "/rd/vga_rom_f16_1px_tight.fnt"
+#define RD_FONT "/rd/vga_rom_f16_0px_TIGHT.fnt" //TODO: nice 1KB...
+#define FONT_SIZE 16.0f
 
 #define SHADER_FFT "src/resources/fft.glsl"
 #define SHADER_WAVEFORM "src/resources/waveform.glsl"
@@ -131,13 +134,14 @@ typedef struct FFTData {
 #define MILLISECONDS_PER_MINUTE (MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE)
 #define LOG_TIMESTAMP_SIZE 32
 #define SAMPLE_CURSOR_TO_MS(sample_cursor) (((sample_cursor) * MILLISECONDS_PER_SECOND) / SRC_SAMPLE_RATE)
+#define MMSSMMM_FMT "%02d:%02d.%03d"
+#define MMSSMMM_ARGS(elapsed_ms)                                                                                                                               \
+    (elapsed_ms) / MILLISECONDS_PER_MINUTE, ((elapsed_ms) / MILLISECONDS_PER_SECOND) % SECONDS_PER_MINUTE, (elapsed_ms) % MILLISECONDS_PER_SECOND
 #define FORMAT_MMSSMMM(timestamp, elapsed_ms)                                                                                                                  \
-    snprintf((timestamp),                                                                                                                                      \
-             sizeof(timestamp),                                                                                                                                \
-             "%02d:%02d.%03d",                                                                                                                                 \
-             (elapsed_ms) / MILLISECONDS_PER_MINUTE,                                                                                                           \
-             ((elapsed_ms) / MILLISECONDS_PER_SECOND) % SECONDS_PER_MINUTE,                                                                                    \
-             (elapsed_ms) % MILLISECONDS_PER_SECOND)
+    do {                                                                                                                                                       \
+        strncpy((timestamp), TextFormat(MMSSMMM_FMT, MMSSMMM_ARGS(elapsed_ms)), sizeof(timestamp) - 1);                                                        \
+        (timestamp)[sizeof(timestamp) - 1] = '\0';                                                                                                             \
+    } while (0)
 
 typedef struct FFTProfileData {
     int last_log_sec;
@@ -392,8 +396,8 @@ static inline void render_fft_frame(void) {
 #elif defined(FFFFTT_PROFILE_WAVEFORM_TERRAIN_3D)
 #define LANE_COUNT 11
 #define LANE_POINT_COUNT 33
-#define AMPLITUDE_Y_SCALE 2.0f
-// #define AMPLITUDE_Y_SCALE 0.66f
+// #define AMPLITUDE_Y_SCALE 2.0f
+#define AMPLITUDE_Y_SCALE 1.0f
 #define LINE_LENGTH_SCALE 5.0f
 #elif defined(FFFFTT_PROFILE_FFT_TERRAIN_3D)
 #define LANE_COUNT 11
@@ -426,21 +430,22 @@ static inline void render_fft_frame(void) {
 #define TOP (Vector3){0.0f, 2.0f, 0.0f}
 #define MIDDLE (Vector3){0.0f}
 #define BOTTOM (Vector3){0.0f, -1.0f, 0.0f}
+#define BOTTOM_BASS (Vector3){0.0f, -3.0f, 0.0f}
 
 static float lane_point_values[LANE_COUNT][LANE_POINT_COUNT] = {0};
 
-static inline void advance_lane_history(float* lane_point_values) {
+static inline void advance_lane_history(float* lane_point_values, int point_count) {
     for (int i = LANE_COUNT - 1; i > 0; i--) {
-        for (int j = 0; j < LANE_POINT_COUNT; j++) {
-            lane_point_values[i * LANE_POINT_COUNT + j] = lane_point_values[(i - 1) * LANE_POINT_COUNT + j];
+        for (int j = 0; j < point_count; j++) {
+            lane_point_values[i * point_count + j] = lane_point_values[(i - 1) * point_count + j];
         }
     }
 }
 
-static inline void advance_lane_history_u8(unsigned char* lane_point_values) {
+static inline void advance_lane_history_u8(unsigned char* lane_point_values, int point_count) {
     for (int i = LANE_COUNT - 1; i > 0; i--) {
-        for (int j = 0; j < LANE_POINT_COUNT; j++) {
-            lane_point_values[i * LANE_POINT_COUNT + j] = lane_point_values[(i - 1) * LANE_POINT_COUNT + j];
+        for (int j = 0; j < point_count; j++) {
+            lane_point_values[i * point_count + j] = lane_point_values[(i - 1) * point_count + j];
         }
     }
 }
@@ -496,12 +501,12 @@ static inline void fill_mesh_indices_lane_topology(unsigned short* indices) {
     }
 }
 
-static inline void fill_mesh_colors(Color* colors) {
+static inline void fill_mesh_colors(Color* colors, int point_count) {
     for (int i = 0; i < LANE_COUNT; i++) {
         float v = (float)i / (float)(LANE_COUNT - 1);
-        for (int j = 0; j < LANE_POINT_COUNT; j++) {
-            float u = (float)j / (float)(LANE_POINT_COUNT - 1);
-            int k = i * LANE_POINT_COUNT + j;
+        for (int j = 0; j < point_count; j++) {
+            float u = (float)j / (float)(point_count - 1);
+            int k = i * point_count + j;
             float r = (1.0f - u) * (1.0f - v) * MAGENTA.r + u * (1.0f - v) * BLUE.r + (1.0f - u) * v * RED.r + u * v * YELLOW.r;
             float g = (1.0f - u) * (1.0f - v) * MAGENTA.g + u * (1.0f - v) * BLUE.g + (1.0f - u) * v * RED.g + u * v * YELLOW.g;
             float b = (1.0f - u) * (1.0f - v) * MAGENTA.b + u * (1.0f - v) * BLUE.b + (1.0f - u) * v * RED.b + u * v * YELLOW.b;
@@ -510,13 +515,13 @@ static inline void fill_mesh_colors(Color* colors) {
     }
 }
 
-static inline void update_mesh_vertices(float* vertices) {
+static inline void update_mesh_vertices(float* vertices, const float* lane_point_values, int point_count) {
     for (int i = 0; i < LANE_COUNT; i++) {
         float lane_offset = ((float)i - 0.5f * (float)(LANE_COUNT - 1)) * LANE_SPACING_SCALE;
-        for (int j = 0; j < LANE_POINT_COUNT; j++) {
-            int k = (i * LANE_POINT_COUNT + j) * 3;
-            float x = (((float)j / (float)(LANE_POINT_COUNT - 1)) - HALF_SPAN) * LINE_LENGTH_SCALE;
-            float y = lane_point_values[i][j] * AMPLITUDE_Y_SCALE;
+        for (int j = 0; j < point_count; j++) {
+            int k = (i * point_count + j) * 3;
+            float x = (((float)j / (float)(point_count - 1)) - HALF_SPAN) * LINE_LENGTH_SCALE;
+            float y = lane_point_values[i * point_count + j] * AMPLITUDE_Y_SCALE;
             vertices[k + 0] = x;
             vertices[k + 1] = y;
             vertices[k + 2] = lane_offset; // NOTE: +Z orientation determined by raylib GenMeshPlane function!!
@@ -524,20 +529,20 @@ static inline void update_mesh_vertices(float* vertices) {
     }
 }
 
-static void update_mesh_normals_smooth(float* normals, const float* vertices) {
+static void update_mesh_normals_smooth(float* normals, const float* vertices, int point_count) {
     for (int i = 0; i < LANE_COUNT; i++) {
         int i_prev = (i > 0) ? i - 1 : i;
         int i_next = (i < LANE_COUNT - 1) ? i + 1 : i;
 
-        for (int j = 0; j < LANE_POINT_COUNT; j++) {
+        for (int j = 0; j < point_count; j++) {
             int j_prev = (j > 0) ? j - 1 : j;
-            int j_next = (j < LANE_POINT_COUNT - 1) ? j + 1 : j;
+            int j_next = (j < point_count - 1) ? j + 1 : j;
 
-            int k_left = (i * LANE_POINT_COUNT + j_prev) * 3;
-            int k_right = (i * LANE_POINT_COUNT + j_next) * 3;
-            int k_back = (i_prev * LANE_POINT_COUNT + j) * 3;
-            int k_front = (i_next * LANE_POINT_COUNT + j) * 3;
-            int k_out = (i * LANE_POINT_COUNT + j) * 3;
+            int k_left = (i * point_count + j_prev) * 3;
+            int k_right = (i * point_count + j_next) * 3;
+            int k_back = (i_prev * point_count + j) * 3;
+            int k_front = (i_next * point_count + j) * 3;
+            int k_out = (i * point_count + j) * 3;
 
             //TODO: is there a more standarized way to do this? like can we anticipate tangents in dynamic vertex attributes or something???
             float tangent_x_x = vertices[k_right + 0] - vertices[k_left + 0];
@@ -601,10 +606,10 @@ static void expand_mesh_normals_flat(float* dst_normals, const float* src_normal
     }
 }
 
-static void build_mesh_smooth(Mesh* dst_mesh, const float* vertices, const float* src_normals, const Color* src_colors) {
-    MEMCPY4(dst_mesh->vertices, vertices, sizeof(float) * MESH_VERTEX_COUNT * 3);
-    MEMCPY4(dst_mesh->normals, src_normals, sizeof(float) * MESH_VERTEX_COUNT * 3);
-    MEMCPY(dst_mesh->colors, src_colors, sizeof(Color) * MESH_VERTEX_COUNT);
+static void build_mesh_smooth(Mesh* dst_mesh, const float* vertices, const float* src_normals, const Color* src_colors, int vertex_count) {
+    MEMCPY4(dst_mesh->vertices, vertices, sizeof(float) * vertex_count * 3);
+    MEMCPY4(dst_mesh->normals, src_normals, sizeof(float) * vertex_count * 3);
+    MEMCPY(dst_mesh->colors, src_colors, sizeof(Color) * vertex_count);
 }
 
 static void build_mesh_flat(Mesh* dst_mesh, const float* flat_vertices, const float* src_normals, const Color* src_colors) {
@@ -642,7 +647,7 @@ static const unsigned short GLOW_LUT[LANE_MASK_TEXTURE_HEIGHT] = {
     ALPHA_NONE,
 };
 
-static void fill_lane_mask_texcoords(float* texcoords) {
+static void fill_lane_mask_texcoords(float* texcoords, int point_count) {
     float s = LANE_MASK_TEXCOORD_S_CENTER;
     for (int i = 0; i < LANE_COUNT; i++) {
         float t = (float)i + LANE_MASK_TEXCOORD_MID_LANE_CENTER;
@@ -651,15 +656,15 @@ static void fill_lane_mask_texcoords(float* texcoords) {
         } else if (i == LANE_COUNT - 1) {
             t = (float)i + LANE_MASK_TEXCOORD_BACK_LANE_INNER_EDGE;
         }
-        for (int j = 0; j < LANE_POINT_COUNT; j++) {
-            int k = i * LANE_POINT_COUNT + j;
+        for (int j = 0; j < point_count; j++) {
+            int k = i * point_count + j;
             texcoords[k * 2 + 0] = s;
             texcoords[k * 2 + 1] = t;
         }
     }
 }
 
-static Texture2D build_lane_mask(float* texcoords) {
+static Texture2D build_lane_mask(float* texcoords, int point_count) {
     Image image = {
         .data = RL_CALLOC(LANE_MASK_TEXTURE_WIDTH * LANE_MASK_TEXTURE_HEIGHT, sizeof(unsigned short)),
         .width = LANE_MASK_TEXTURE_WIDTH,
@@ -668,7 +673,7 @@ static Texture2D build_lane_mask(float* texcoords) {
         .format = PIXELFORMAT_UNCOMPRESSED_R4G4B4A4,
     };
     unsigned short* pixels = (unsigned short*)image.data;
-    fill_lane_mask_texcoords(texcoords);
+    fill_lane_mask_texcoords(texcoords, point_count);
     for (int i = 0; i < LANE_MASK_TEXTURE_HEIGHT; i++) {
         unsigned short pixel = RGBA4444_WHITE_MASK | ALPHA_NONE;
         if (i >= LANE_MASK_STRIPE_OFFSET && i < LANE_MASK_STRIPE_OFFSET + LANE_MASK_WIDTH_TEXELS) {
@@ -683,7 +688,7 @@ static Texture2D build_lane_mask(float* texcoords) {
     return texture;
 }
 
-static Texture2D build_lane_mask_glow(float* texcoords) {
+static Texture2D build_lane_mask_glow(float* texcoords, int point_count) {
     Image image = {
         .data = RL_CALLOC(LANE_MASK_TEXTURE_WIDTH * LANE_MASK_TEXTURE_HEIGHT, sizeof(unsigned short)),
         .width = LANE_MASK_TEXTURE_WIDTH,
@@ -692,7 +697,7 @@ static Texture2D build_lane_mask_glow(float* texcoords) {
         .format = PIXELFORMAT_UNCOMPRESSED_R4G4B4A4,
     };
     unsigned short* pixels = (unsigned short*)image.data;
-    fill_lane_mask_texcoords(texcoords);
+    fill_lane_mask_texcoords(texcoords, point_count);
     for (int i = 0; i < LANE_MASK_TEXTURE_HEIGHT; i++) {
         unsigned short pixel = RGBA4444_WHITE_MASK | (GLOW_LUT[i] & RGBA4444_ALPHA_MASK);
         for (int j = 0; j < LANE_MASK_TEXTURE_WIDTH; j++) {
@@ -711,7 +716,7 @@ static Texture2D build_lane_mask_glow(float* texcoords) {
 #define LIGHT0_DIFFUSE_MIN 0.0f
 #define LIGHT0_DIFFUSE_MAX 1.5f
 #define LIGHT0_MARKER_RADIUS 0.5f
-#define LIGHT0_MARKER_RING_COUNT 4
+#define LIGHT0_MARKER_RING_COUNT 3
 #define LIGHT0_MARKER_SEGMENTS 16
 
 static float onset_interpolation_factor = 0.0f;
@@ -794,8 +799,8 @@ static inline void update_camera_orbit(Camera3D* camera, float dt) {
 }
 
 #define PADMOUSE_DEADZONE 0.20f
-#define PADMOUSE_SPEED 600.0f
-#define PADMOUSE_HOVER_RADIUS_PIXELS 18.0f
+#define PADMOUSE_SPEED 400.0f
+#define PADMOUSE_HOVER_RADIUS_PIXELS 20.0f
 static Vector2 padmouse_pos = {0.5f * SCREEN_WIDTH, 0.5f * SCREEN_HEIGHT};
 
 static inline void update_padmouse(float dt, const Camera3D* camera) {
@@ -920,21 +925,14 @@ static void draw_paused_wave_cursor_lane_marker(void) {
     wave_cursor_model->meshes[0].colors = NULL;
 }
 
-static inline void draw_inspection_hud_cells(const char* s, float x, float y, Color c) {
+static inline void draw_wave_cursor_wheel_hud_row(const char* s, float x, float y, Color c) {
     char g[2] = {0};
     for (int i = 0; s[i]; i++) {
         if (s[i] == ' ')
             continue;
         g[0] = s[i];
-        DrawTextEx(font, g, (Vector2){x + (float)i * 7.0f, y}, 16.0f, 0.0f, c);
+        DrawTextEx(font, g, (Vector2){x + (float)i * 7.0f, y}, FONT_SIZE, 0.0f, c);
     }
-}
-
-static inline void draw_inspection_hud_slot(const char* fmt, int v, int n, float x, float y, Color c) {
-    char s[24];
-    snprintf(s, sizeof(s), fmt, v);
-    int l = (int)strlen(s);
-    draw_inspection_hud_cells(l > n ? s + l - n : s, x + (float)(n - (l > n ? n : l)) * 7.0f, y, c);
 }
 
 static inline int inspection_hud_wrapped_cursor(int cursor) {
@@ -943,48 +941,41 @@ static inline int inspection_hud_wrapped_cursor(int cursor) {
 }
 
 static inline void draw_inspection_hud_wheel_row(int indent, float y, int row_offset, Color row_color) {
-    char ts[LOG_TIMESTAMP_SIZE];
-    int row_cursor = inspection_hud_wrapped_cursor(paused_wave_cursor + row_offset * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
     int row_delta_chunks = seek_delta_chunks + row_offset;
     int row_delta_ms = (row_delta_chunks * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES * MILLISECONDS_PER_SECOND) / SRC_SAMPLE_RATE;
     bool selected = row_delta_chunks == 0;
-    int display_cursor = inspection_hud_wrapped_cursor(selected ? paused_wave_cursor : row_cursor);
+    int display_cursor = inspection_hud_wrapped_cursor(paused_wave_cursor + row_delta_chunks * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
+    int display_cursor_ms = SAMPLE_CURSOR_TO_MS(display_cursor);
     Color color = selected ? SUNFLOWER : row_color;
     float x = 376.0f + (float)indent * 7.0f;
-    FORMAT_MMSSMMM(ts, SAMPLE_CURSOR_TO_MS(display_cursor));
-    if (selected)
-        draw_inspection_hud_cells(">", x - 14.0f, y, NEON_CARROT);
-    draw_inspection_hud_slot("%6d", display_cursor, 6, x, y, color);
-    DrawTextEx(font, ":", (Vector2){x + 42.0f, y}, 16.0f, 0.0f, color);
-    draw_inspection_hud_slot("%+04d", row_delta_chunks, 4, x + 56.0f, y, color);
-    DrawTextEx(font, "c", (Vector2){x + 84.0f, y}, 16.0f, 0.0f, color);
-    draw_inspection_hud_slot("%+04d", row_delta_ms, 4, x + 98.0f, y, color);
-    DrawTextEx(font, "ms", (Vector2){x + 126.0f, y}, 16.0f, 0.0f, color);
-    draw_inspection_hud_cells(ts, x + 147.0f, y, color);
+    if (row_offset == 0)
+        draw_wave_cursor_wheel_hud_row(">", x - 14.0f, y, SUNFLOWER);
+    draw_wave_cursor_wheel_hud_row(TextFormat("%6d", display_cursor), x, y, color);
+    DrawTextEx(font, ":", (Vector2){x + 42.0f, y}, FONT_SIZE, 0.0f, color);
+    draw_wave_cursor_wheel_hud_row(TextFormat("%+04d", row_delta_chunks), x + 56.0f, y, color);
+    DrawTextEx(font, "c", (Vector2){x + 84.0f, y}, FONT_SIZE, 0.0f, color);
+    draw_wave_cursor_wheel_hud_row(TextFormat("%+04d", row_delta_ms), x + 98.0f, y, color);
+    DrawTextEx(font, "ms", (Vector2){x + 126.0f, y}, FONT_SIZE, 0.0f, color);
+    draw_wave_cursor_wheel_hud_row(TextFormat(MMSSMMM_FMT, MMSSMMM_ARGS(display_cursor_ms)), x + 147.0f, y, color);
 }
 
 static void draw_playback_inspection_hud(void) {
-    char s[96], ts[LOG_TIMESTAMP_SIZE];
     int cursor = is_paused ? paused_wave_cursor : wave_cursor;
+    int cursor_ms = SAMPLE_CURSOR_TO_MS(cursor);
     Color top_color = is_paused ? SUNFLOWER : MARINER;
-    FORMAT_MMSSMMM(ts, SAMPLE_CURSOR_TO_MS(cursor));
-    snprintf(s, sizeof(s), "[CURSOR:%6d]", cursor);
-    draw_inspection_hud_cells(s, 7.0f + 20.0f, 25.0f, top_color);
-    snprintf(s, sizeof(s), "[STEP:%4d]", AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
-    draw_inspection_hud_cells(s, 140.0f + 20.0f, 25.0f, top_color);
-    snprintf(s, sizeof(s), "[SAMPLE_RATE:%5d]", SRC_SAMPLE_RATE);
-    draw_inspection_hud_cells(s, 244.0f + 20.0f, 25.0f, top_color);
-    snprintf(s, sizeof(s), "[TIME:%s]", ts);
-    draw_inspection_hud_cells(s, 402.0f + 20.0f, 25.0f, top_color);
-    draw_inspection_hud_cells(is_paused ? "[PAUSED]" : "[PLAYING]", 533.0f + 20.0f, 25.0f, is_paused ? NEON_CARROT : SUNFLOWER);
+    draw_wave_cursor_wheel_hud_row(TextFormat("[CURSOR:%6d]", cursor), 7.0f + 20.0f, 25.0f, top_color);
+    draw_wave_cursor_wheel_hud_row(TextFormat("[STEP:%4d]", AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES), 140.0f + 20.0f, 25.0f, top_color);
+    draw_wave_cursor_wheel_hud_row(TextFormat("[SAMPLE_RATE:%5d]", SRC_SAMPLE_RATE), 244.0f + 20.0f, 25.0f, top_color);
+    draw_wave_cursor_wheel_hud_row(TextFormat("[TIME:" MMSSMMM_FMT "]", MMSSMMM_ARGS(cursor_ms)), 402.0f + 20.0f, 25.0f, top_color);
+    draw_wave_cursor_wheel_hud_row(is_paused ? "[PAUSED]" : "[PLAYING]", 533.0f + 20.0f, 25.0f, is_paused ? NEON_CARROT : SUNFLOWER);
     if (is_paused) {
-        draw_inspection_hud_cells("        [...]", 376.0f, 352.0f - 5.0f, seek_delta_chunks < -2 ? NEON_CARROT : MARINER);
-        draw_inspection_hud_wheel_row(6, 368.0f - 5.0f, 2, BAHAMA_BLUE);
+        draw_wave_cursor_wheel_hud_row("        [...]", 376.0f, 352.0f - 5.0f, seek_delta_chunks < -2 ? SUNFLOWER : MARINER);
+        draw_inspection_hud_wheel_row(6, 368.0f - 5.0f, 2, MARINER);
         draw_inspection_hud_wheel_row(4, 384.0f - 5.0f, 1, MARINER);
-        draw_inspection_hud_wheel_row(2, 400.0f - 5.0f, 0, SUNFLOWER);
+        draw_inspection_hud_wheel_row(2, 400.0f - 5.0f, 0, MARINER);
         draw_inspection_hud_wheel_row(4, 416.0f - 5.0f, -1, MARINER);
-        draw_inspection_hud_wheel_row(6, 432.0f - 5.0f, -2, BAHAMA_BLUE);
-        draw_inspection_hud_cells("        [...]", 376.0f, 448.0f - 5.0f, seek_delta_chunks > 2 ? NEON_CARROT : MARINER);
+        draw_inspection_hud_wheel_row(6, 432.0f - 5.0f, -2, MARINER);
+        draw_wave_cursor_wheel_hud_row("        [...]", 376.0f, 448.0f - 5.0f, seek_delta_chunks > 2 ? SUNFLOWER : MARINER);
     }
 }
 
@@ -1020,7 +1011,7 @@ static void update_playback_controls(void) {
                     analysis_window_samples[i] = (float)resume_chunk_samples[i] / ANALYSIS_PCM16_UPPER_BOUND;
                 }
 
-                advance_lane_history(&lane_point_values[0][0]);
+                advance_lane_history(&lane_point_values[0][0], LANE_POINT_COUNT);
                 for (int i = 0; i < LANE_POINT_COUNT; i++) {
                     lane_point_values[0][i] = analysis_window_samples[(i * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (LANE_POINT_COUNT - 1)];
                 }
@@ -1035,6 +1026,215 @@ static void update_playback_controls(void) {
         wave_cursor = (wave_cursor + AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
         seek_delta_chunks++;
         rebuild_envelope_history_from_wave();
+    }
+}
+
+#define PITCH_CLASS_COUNT 12
+#define ONSET_LAG_FRAMES 1
+#define ONSET_ENVELOPE_RADIUS 2
+#define PITCH_CLASS_INVERSE_LN_2 1.4426950408889634f
+#define PITCH_CLASS_SEMITONES_PER_OCTAVE 12.0f
+#define PITCH_CLASS_TUNING_RADIUS_SEMITONES 0.85f
+#define PITCH_CLASS_VISIBILITY_MIN 0.02f
+#define PITCH_CLASS_VISIBILITY_MAX 0.75f
+#define C9 8372.02f
+#define Db9 8870.0f
+#define D9 9398.0f
+#define Eb9 9974.0f
+#define E9 10548.0f
+#define F9 11176.0f
+#define Gb9 11840.0f
+#define G9 12544.0f
+#define Ab9 13290.0f
+#define A9 14080.0f
+#define Bb9 14918.0f
+#define B9 15804.0f
+#define REF_HZ_LUT {C9, Db9, D9, Eb9, E9, F9, Gb9, G9, Ab9, A9, Bb9, B9}
+#define REF_HZ_LOOKUP(index) (((const float[PITCH_CLASS_COUNT])REF_HZ_LUT)[(index)])
+#define ACCIDENTALS_LUT {1.0f, 0.5f, 1.0f, 0.5f, 1.0f, 1.0f, 0.5f, 1.0f, 0.5f, 1.0f, 0.5f, 1.0f}
+#define ACCIDENTAL_LOOKUP(index) (((const float[PITCH_CLASS_COUNT])ACCIDENTALS_LUT)[(index)])
+#define WUXING_COLOR_LOOKUP(index) (((const Color[PITCH_CLASS_COUNT])WUXING_PITCH_CLASS_LUT)[(index)])
+
+static void update_onset_interpolation_factor_fft(FFTData* fft_data) {
+    // librosa onset_strength convention:
+    // https://librosa.org/doc/main/generated/librosa.onset.onset_strength.html
+    // TODO: onset_detect would be a later peak-pick stage is more complicated...
+    // https://librosa.org/doc/main/generated/librosa.onset.onset_detect.html
+    if (fft_data->frame_index <= ONSET_LAG_FRAMES) {
+        return;
+    }
+
+    int current_index = (fft_data->history_pos - 1 + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
+    int lag_index = (fft_data->history_pos - 1 - ONSET_LAG_FRAMES + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
+    float* spectrum = fft_data->spectrum_history_levels[current_index];
+    float* lag_spectrum = fft_data->spectrum_history_levels[lag_index];
+    float flux_sum = 0.0f;
+    for (int i = 0; i < ANALYSIS_SPECTRUM_BIN_COUNT; i++) {
+        float ref = lag_spectrum[i];
+        for (int j = -ONSET_ENVELOPE_RADIUS; j <= ONSET_ENVELOPE_RADIUS; j++) {
+            int k = i + j;
+            if (k < 0 || k >= ANALYSIS_SPECTRUM_BIN_COUNT) {
+                continue;
+            }
+            ref = FMAXF(ref, lag_spectrum[k]);
+        }
+        float flux = spectrum[i] - ref;
+        if (flux > 0.0f) {
+            flux_sum += flux;
+        }
+    }
+    float onset_strength = flux_sum / (float)ANALYSIS_SPECTRUM_BIN_COUNT;
+    float onset_strength_normalized = CLAMP((onset_strength - ONSET_STRENGTH_MIN) / (ONSET_STRENGTH_MAX - ONSET_STRENGTH_MIN), 0.0f, 1.0f);
+    float onset_rate = ONSET_DECAY_RATE;
+    if (onset_strength_normalized > onset_interpolation_factor) {
+        onset_rate = ONSET_ATTACK_RATE;
+    }
+    onset_interpolation_factor = LERP(onset_interpolation_factor, onset_strength_normalized, onset_rate);
+    onset_interpolation_factor = CLAMP(onset_interpolation_factor, 0.0f, 1.0f);
+}
+
+static Color sample_pitch_class_palette(unsigned char chroma_index, float confidence) {
+    Color base_color = WUXING_COLOR_LOOKUP(chroma_index);
+    float visibility = CLAMP((confidence - PITCH_CLASS_VISIBILITY_MIN) / (PITCH_CLASS_VISIBILITY_MAX - PITCH_CLASS_VISIBILITY_MIN), 0.0f, 1.0f);
+    if (visibility <= 0.0f) {
+        return BLACK;
+    }
+
+    visibility = POWF(visibility, 0.45f);
+    float accidental_gain = 0.70f + 0.30f * ACCIDENTAL_LOOKUP(chroma_index);
+    float brightness = (0.35f + 0.65f * visibility) * accidental_gain;
+    brightness = CLAMP(brightness, 0.0f, 1.0f);
+
+    return (Color){
+        (unsigned char)((float)base_color.r * brightness),
+        (unsigned char)((float)base_color.g * brightness),
+        (unsigned char)((float)base_color.b * brightness),
+        DRAW_COLOR_CHANNEL_MAX,
+    };
+}
+
+static void update_mesh_colors_pitch_class(Color* colors, const unsigned char* chroma_index_field, const float* chroma_strength_field, int point_count) {
+    for (int i = 0; i < LANE_COUNT; i++) {
+        for (int j = 0; j < point_count; j++) {
+            int k = i * point_count + j;
+            colors[k] = sample_pitch_class_palette(chroma_index_field[k], chroma_strength_field[k]);
+        }
+    }
+}
+
+static void build_pitch_class_color_field(unsigned char* chroma_index_field,
+                                          float* chroma_strength_field,
+                                          const float* front_lane_point_values,
+                                          const float* bin_levels,
+                                          int point_count,
+                                          int band_bin_min,
+                                          int band_bin_max) {
+    // https://librosa.org/doc/main/generated/librosa.feature.chroma_stft.html
+    int bin_span = band_bin_max - band_bin_min;
+    int point_span = point_count - 1;
+    for (int i = 0; i < point_count; i++) {
+        int center_bin = band_bin_min;
+        int left_center_bin = band_bin_min;
+        int right_center_bin = band_bin_min;
+        if (point_count > 1) {
+            center_bin = band_bin_min + (i * bin_span) / point_span;
+            left_center_bin = center_bin;
+            right_center_bin = center_bin;
+            if (i > 0) {
+                left_center_bin = band_bin_min + ((i - 1) * bin_span) / point_span;
+            }
+            if (i < point_span) {
+                right_center_bin = band_bin_min + ((i + 1) * bin_span) / point_span;
+            }
+        }
+
+        int bin_min = (i > 0) ? ((left_center_bin + center_bin) / 2) : band_bin_min;
+        int bin_max = (i < point_span) ? ((center_bin + right_center_bin + 1) / 2) : band_bin_max;
+        if (bin_min < band_bin_min) {
+            bin_min = band_bin_min;
+        }
+        if (bin_max > band_bin_max) {
+            bin_max = band_bin_max;
+        }
+        if (bin_max < bin_min) {
+            bin_max = bin_min;
+        }
+
+        float chroma_energy[PITCH_CLASS_COUNT] = {0};
+        float band_energy_sum = 0.0f;
+        float band_peak = 0.0f;
+        float locality_radius_bins = 0.5f * (float)(bin_max - bin_min + 1);
+        if (locality_radius_bins < 1.0f) {
+            locality_radius_bins = 1.0f;
+        }
+
+        for (int j = bin_min; j <= bin_max; j++) {
+            float bin_hz = ((float)j * (float)ANALYSIS_SAMPLE_RATE) / (float)ANALYSIS_WINDOW_SIZE_IN_FRAMES;
+            if (bin_hz <= 0.0f) {
+                continue;
+            }
+
+            float bin_level = bin_levels[j];
+            if (bin_level <= 0.0f) {
+                continue;
+            }
+
+            float locality_gain = 1.0f - (FABSF((float)j - (float)center_bin) / locality_radius_bins);
+            locality_gain = CLAMP(locality_gain, 0.0f, 1.0f);
+            locality_gain = LERP(0.35f, 1.0f, locality_gain);
+
+            band_energy_sum += bin_level;
+            band_peak = FMAXF(band_peak, bin_level);
+
+            for (int k = 0; k < PITCH_CLASS_COUNT; k++) {
+                float ref_hz = REF_HZ_LOOKUP(k);
+                float octave_offset = FLOORF((LOGF(ref_hz / bin_hz) * PITCH_CLASS_INVERSE_LN_2) + 0.5f);
+                float folded_hz = ref_hz / POWF(2.0f, octave_offset);
+                float semitone_error = FABSF(PITCH_CLASS_SEMITONES_PER_OCTAVE * LOGF(bin_hz / folded_hz) * PITCH_CLASS_INVERSE_LN_2);
+                float tuning_gain = CLAMP(1.0f - (semitone_error / PITCH_CLASS_TUNING_RADIUS_SEMITONES), 0.0f, 1.0f);
+                tuning_gain = tuning_gain * tuning_gain * (3.0f - 2.0f * tuning_gain);
+                if (tuning_gain <= 0.0f) {
+                    continue;
+                }
+
+                chroma_energy[k] += bin_level * locality_gain * tuning_gain;
+            }
+        }
+
+        int best_chroma = 0;
+        float best_energy = 0.0f;
+        float next_energy = 0.0f;
+        for (int j = 0; j < PITCH_CLASS_COUNT; j++) {
+            float energy = chroma_energy[j];
+            if (energy > best_energy) {
+                next_energy = best_energy;
+                best_energy = energy;
+                best_chroma = j;
+            } else if (energy > next_energy) {
+                next_energy = energy;
+            }
+        }
+
+        float ridge_level = front_lane_point_values[i];
+        float dominance = 0.0f;
+        float separation = 0.0f;
+        if (band_energy_sum > 0.0f) {
+            dominance = best_energy / band_energy_sum;
+        }
+        if (best_energy > 0.0f) {
+            separation = (best_energy - next_energy) / best_energy;
+        }
+        float peak_strength = CLAMP(band_peak * 18.0f, 0.0f, 1.0f);
+        float chroma_strength = ridge_level * 0.55f + peak_strength * 0.20f + CLAMP(dominance, 0.0f, 1.0f) * 0.15f + CLAMP(separation, 0.0f, 1.0f) * 0.10f;
+        chroma_strength = CLAMP(chroma_strength, 0.0f, 1.0f);
+        chroma_strength = POWF(chroma_strength, 0.65f);
+
+        if (best_energy <= 0.0f || ridge_level <= 0.0f) {
+            chroma_strength = 0.0f;
+        }
+
+        chroma_index_field[i] = (unsigned char)best_chroma;
+        chroma_strength_field[i] = chroma_strength;
     }
 }
 

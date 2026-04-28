@@ -51,7 +51,7 @@ int main(void) {
                 analysis_window_samples[i] = (float)chunk_samples[i] / ANALYSIS_PCM16_UPPER_BOUND;
             }
 
-            advance_lane_history(&lane_point_values[0][0]);
+            advance_lane_history(&lane_point_values[0][0], LANE_POINT_COUNT);
             // smooth_front_lane();
             for (int i = 0; i < LANE_POINT_COUNT; i++) {
                 lane_point_values[0][i] = analysis_window_samples[(i * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (LANE_POINT_COUNT - 1)];

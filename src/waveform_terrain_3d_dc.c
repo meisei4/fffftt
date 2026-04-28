@@ -21,7 +21,7 @@ static void update_mesh_normals_hilbert(float* normals, const float* src_normals
 static void build_rms_color_field(void);
 static void update_mesh_colors_rms(Color* colors);
 static Color sample_rms_pallete(float rms);
-static void update_onset_interpolation_factor(void);
+static void update_onset_interpolation_factor_waveform(void);
 static void update_playback_controls_waveform(void);
 
 static float hilbert_normal_field[LANE_COUNT][LANE_POINT_COUNT] = {0};
@@ -48,9 +48,10 @@ int main(void) {
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
+    wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
+    // wave = LoadWave(RD_SHADERTOY_ELECTRONEBULAE_ONE_FOURTH_22K_WAV);
     // wave = LoadWave(RD_DDS_FFM_22K_WAV);
     // wave = LoadWave(RD_RAMA_22K_WAV);
-    wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
     WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
@@ -68,8 +69,8 @@ int main(void) {
 
     mesh_a = GenMeshPlane(1.0f, 1.0f, LANE_POINT_COUNT - 1, LANE_COUNT - 1);
     mesh_a.colors = RL_CALLOC(mesh_a.vertexCount, sizeof(Color));
-    Texture2D lane_mask_texture = build_lane_mask(mesh_a.texcoords);
-    wave_cursor_texture = build_lane_mask_glow(mesh_a.texcoords);
+    Texture2D lane_mask_texture = build_lane_mask(mesh_a.texcoords, LANE_POINT_COUNT);
+    wave_cursor_texture = build_lane_mask_glow(mesh_a.texcoords, LANE_POINT_COUNT);
 
     model_a = LoadModelFromMesh(mesh_a);
     unsigned char* saved_colors = model_a.meshes[0].colors;
@@ -92,12 +93,12 @@ int main(void) {
     };
     flat_model = LoadModelFromMesh(flat_mesh);
 
-    fill_mesh_colors(colors);
+    fill_mesh_colors(colors, LANE_POINT_COUNT);
     expand_mesh_colors_flat(flat_colors, colors, mesh_a.indices);
     init_hilbert_filter();
 
-    update_mesh_vertices(vertices);
-    update_mesh_normals_smooth(normals, vertices);
+    update_mesh_vertices(vertices, &lane_point_values[0][0], LANE_POINT_COUNT);
+    update_mesh_normals_smooth(normals, vertices, LANE_POINT_COUNT);
 
     build_hilbert_normal_field();
     update_mesh_normals_hilbert(hilbert_normals, normals, &hilbert_normal_field[0][0], vertices);
@@ -109,11 +110,11 @@ int main(void) {
     expand_mesh_normals_flat(flat_hilbert_normals, hilbert_normals, mesh_a.indices);
 
     // build_mesh_smooth(&mesh_a, vertices, normals, colors);
-    build_mesh_smooth(&mesh_a, vertices, normals, colors);
+    build_mesh_smooth(&mesh_a, vertices, normals, colors, MESH_VERTEX_COUNT);
     // build_mesh_smooth(&mesh_a, vertices, hilbert_normals, colors);
 
     // build_mesh_smooth(&mesh_b, vertices, normals, colors);
-    build_mesh_smooth(&mesh_b, vertices, normals, rms_colors);
+    build_mesh_smooth(&mesh_b, vertices, normals, rms_colors, MESH_VERTEX_COUNT);
 
     // build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors);
     // build_mesh_flat(&flat_mesh, flat_vertices, flat_hilbert_normals, flat_colors);
@@ -143,32 +144,32 @@ int main(void) {
                 analysis_window_samples[i] = (float)chunk_samples[i] / ANALYSIS_PCM16_UPPER_BOUND;
             }
 
-            advance_lane_history(&lane_point_values[0][0]);
-            advance_lane_history(&hilbert_normal_field[0][0]);
-            advance_lane_history(&rms_color_field[0][0]);
+            advance_lane_history(&lane_point_values[0][0], LANE_POINT_COUNT);
+            advance_lane_history(&hilbert_normal_field[0][0], LANE_POINT_COUNT);
+            advance_lane_history(&rms_color_field[0][0], LANE_POINT_COUNT);
             for (int i = 0; i < LANE_POINT_COUNT; i++) {
                 lane_point_values[0][i] = analysis_window_samples[(i * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (LANE_POINT_COUNT - 1)];
             }
-            update_onset_interpolation_factor();
+            update_onset_interpolation_factor_waveform();
             build_hilbert_normal_field();
             build_rms_color_field();
             audio_dirty = 1;
         }
 
         if (audio_dirty) {
-            update_mesh_vertices(vertices);
-            update_mesh_normals_smooth(normals, vertices);
+            update_mesh_vertices(vertices, &lane_point_values[0][0], LANE_POINT_COUNT);
+            update_mesh_normals_smooth(normals, vertices, LANE_POINT_COUNT);
             update_mesh_normals_hilbert(hilbert_normals, normals, &hilbert_normal_field[0][0], vertices);
             update_mesh_colors_rms(rms_colors);
             update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices);
             update_mesh_normals_flat(flat_normals, flat_vertices);
             expand_mesh_normals_flat(flat_hilbert_normals, hilbert_normals, mesh_a.indices);
 
-            build_mesh_smooth(&mesh_a, vertices, normals, colors);
+            build_mesh_smooth(&mesh_a, vertices, normals, colors, MESH_VERTEX_COUNT);
             // build_mesh_smooth(&mesh_a, vertices, hilbert_normals, colors);
 
             // build_mesh_smooth(&mesh_b, vertices, normals, colors);
-            build_mesh_smooth(&mesh_b, vertices, normals, rms_colors);
+            build_mesh_smooth(&mesh_b, vertices, normals, rms_colors, MESH_VERTEX_COUNT);
 
             // build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors);
             build_mesh_flat(&flat_mesh, flat_vertices, flat_hilbert_normals, flat_colors);
@@ -193,18 +194,18 @@ int main(void) {
         glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){light0_position.x, light0_position.y, light0_position.z, 1.0f});
         DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         glDisable(GL_LIGHTING);
-        draw_light_position_marker();
+        // draw_light_position_marker();
 
         DrawModelEx(model_b, BOTTOM, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
 
         model_a.meshes[0].colors = NULL;
-        model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = saved_texture_id;
-        rlDisableDepthTest();
-        rlDisableBackfaceCulling();
-        DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
-        rlEnableBackfaceCulling();
-        rlEnableDepthTest();
-        model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
+        // model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = saved_texture_id;
+        // rlDisableDepthTest();
+        // rlDisableBackfaceCulling();
+        // DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+        // rlEnableBackfaceCulling();
+        // rlEnableDepthTest();
+        // model_a.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
 
         glEnable(GL_LIGHTING);
         glShadeModel(GL_FLAT);
@@ -224,9 +225,9 @@ int main(void) {
         model_a.meshes[0].colors = saved_colors;
 
         EndMode3D();
-        DrawFPS(50, 440);
+        DrawTextEx(font, TextFormat("%2i FPS", GetFPS()), (Vector2){50.0f, 440.0f}, FONT_SIZE, 0.0f, WHITE);
         draw_playback_inspection_hud();
-        draw_padmouse();
+        // draw_padmouse();
         EndDrawing();
     }
 
@@ -482,7 +483,7 @@ static Color sample_rms_pallete(float rms) {
     };
 }
 
-static void update_onset_interpolation_factor(void) {
+static void update_onset_interpolation_factor_waveform(void) {
     // raw waveform signal derived onset  LIMITATIONS!!!:
     // https://www.iro.umontreal.ca/~pift6080/H09/documents/papers/bello_onset_tutorial.pdf
     // https://mural.maynoothuniversity.ie/id/eprint/4204/1/JT_Real-Time_Detection.pdf
@@ -538,13 +539,13 @@ static void update_playback_controls_waveform(void) {
                     analysis_window_samples[i] = (float)resume_chunk_samples[i] / ANALYSIS_PCM16_UPPER_BOUND;
                 }
 
-                advance_lane_history(&lane_point_values[0][0]);
-                advance_lane_history(&hilbert_normal_field[0][0]);
-                advance_lane_history(&rms_color_field[0][0]);
+                advance_lane_history(&lane_point_values[0][0], LANE_POINT_COUNT);
+                advance_lane_history(&hilbert_normal_field[0][0], LANE_POINT_COUNT);
+                advance_lane_history(&rms_color_field[0][0], LANE_POINT_COUNT);
                 for (int i = 0; i < LANE_POINT_COUNT; i++) {
                     lane_point_values[0][i] = analysis_window_samples[(i * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (LANE_POINT_COUNT - 1)];
                 }
-                update_onset_interpolation_factor();
+                update_onset_interpolation_factor_waveform();
                 build_hilbert_normal_field();
                 build_rms_color_field();
                 analysis_dirty = 1;
@@ -576,13 +577,13 @@ static void update_playback_controls_waveform(void) {
                 analysis_window_samples[sample_index] = (float)wave_pcm16[src] / ANALYSIS_PCM16_UPPER_BOUND;
             }
 
-            advance_lane_history(&lane_point_values[0][0]);
-            advance_lane_history(&hilbert_normal_field[0][0]);
-            advance_lane_history(&rms_color_field[0][0]);
+            advance_lane_history(&lane_point_values[0][0], LANE_POINT_COUNT);
+            advance_lane_history(&hilbert_normal_field[0][0], LANE_POINT_COUNT);
+            advance_lane_history(&rms_color_field[0][0], LANE_POINT_COUNT);
             for (int i = 0; i < LANE_POINT_COUNT; i++) {
                 lane_point_values[0][i] = analysis_window_samples[(i * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (LANE_POINT_COUNT - 1)];
             }
-            update_onset_interpolation_factor();
+            update_onset_interpolation_factor_waveform();
             build_hilbert_normal_field();
             build_rms_color_field();
         }
@@ -591,15 +592,15 @@ static void update_playback_controls_waveform(void) {
     }
 
     if (analysis_dirty) {
-        update_mesh_vertices(vertices);
-        update_mesh_normals_smooth(normals, vertices);
+        update_mesh_vertices(vertices, &lane_point_values[0][0], LANE_POINT_COUNT);
+        update_mesh_normals_smooth(normals, vertices, LANE_POINT_COUNT);
         update_mesh_normals_hilbert(hilbert_normals, normals, &hilbert_normal_field[0][0], vertices);
         update_mesh_colors_rms(rms_colors);
         update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices);
         update_mesh_normals_flat(flat_normals, flat_vertices);
         expand_mesh_normals_flat(flat_hilbert_normals, hilbert_normals, mesh_a.indices);
-        build_mesh_smooth(&mesh_a, vertices, normals, colors);
-        build_mesh_smooth(&mesh_b, vertices, normals, rms_colors);
+        build_mesh_smooth(&mesh_a, vertices, normals, colors, MESH_VERTEX_COUNT);
+        build_mesh_smooth(&mesh_b, vertices, normals, rms_colors, MESH_VERTEX_COUNT);
         build_mesh_flat(&flat_mesh, flat_vertices, flat_hilbert_normals, flat_colors);
     }
 }

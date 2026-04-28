@@ -1,5 +1,6 @@
 #define FFFFTT_PROFILE_SOUND_ENVELOPE_3D
 #include "fffftt.h"
+#include <GL/gl.h>
 
 #define LINE_WIDTH_RASTER_PIXELS 2.0f
 
@@ -48,7 +49,7 @@ int main(void) {
             for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
                 analysis_window_samples[i] = (float)chunk_samples[i] / ANALYSIS_PCM16_UPPER_BOUND;
             }
-            advance_lane_history(&lane_point_values[0][0]);
+            advance_lane_history(&lane_point_values[0][0], LANE_POINT_COUNT);
             smooth_front_lane();
         }
 
