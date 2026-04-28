@@ -735,6 +735,7 @@ static Texture2D build_lane_mask_glow(float* texcoords, int point_count) {
 #define LIGHT0_MARKER_SEGMENTS 16
 
 static float onset_interpolation_factor = 0.0f;
+static float onset_interpolation_factor_history[ANALYSIS_FFT_HISTORY_FRAME_COUNT] = {0};
 static float light0_diffuse[4] = {LIGHT0_DIFFUSE_MIN, LIGHT0_DIFFUSE_MIN, LIGHT0_DIFFUSE_MIN, 1.0f};
 static Vector3 light0_position = {1.330f, 1.345f, -1.418f};
 
@@ -743,11 +744,12 @@ static void update_onset_interpolation_factor_fft(FFTData* fft_data) {
     // https://librosa.org/doc/main/generated/librosa.onset.onset_strength.html
     // TODO: onset_detect would be a later peak-pick stage is more complicated...
     // https://librosa.org/doc/main/generated/librosa.onset.onset_detect.html
+    int current_index = (fft_data->history_pos - 1 + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
     if (fft_data->frame_index <= ONSET_LAG_FRAMES) {
+        onset_interpolation_factor_history[current_index] = onset_interpolation_factor;
         return;
     }
 
-    int current_index = (fft_data->history_pos - 1 + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
     int lag_index = (fft_data->history_pos - 1 - ONSET_LAG_FRAMES + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
     float* spectrum = fft_data->spectrum_history_levels[current_index];
     float* lag_spectrum = fft_data->spectrum_history_levels[lag_index];
@@ -774,6 +776,7 @@ static void update_onset_interpolation_factor_fft(FFTData* fft_data) {
     }
     onset_interpolation_factor = LERP(onset_interpolation_factor, onset_strength_normalized, onset_rate);
     onset_interpolation_factor = CLAMP(onset_interpolation_factor, 0.0f, 1.0f);
+    onset_interpolation_factor_history[current_index] = onset_interpolation_factor;
 }
 
 static void update_diffuse_strength(void) {
@@ -975,7 +978,6 @@ static void draw_paused_wave_cursor_lane_marker(void) {
     rlEnableBackfaceCulling();
     rlEnableDepthTest();
     wave_cursor_model->materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
-    wave_cursor_model->meshes[0].colors = NULL;
 }
 
 static inline void draw_wave_cursor_wheel_hud_row(const char* s, float x, float y, Color c) {
