@@ -26,6 +26,7 @@ static float normals[MESH_VERTEX_COUNT * 3] = {0};
 static float hilbert_normals[MESH_VERTEX_COUNT * 3] = {0};
 static Color colors[MESH_VERTEX_COUNT] = {0};
 static Color rms_colors[MESH_VERTEX_COUNT] = {0};
+static float texcoords[MESH_VERTEX_COUNT * 2] = {0};
 
 static float flat_vertices[FLAT_VERTEX_COUNT * 3] = {0};
 static float flat_normals[FLAT_VERTEX_COUNT * 3] = {0};
@@ -75,8 +76,8 @@ int main(void) {
 
     mesh_a = GenMeshPlane(1.0f, 1.0f, LANE_POINT_COUNT - 1, LANE_COUNT - 1);
     mesh_a.colors = RL_CALLOC(mesh_a.vertexCount, sizeof(Color));
-    Texture2D lane_mask_texture = build_lane_mask(mesh_a.texcoords, LANE_POINT_COUNT);
-    wave_cursor_texture = build_lane_mask_glow(mesh_a.texcoords, LANE_POINT_COUNT);
+    Texture2D lane_mask_texture = build_lane_mask(texcoords, LANE_POINT_COUNT);
+    wave_cursor_texture = build_lane_mask_glow(texcoords, LANE_POINT_COUNT);
 
     model_a = LoadModelFromMesh(mesh_a);
     unsigned char* saved_colors = model_a.meshes[0].colors;
@@ -531,11 +532,11 @@ static void rebuild_waveform_terrain_meshes(void) {
     expand_mesh_normals_flat(flat_hilbert_normals, hilbert_normals, mesh_a.indices);
 
     // build_mesh_smooth(&mesh_a, vertices, normals, colors);
-    build_mesh_smooth(&mesh_a, vertices, normals, colors, MESH_VERTEX_COUNT);
+    build_mesh_smooth(&mesh_a, vertices, normals, colors, texcoords, MESH_VERTEX_COUNT);
     // build_mesh_smooth(&mesh_a, vertices, hilbert_normals, colors);
 
     // build_mesh_smooth(&mesh_b, vertices, normals, colors);
-    build_mesh_smooth(&mesh_b, vertices, normals, rms_colors, MESH_VERTEX_COUNT);
+    build_mesh_smooth(&mesh_b, vertices, normals, rms_colors, mesh_b.texcoords, MESH_VERTEX_COUNT);
 
     // build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors);
     // build_mesh_flat(&flat_mesh, flat_vertices, flat_hilbert_normals, flat_colors);

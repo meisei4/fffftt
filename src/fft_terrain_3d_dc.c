@@ -16,6 +16,7 @@ static Model flat_model = {0};
 
 static float vertices[MESH_VERTEX_COUNT * 3] = {0};
 static float normals[MESH_VERTEX_COUNT * 3] = {0};
+static float texcoords[MESH_VERTEX_COUNT * 2] = {0};
 static Color colors[MESH_VERTEX_COUNT] = {0};
 static Color pitch_class_colors[MESH_VERTEX_COUNT] = {0};
 
@@ -75,8 +76,8 @@ int main(void) {
     update_mesh_vertices(mesh_a.vertices, &lane_point_values[0][0], LANE_POINT_COUNT);
     mesh_a.colors = RL_CALLOC(mesh_a.vertexCount, sizeof(Color));
 
-    Texture2D lane_mask_texture = build_lane_mask(mesh_a.texcoords, LANE_POINT_COUNT);
-    wave_cursor_texture = build_lane_mask_glow(mesh_a.texcoords, LANE_POINT_COUNT);
+    Texture2D lane_mask_texture = build_lane_mask(texcoords, LANE_POINT_COUNT);
+    wave_cursor_texture = build_lane_mask_glow(texcoords, LANE_POINT_COUNT);
     // Texture2D lane_mask_texture = build_lane_mask_glow(mesh_a.texcoords);
 
     model_a = LoadModelFromMesh(mesh_a);
@@ -109,8 +110,8 @@ int main(void) {
     update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices);
     update_mesh_normals_flat(flat_normals, flat_vertices);
 
-    build_mesh_smooth(&mesh_a, vertices, normals, colors, MESH_VERTEX_COUNT);
-    build_mesh_smooth(&mesh_b, vertices, normals, pitch_class_colors, MESH_VERTEX_COUNT);
+    build_mesh_smooth(&mesh_a, vertices, normals, colors, texcoords, MESH_VERTEX_COUNT);
+    build_mesh_smooth(&mesh_b, vertices, normals, pitch_class_colors, mesh_b.texcoords, MESH_VERTEX_COUNT);
     build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors);
 
     SetTargetFPS(60);
@@ -162,8 +163,8 @@ int main(void) {
             update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices);
             update_mesh_normals_flat(flat_normals, flat_vertices);
 
-            build_mesh_smooth(&mesh_a, vertices, normals, colors, MESH_VERTEX_COUNT);
-            build_mesh_smooth(&mesh_b, vertices, normals, pitch_class_colors, MESH_VERTEX_COUNT);
+            build_mesh_smooth(&mesh_a, vertices, normals, colors, texcoords, MESH_VERTEX_COUNT);
+            build_mesh_smooth(&mesh_b, vertices, normals, pitch_class_colors, mesh_b.texcoords, MESH_VERTEX_COUNT);
             build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors);
         }
         update_camera_orbit(&camera, GetFrameTime());
@@ -401,9 +402,9 @@ static void rebuild_fft_terrain_meshes(void) {
     update_mesh_normals_smooth(normals, vertices, LANE_POINT_COUNT);
     update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices);
     update_mesh_normals_flat(flat_normals, flat_vertices);
-    build_mesh_smooth(&mesh_a, vertices, normals, colors, MESH_VERTEX_COUNT);
+    build_mesh_smooth(&mesh_a, vertices, normals, colors, texcoords, MESH_VERTEX_COUNT);
     if (!is_paused) {
-        build_mesh_smooth(&mesh_b, vertices, normals, pitch_class_colors, MESH_VERTEX_COUNT);
+        build_mesh_smooth(&mesh_b, vertices, normals, pitch_class_colors, mesh_b.texcoords, MESH_VERTEX_COUNT);
     }
     build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors);
 }

@@ -578,6 +578,22 @@ static void update_mesh_normals_smooth(float* normals, const float* vertices, in
     }
 }
 
+static inline void update_mesh_texcoords_smooth_scroll(int w, int h, float* texcoords, int point_count, int texels_per_quad, float time) {
+    const Vector2 scroll_direction = {1.0f, 0.25f}; //TODO: make this configurable and cleaner
+    const float scroll_speed = 0.015f;
+    float scroll_s = FMODF(scroll_direction.x * scroll_speed * time, 1.0f);
+    float scroll_t = FMODF(scroll_direction.y * scroll_speed * time, 1.0f);
+    for (int i = 0; i < LANE_COUNT; i++) {
+        for (int j = 0; j < point_count; j++) {
+            int k = (i * point_count + j) * 2;
+            float s = ((float)(j * texels_per_quad) / (float)w) + scroll_s;
+            float t = ((float)(i * texels_per_quad) / (float)h) + scroll_t;
+            texcoords[k + 0] = s;
+            texcoords[k + 1] = t;
+        }
+    }
+}
+
 static void update_mesh_vertices_flat(float* dst_vertices, const float* src_vertices, const unsigned short* indices) {
     for (int i = 0; i < FLAT_VERTEX_COUNT; i++) {
         int src_index = indices[i];
@@ -626,9 +642,11 @@ static void expand_mesh_normals_flat(float* dst_normals, const float* src_normal
     }
 }
 
-static void build_mesh_smooth(Mesh* dst_mesh, const float* vertices, const float* src_normals, const Color* src_colors, int vertex_count) {
+static void
+build_mesh_smooth(Mesh* dst_mesh, const float* vertices, const float* src_normals, const Color* src_colors, const float* src_texcoords, int vertex_count) {
     MEMCPY4(dst_mesh->vertices, vertices, sizeof(float) * vertex_count * 3);
     MEMCPY4(dst_mesh->normals, src_normals, sizeof(float) * vertex_count * 3);
+    MEMCPY4(dst_mesh->texcoords, src_texcoords, sizeof(float) * vertex_count * 2);
     MEMCPY(dst_mesh->colors, src_colors, sizeof(Color) * vertex_count);
 }
 
@@ -816,7 +834,9 @@ static inline void draw_light_position_marker(void) {
                 light0_position.y + ring_cos_1 * ring_y,
                 light0_position.z + ring_sin_1,
             };
+            rlDisableDepthTest();
             DrawLine3D(point_0, point_1, NEON_CARROT);
+            rlEnableDepthTest();
         }
     }
 }
@@ -1306,6 +1326,105 @@ static void build_pitch_class_color_field(unsigned char* chroma_index_field,
         chroma_index_field[i] = (unsigned char)best_chroma;
         chroma_strength_field[i] = chroma_strength;
     }
+}
+
+#define WHITE_NOISE_SEED 0x19971110
+#define WHITE_NOISE_ALPHA_THRESHOLD 128
+
+// TODO: interesting noise implementatino from late 1990s:
+// https://web.archive.org/web/20071223173210/http://www.concentric.net/~Ttwang/tech/inthash.htm
+static inline uint32_t jenkins_1997_hash32(uint32_t a) {
+    a = (a + 0x7ED55D16) + (a << 12);
+    a = (a ^ 0xC761C23C) ^ (a >> 19);
+    a = (a + 0x165667B1) + (a << 5);
+    a = (a + 0xD3A2646C) ^ (a << 9);
+    a = (a + 0xFD7046C5) + (a << 3);
+    a = (a ^ 0xB55A4F09) ^ (a >> 16);
+    return a;
+}
+
+static inline uint8_t jenkins_1997_white_noise_u8(uint32_t x, uint32_t y, uint32_t width, uint32_t seed) {
+    uint32_t i = y * width + x;
+    return (uint8_t)(jenkins_1997_hash32(i ^ seed) >> 24);
+}
+
+static inline uint16_t jenkins_1997_white_noise_rgb565(uint32_t x, uint32_t y, uint32_t width, uint32_t seed) {
+    uint8_t v = jenkins_1997_white_noise_u8(x, y, width, seed);
+    return (uint16_t)(((v >> 3) << 11) | ((v >> 2) << 5) | (v >> 3));
+}
+
+//TODO: bake offline ofc, and would be good chance to study pvr and vq stuff too again, just to be thorough/more practice
+static Texture2D build_white_noise_texture(int w, int h) {
+    Image image = {
+        .data = RL_CALLOC(w * h, sizeof(unsigned short)),
+        .width = w,
+        .height = h,
+        .mipmaps = 1,
+        .format = PIXELFORMAT_UNCOMPRESSED_R5G6B5,
+    };
+    unsigned short* pixels = (unsigned short*)image.data;
+    for (uint32_t y = 0; y < h; y++) {
+        for (uint32_t x = 0; x < w; x++) {
+            pixels[y * w + x] = jenkins_1997_white_noise_rgb565(x, y, w, WHITE_NOISE_SEED);
+        }
+    }
+    Texture2D texture = LoadTextureFromImage(image);
+    UnloadImage(image);
+    return texture;
+}
+
+static inline uint16_t jenkins_1997_white_noise_rgba4444(uint32_t x, uint32_t y, uint32_t width, uint32_t seed) {
+    uint8_t v = jenkins_1997_white_noise_u8(x, y, width, seed);
+    uint16_t alpha = (v >= WHITE_NOISE_ALPHA_THRESHOLD) ? ALPHA_FULL : ALPHA_NONE;
+    return (uint16_t)(RGBA4444_WHITE_MASK | (alpha & RGBA4444_ALPHA_MASK));
+}
+
+static const int WHITE_NOISE_SIZE_LUT[8] = {8, 16, 32, 64, 128, 256, 512, 1024};
+
+#define WHITE_NOISE_MASK_DIMS(point_count, texels_per_quad)                                                                                                    \
+    ((int[2]){                                                                                                                                                 \
+        next_power_of_two_lut(((point_count) - 1) * (texels_per_quad)),                                                                                        \
+        next_power_of_two_lut((LANE_COUNT - 1) * (texels_per_quad)),                                                                                           \
+    })
+
+static int next_power_of_two_lut(int value) {
+    int clamped_value = (value > 1) ? value : 1;
+    for (int i = 0; i < 8; i++) {
+        if (WHITE_NOISE_SIZE_LUT[i] >= clamped_value) {
+            return WHITE_NOISE_SIZE_LUT[i];
+        }
+    }
+    return WHITE_NOISE_SIZE_LUT[7];
+}
+
+static void fill_white_noise_mask_texcoords(int w, int h, float* texcoords, int point_count, int texels_per_quad) {
+    for (int i = 0; i < LANE_COUNT; i++) {
+        for (int j = 0; j < point_count; j++) {
+            int k = (i * point_count + j) * 2;
+            texcoords[k + 0] = (float)(j * texels_per_quad) / (float)w;
+            texcoords[k + 1] = (float)(i * texels_per_quad) / (float)h;
+        }
+    }
+}
+
+static Texture2D build_white_noise_mask(int w, int h, float* texcoords, int point_count, int texels_per_quad) {
+    Image image = {
+        .data = RL_CALLOC(w * h, sizeof(unsigned short)),
+        .width = w,
+        .height = h,
+        .mipmaps = 1,
+        .format = PIXELFORMAT_UNCOMPRESSED_R4G4B4A4,
+    };
+    unsigned short* pixels = (unsigned short*)image.data;
+    fill_white_noise_mask_texcoords(w, h, texcoords, point_count, texels_per_quad);
+    for (uint32_t y = 0; y < (uint32_t)h; y++) {
+        for (uint32_t x = 0; x < (uint32_t)w; x++) {
+            pixels[y * w + x] = jenkins_1997_white_noise_rgba4444(x, y, w, WHITE_NOISE_SEED);
+        }
+    }
+    Texture2D texture = LoadTextureFromImage(image);
+    UnloadImage(image);
+    return texture;
 }
 
 #endif // FFFFTT_H

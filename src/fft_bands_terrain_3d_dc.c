@@ -8,6 +8,7 @@
 #define LOW_BAND_POINT_COUNT 9
 #define MID_BAND_POINT_COUNT LANE_POINT_COUNT
 #define HIGH_BAND_POINT_COUNT 49
+#define WHITE_NOISE_TEXELS_PER_QUAD 16
 //TODO: look up tables to make it clear what the bands actually consist of,
 //NOTE: THESE ARE MANUALLY WRITTEN AND SHOULD STAY IN ALIGNMENT WITH ANY CHANGES TO THE ABOVE *_BAND_POINT_COUNT values!
 static const unsigned short LOW_BAND_BIN_BOUNDS[LOW_BAND_POINT_COUNT][2] = {
@@ -63,12 +64,14 @@ static Color low_band_colors[LOW_BAND_VERTEX_COUNT] = {0};
 static float mid_band_vertices[MID_BAND_VERTEX_COUNT * 3] = {0};
 static float mid_band_normals[MID_BAND_VERTEX_COUNT * 3] = {0};
 static Color mid_band_colors[MID_BAND_VERTEX_COUNT] = {0};
+static float mid_band_texcoords[MID_BAND_VERTEX_COUNT * 2] = {0};
 static unsigned char mid_chroma_index_field[LANE_COUNT][MID_BAND_POINT_COUNT] = {0};
 static float mid_chroma_strength_field[LANE_COUNT][MID_BAND_POINT_COUNT] = {0};
 
 static float high_band_vertices[HIGH_BAND_VERTEX_COUNT * 3] = {0};
 static float high_band_normals[HIGH_BAND_VERTEX_COUNT * 3] = {0};
 static Color high_band_colors[HIGH_BAND_VERTEX_COUNT] = {0};
+static float high_band_texcoords[HIGH_BAND_VERTEX_COUNT * 2] = {0};
 static float high_band_timed_glitter_field[LANE_COUNT][HIGH_BAND_POINT_COUNT] = {0};
 static float high_band_spectral_flatness_glitter_field[HIGH_BAND_VERTEX_COUNT] = {0};
 
@@ -126,16 +129,13 @@ int main(void) {
 
     low_band_mesh = GenMeshPlane(1.0f, 1.0f, LOW_BAND_POINT_COUNT - 1, LANE_COUNT - 1);
     low_band_mesh.colors = RL_CALLOC(low_band_mesh.vertexCount, sizeof(Color));
-    Texture2D lane_mask_texture = build_lane_mask(low_band_mesh.texcoords, LOW_BAND_POINT_COUNT);
-    wave_cursor_texture = build_lane_mask_glow(low_band_mesh.texcoords, LOW_BAND_POINT_COUNT);
     low_band_model = LoadModelFromMesh(low_band_mesh);
     unsigned char* low_saved_colors = low_band_model.meshes[0].colors;
-    low_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = lane_mask_texture;
-    low_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
 
     mid_band_mesh = GenMeshPlane(1.0f, 1.0f, MID_BAND_POINT_COUNT - 1, LANE_COUNT - 1);
     mid_band_mesh.colors = RL_CALLOC(mid_band_mesh.vertexCount, sizeof(Color));
-    fill_lane_mask_texcoords(mid_band_mesh.texcoords, MID_BAND_POINT_COUNT);
+    Texture2D lane_mask_texture = build_lane_mask(mid_band_texcoords, MID_BAND_POINT_COUNT);
+    wave_cursor_texture = build_lane_mask_glow(mid_band_texcoords, MID_BAND_POINT_COUNT);
     mid_band_model = LoadModelFromMesh(mid_band_mesh);
     unsigned char* mid_saved_colors = mid_band_model.meshes[0].colors;
     mid_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = lane_mask_texture;
@@ -143,10 +143,13 @@ int main(void) {
 
     high_band_mesh = GenMeshPlane(1.0f, 1.0f, HIGH_BAND_POINT_COUNT - 1, LANE_COUNT - 1);
     high_band_mesh.colors = RL_CALLOC(high_band_mesh.vertexCount, sizeof(Color));
-    fill_lane_mask_texcoords(high_band_mesh.texcoords, HIGH_BAND_POINT_COUNT);
+    int* white_noise_dimensions = WHITE_NOISE_MASK_DIMS(HIGH_BAND_POINT_COUNT, WHITE_NOISE_TEXELS_PER_QUAD);
+    Texture2D white_noise_texture =
+        build_white_noise_mask(white_noise_dimensions[0], white_noise_dimensions[1], high_band_texcoords, HIGH_BAND_POINT_COUNT, WHITE_NOISE_TEXELS_PER_QUAD);
     high_band_model = LoadModelFromMesh(high_band_mesh);
     unsigned char* high_saved_colors = high_band_model.meshes[0].colors;
-    high_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = lane_mask_texture;
+    high_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = white_noise_texture;
+    int white_noise_texture_id = high_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id;
     high_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
 
     wave_cursor_model = &mid_band_model;
@@ -158,16 +161,16 @@ int main(void) {
 
     update_mesh_vertices(low_band_vertices, &low_band_lane_point_values[0][0], LOW_BAND_POINT_COUNT);
     update_mesh_normals_smooth(low_band_normals, low_band_vertices, LOW_BAND_POINT_COUNT);
-    build_mesh_smooth(&low_band_mesh, low_band_vertices, low_band_normals, low_band_colors, LOW_BAND_VERTEX_COUNT);
+    build_mesh_smooth(&low_band_mesh, low_band_vertices, low_band_normals, low_band_colors, low_band_mesh.texcoords, LOW_BAND_VERTEX_COUNT);
 
     update_mesh_vertices(mid_band_vertices, &mid_band_lane_point_values[0][0], MID_BAND_POINT_COUNT);
     update_mesh_normals_smooth(mid_band_normals, mid_band_vertices, MID_BAND_POINT_COUNT);
     update_mesh_colors_pitch_class(mid_band_colors, &mid_chroma_index_field[0][0], &mid_chroma_strength_field[0][0], MID_BAND_POINT_COUNT);
-    build_mesh_smooth(&mid_band_mesh, mid_band_vertices, mid_band_normals, mid_band_colors, MID_BAND_VERTEX_COUNT);
+    build_mesh_smooth(&mid_band_mesh, mid_band_vertices, mid_band_normals, mid_band_colors, mid_band_texcoords, MID_BAND_VERTEX_COUNT);
 
     update_mesh_vertices(high_band_vertices, &high_band_lane_point_values[0][0], HIGH_BAND_POINT_COUNT);
     update_mesh_normals_smooth(high_band_normals, high_band_vertices, HIGH_BAND_POINT_COUNT);
-    build_mesh_smooth(&high_band_mesh, high_band_vertices, high_band_normals, high_band_colors, HIGH_BAND_VERTEX_COUNT);
+    build_mesh_smooth(&high_band_mesh, high_band_vertices, high_band_normals, high_band_colors, high_band_texcoords, HIGH_BAND_VERTEX_COUNT);
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
@@ -204,6 +207,12 @@ int main(void) {
         }
 
         update_audio_track_cycle();
+        update_mesh_texcoords_smooth_scroll(white_noise_dimensions[0],
+                                            white_noise_dimensions[1],
+                                            high_band_mesh.texcoords,
+                                            HIGH_BAND_POINT_COUNT,
+                                            WHITE_NOISE_TEXELS_PER_QUAD,
+                                            (float)GetTime());
         update_camera_orbit(&camera, GetFrameTime());
         update_padmouse(GetFrameTime(), &camera);
         update_diffuse_strength();
@@ -227,10 +236,12 @@ int main(void) {
         DrawModelEx(mid_band_model, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         low_band_model.meshes[0].colors = NULL;
         mid_band_model.meshes[0].colors = NULL;
+        high_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = white_noise_texture_id;
+        // DrawModelEx(high_band_model, TOP, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         DrawModelPointsEx(high_band_model, TOP, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+        high_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
         low_band_model.meshes[0].colors = low_saved_colors;
         mid_band_model.meshes[0].colors = mid_saved_colors;
-        high_band_model.meshes[0].colors = high_saved_colors;
 
         if (is_paused) {
             draw_paused_wave_cursor_lane_marker(); // TODO: make this actually idempotentent
@@ -247,6 +258,7 @@ int main(void) {
 
     UnloadTexture(lane_mask_texture);
     UnloadTexture(wave_cursor_texture);
+    UnloadTexture(white_noise_texture);
     UnloadModel(low_band_model);
     UnloadModel(mid_band_model);
     UnloadModel(high_band_model);
@@ -571,12 +583,12 @@ static void rebuild_fft_terrain_meshes(void) {
 
     update_mesh_vertices(low_band_vertices, &low_band_lane_point_values[0][0], LOW_BAND_POINT_COUNT);
     update_mesh_normals_smooth(low_band_normals, low_band_vertices, LOW_BAND_POINT_COUNT);
-    build_mesh_smooth(&low_band_mesh, low_band_vertices, low_band_normals, low_band_colors, LOW_BAND_VERTEX_COUNT);
+    build_mesh_smooth(&low_band_mesh, low_band_vertices, low_band_normals, low_band_colors, low_band_mesh.texcoords, LOW_BAND_VERTEX_COUNT);
 
     update_mesh_vertices(mid_band_vertices, &mid_band_lane_point_values[0][0], MID_BAND_POINT_COUNT);
     update_mesh_normals_smooth(mid_band_normals, mid_band_vertices, MID_BAND_POINT_COUNT);
     update_mesh_colors_pitch_class(mid_band_colors, &mid_chroma_index_field[0][0], &mid_chroma_strength_field[0][0], MID_BAND_POINT_COUNT);
-    build_mesh_smooth(&mid_band_mesh, mid_band_vertices, mid_band_normals, mid_band_colors, MID_BAND_VERTEX_COUNT);
+    build_mesh_smooth(&mid_band_mesh, mid_band_vertices, mid_band_normals, mid_band_colors, mid_band_texcoords, MID_BAND_VERTEX_COUNT);
 
     update_mesh_vertices(high_band_vertices, &high_band_lane_point_values[0][0], HIGH_BAND_POINT_COUNT);
     update_mesh_normals_smooth(high_band_normals, high_band_vertices, HIGH_BAND_POINT_COUNT);
@@ -587,7 +599,7 @@ static void rebuild_fft_terrain_meshes(void) {
     }
     update_mesh_colors_spectral_flatness_glitter(high_band_colors, high_band_spectral_flatness_glitter_field);
     // update_mesh_colors_timed_glitter(high_band_colors, &high_band_timed_glitter_field[0][0], HIGH_BAND_POINT_COUNT, (float)GetTime());
-    build_mesh_smooth(&high_band_mesh, high_band_vertices, high_band_normals, high_band_colors, HIGH_BAND_VERTEX_COUNT);
+    build_mesh_smooth(&high_band_mesh, high_band_vertices, high_band_normals, high_band_colors, high_band_texcoords, HIGH_BAND_VERTEX_COUNT);
 }
 
 static void rebase_fft_history(void) {
