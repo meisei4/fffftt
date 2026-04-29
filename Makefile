@@ -235,6 +235,7 @@ audio-only-wav-dc: gldc-lib
 	$(MAKE) -C $(RAYLIB_DC_SRC) clean
 	$(MAKE) -C $(RAYLIB_DC_SRC) all PLATFORM=PLATFORM_DREAMCAST GRAPHICS=GRAPHICS_API_OPENGL_11 KOS_CFLAGS="$(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(GLDC_INCLUDE_CFLAG)"
 	mkdir -p $(BIN_DIR) $(AUDIO_ONLY_WAV_TARGET_DIR)
+	cp -f $(SRC_DIR)/resources/country_44100hz_pcm16_stereo.wav $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk/
 	$(KOS_GENROMFS) -f $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk.img -d $(ROMDISK_DIR) -v -x .gitignore -x .DS_Store -x Thumbs.db
 	$(KOS_BASE)/utils/bin2c/bin2c $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk.img $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk_tmp.c romdisk
 	$(KOS_CC) $(KOS_CFLAGS) -o $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk_tmp.o -c $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk_tmp.c
@@ -250,6 +251,7 @@ audio-only-mp3-dc: gldc-lib
 	$(MAKE) -C $(RAYLIB_DC_SRC) clean
 	$(MAKE) -C $(RAYLIB_DC_SRC) all PLATFORM=PLATFORM_DREAMCAST GRAPHICS=GRAPHICS_API_OPENGL_11 KOS_CFLAGS="$(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(GLDC_INCLUDE_CFLAG)"
 	mkdir -p $(BIN_DIR) $(AUDIO_ONLY_MP3_TARGET_DIR)
+	cp -f $(SRC_DIR)/resources/country_44100hz_128kbps_stereo.mp3 $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk/
 	$(KOS_GENROMFS) -f $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk.img -d $(ROMDISK_DIR) -v -x .gitignore -x .DS_Store -x Thumbs.db
 	$(KOS_BASE)/utils/bin2c/bin2c $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk.img $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk_tmp.c romdisk
 	$(KOS_CC) $(KOS_CFLAGS) -o $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk_tmp.o -c $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk_tmp.c
@@ -402,7 +404,7 @@ gldc-mesh-draw-mode-dc: $(DC_RAYLIB_DIR)/libraylib.a
 
 fft-bands-terrain-3d-dc: $(DC_RAYLIB_DIR)/libraylib.a
 	mkdir -p $(BIN_DIR) $(FFT_BAND_TERRAIN_3D_DC_TARGET_DIR) $(FFT_BAND_TERRAIN_3D_DC_TARGET_DIR)/romdisk
-#	cp -f $(SRC_DIR)/resources/shadertoy_experiment_22050hz_pcm16_mono.wav $(FFT_BAND_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
+	cp -f $(SRC_DIR)/resources/shadertoy_experiment_22050hz_pcm16_mono.wav $(FFT_BAND_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 	cp -f $(SRC_DIR)/resources/shadertoy_electronebulae_one_fourth_22050hz_pcm16_mono.wav $(FFT_BAND_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/dds_ffm_22050hz_pcm16_mono.wav $(FFT_BAND_TERRAIN_3D_DC_TARGET_DIR)/romdisk/
 #	cp -f $(SRC_DIR)/resources/rama_22050hz_pcm16_mono.wav $(FFT_BAND_TERRAIN_3D_DC_TARGET_DIR)/romdisk/

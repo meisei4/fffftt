@@ -137,6 +137,7 @@ typedef struct FFTData {
     FFTComplex* work_buffer;
     float* prev_spectrum_bin_levels;
     unsigned int frame_index;
+    float (*raw_spectrum_history_levels)[ANALYSIS_SPECTRUM_BIN_COUNT];
     float (*spectrum_history_levels)[ANALYSIS_SPECTRUM_BIN_COUNT];
     int history_pos;
     float tapback_pos;
@@ -344,10 +345,13 @@ static inline void update_spectrum_bin(float* smoothed_spectrum, int bin, float 
 
 static inline void build_spectrum(void) {
     float* smoothed_spectrum = fft_data.spectrum_history_levels[fft_data.history_pos];
+    float* raw_spectrum = fft_data.raw_spectrum_history_levels[fft_data.history_pos];
 
     for (int bin = 0; bin < ANALYSIS_SPECTRUM_BIN_COUNT; bin++) {
         float re = fft_data.work_buffer[bin].real;
         float im = fft_data.work_buffer[bin].imaginary;
+        float linear_magnitude = sqrtf(re * re + im * im) / ANALYSIS_WINDOW_SIZE_IN_FRAMES;
+        raw_spectrum[bin] = linear_magnitude;
         update_spectrum_bin(smoothed_spectrum, bin, re, im);
     }
 
@@ -357,10 +361,13 @@ static inline void build_spectrum(void) {
 
 static inline void build_spectrum_fftw(fftw_complex* fft_output) {
     float* smoothed_spectrum = fft_data.spectrum_history_levels[fft_data.history_pos];
+    float* raw_spectrum = fft_data.raw_spectrum_history_levels[fft_data.history_pos];
 
     for (int bin = 0; bin < ANALYSIS_SPECTRUM_BIN_COUNT; bin++) {
         float re = (float)fft_output[bin].re;
         float im = (float)fft_output[bin].im;
+        float linear_magnitude = sqrtf(re * re + im * im) / ANALYSIS_WINDOW_SIZE_IN_FRAMES;
+        raw_spectrum[bin] = linear_magnitude;
         update_spectrum_bin(smoothed_spectrum, bin, re, im);
     }
 
@@ -1081,6 +1088,62 @@ static void update_playback_controls(void) {
         seek_delta_chunks++;
         rebuild_envelope_history_from_wave();
     }
+}
+
+#define DEFAULT_AUDIO_TRACK_SHADERTOY_EXPERIMENT 0
+#define DEFAULT_AUDIO_TRACK_ELECTRONEBULAE 1
+#define DEFAULT_AUDIO_TRACK_DDS_FFM 2
+#define DEFAULT_AUDIO_TRACK_RAMA 3
+#define DEFAULT_AUDIO_TRACK_CT_LOR 4
+#define DEFAULT_AUDIO_TRACK_AT_UNTITLED 5
+#define DEFAULT_AUDIO_TRACK_TJ_SAYO 6
+#define AUDIO_TRACK_COUNT 7
+
+#define AUDIO_TRACK_PATH(track_index)                                                                                                                          \
+    ((track_index) == DEFAULT_AUDIO_TRACK_SHADERTOY_EXPERIMENT ? RD_SHADERTOY_EXPERIMENT_22K_WAV                                                               \
+     : (track_index) == DEFAULT_AUDIO_TRACK_ELECTRONEBULAE     ? RD_SHADERTOY_ELECTRONEBULAE_ONE_FOURTH_22K_WAV                                                \
+     : (track_index) == DEFAULT_AUDIO_TRACK_DDS_FFM            ? RD_DDS_FFM_22K_WAV                                                                            \
+     : (track_index) == DEFAULT_AUDIO_TRACK_RAMA               ? RD_RAMA_22K_WAV                                                                               \
+     : (track_index) == DEFAULT_AUDIO_TRACK_CT_LOR             ? RD_CT_LOR_22K_WAV                                                                             \
+     : (track_index) == DEFAULT_AUDIO_TRACK_AT_UNTITLED        ? RD_AT_UNTITLED_22K_WAV                                                                        \
+                                                               : RD_TJ_SAYO_22K_WAV)
+
+#define LOAD_AUDIO_TRACK(track_index)                                                                                                                          \
+    do {                                                                                                                                                       \
+        audio_track_index = (track_index);                                                                                                                     \
+        wave = LoadWave(AUDIO_TRACK_PATH(audio_track_index));                                                                                                  \
+    } while (0)
+
+static int audio_track_index = DEFAULT_AUDIO_TRACK_SHADERTOY_EXPERIMENT;
+
+static inline void update_audio_track_cycle(void) {
+    int dir = 0;
+    if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) {
+        dir = BACKWARD;
+    } else if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_UP)) {
+        dir = FORWARD;
+    }
+    if (dir == 0) {
+        return;
+    }
+
+    audio_track_index += dir;
+    if (audio_track_index < 0) {
+        audio_track_index = AUDIO_TRACK_COUNT - 1;
+    } else if (audio_track_index >= AUDIO_TRACK_COUNT) {
+        audio_track_index = 0;
+    }
+
+    StopAudioStream(audio_stream);
+    UnloadWave(wave);
+    wave = LoadWave(AUDIO_TRACK_PATH(audio_track_index));
+    WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    wave_pcm16 = (int16_t*)wave.data;
+    wave_cursor = 0;
+    paused_wave_cursor = 0;
+    seek_delta_chunks = 0;
+    is_paused = false;
+    PlayAudioStream(audio_stream);
 }
 
 #define PITCH_CLASS_COUNT 12

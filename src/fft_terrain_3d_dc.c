@@ -43,6 +43,7 @@ int main(void) {
     fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;
     fft_data.work_buffer = RL_CALLOC(ANALYSIS_WINDOW_SIZE_IN_FRAMES, sizeof(FFTComplex));
     fft_data.prev_spectrum_bin_levels = RL_CALLOC(ANALYSIS_SPECTRUM_BIN_COUNT, sizeof(float));
+    fft_data.raw_spectrum_history_levels = RL_CALLOC(ANALYSIS_FFT_HISTORY_FRAME_COUNT, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]));
     fft_data.spectrum_history_levels = RL_CALLOC(ANALYSIS_FFT_HISTORY_FRAME_COUNT, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]));
 
     InitAudioDevice();
@@ -238,6 +239,7 @@ int main(void) {
     UnloadAudioStream(audio_stream);
     UnloadWave(wave);
     CloseAudioDevice();
+    RL_FREE(fft_data.raw_spectrum_history_levels);
     RL_FREE(fft_data.spectrum_history_levels);
     RL_FREE(fft_data.prev_spectrum_bin_levels);
     RL_FREE(fft_data.work_buffer);
@@ -409,6 +411,7 @@ static void rebuild_fft_terrain_meshes(void) {
 static void rebase_fft_history(void) {
     inspection_ready = 0;
     MEMSET(fft_data.prev_spectrum_bin_levels, 0, sizeof(float) * ANALYSIS_SPECTRUM_BIN_COUNT);
+    MEMSET(fft_data.raw_spectrum_history_levels, 0, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]) * ANALYSIS_FFT_HISTORY_FRAME_COUNT);
     MEMSET(fft_data.spectrum_history_levels, 0, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]) * ANALYSIS_FFT_HISTORY_FRAME_COUNT);
     MEMSET(onset_interpolation_factor_history, 0, sizeof(onset_interpolation_factor_history));
     MEMSET(lane_point_values, 0, sizeof(lane_point_values));

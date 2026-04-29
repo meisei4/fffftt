@@ -16,6 +16,7 @@ int main(void) {
 
     fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;
     fft_data.prev_spectrum_bin_levels = RL_CALLOC(ANALYSIS_SPECTRUM_BIN_COUNT, sizeof(float));
+    fft_data.raw_spectrum_history_levels = RL_CALLOC(ANALYSIS_FFT_HISTORY_FRAME_COUNT, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]));
     fft_data.spectrum_history_levels = RL_CALLOC(ANALYSIS_FFT_HISTORY_FRAME_COUNT, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]));
 
     fftw_input = (fftw_complex*)fftw_malloc(sizeof(fftw_complex) * ANALYSIS_WINDOW_SIZE_IN_FRAMES);
@@ -75,6 +76,7 @@ int main(void) {
     fftw_destroy_plan(fftw_plan_state);
     fftw_free(fftw_input);
     fftw_free(fftw_output);
+    RL_FREE(fft_data.raw_spectrum_history_levels);
     RL_FREE(fft_data.spectrum_history_levels);
     RL_FREE(fft_data.prev_spectrum_bin_levels);
     CloseWindow();

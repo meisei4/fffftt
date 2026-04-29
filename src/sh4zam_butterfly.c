@@ -12,6 +12,7 @@ int main(void) {
     fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;
     fft_data.work_buffer = RL_CALLOC(ANALYSIS_WINDOW_SIZE_IN_FRAMES, sizeof(FFTComplex));
     fft_data.prev_spectrum_bin_levels = RL_CALLOC(ANALYSIS_SPECTRUM_BIN_COUNT, sizeof(float));
+    fft_data.raw_spectrum_history_levels = RL_CALLOC(ANALYSIS_FFT_HISTORY_FRAME_COUNT, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]));
     fft_data.spectrum_history_levels = RL_CALLOC(ANALYSIS_FFT_HISTORY_FRAME_COUNT, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]));
 
     InitAudioDevice();
@@ -63,6 +64,7 @@ int main(void) {
     UnloadAudioStream(audio_stream);
     UnloadWave(wave);
     CloseAudioDevice();
+    RL_FREE(fft_data.raw_spectrum_history_levels);
     RL_FREE(fft_data.spectrum_history_levels);
     RL_FREE(fft_data.prev_spectrum_bin_levels);
     RL_FREE(fft_data.work_buffer);
