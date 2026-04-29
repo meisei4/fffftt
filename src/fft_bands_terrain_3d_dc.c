@@ -335,8 +335,8 @@ static void build_glitter_color_field(int lane, const float* bin_levels) {
         const float center = lane_glitter_seeds[i];
         const float left = (i > 0) ? lane_glitter_seeds[i - 1] * 0.60f : 0.0f;
         const float right = (i < HIGH_BAND_POINT_COUNT - 1) ? lane_glitter_seeds[i + 1] * 0.60f : 0.0f;
-        const float decay = high_band_glitter_field[lane + 1][i] * 0.84f;
-        high_band_glitter_field[0][i] = FMAXF(FMAXF(center, left), FMAXF(right, decay));
+        const float decay = (lane + 1 < LANE_COUNT) ? high_band_glitter_field[lane + 1][i] * 0.84f : 0.0f;
+        high_band_glitter_field[lane][i] = FMAXF(FMAXF(center, left), FMAXF(right, decay));
     }
 }
 
