@@ -14,13 +14,6 @@ static Model model_a = {0};
 static Model model_b = {0};
 static Model flat_model = {0};
 
-static void update_playback_controls_fft(void);
-static void consume_latest_fft_history_frame(void);
-static void build_fft_terrain_lane_from_history(int lane, int frame);
-static void inspection_step(int dir);
-static void rebuild_fft_terrain_meshes(void);
-static void rebase_fft_history(void);
-
 static float vertices[MESH_VERTEX_COUNT * 3] = {0};
 static float normals[MESH_VERTEX_COUNT * 3] = {0};
 static Color colors[MESH_VERTEX_COUNT] = {0};
@@ -31,10 +24,17 @@ static float flat_normals[FLAT_VERTEX_COUNT * 3] = {0};
 static Color flat_colors[FLAT_VERTEX_COUNT] = {0};
 static unsigned char chroma_index_field[LANE_COUNT][LANE_POINT_COUNT] = {0};
 static float chroma_strength_field[LANE_COUNT][LANE_POINT_COUNT] = {0};
+
 static int inspection_ready = 0;
 static int inspection_frame = 0;
 static int inspection_frame_oldest = 0;
 static int inspection_frame_newest = 0;
+static void update_playback_controls_fft(void);
+static void consume_latest_fft_history_frame(void);
+static void build_fft_terrain_lane_from_history(int lane, int frame);
+static void inspection_step(int dir);
+static void rebuild_fft_terrain_meshes(void);
+static void rebase_fft_history(void);
 
 int main(void) {
     SetTraceLogLevel(LOG_WARNING);
@@ -297,7 +297,7 @@ static void update_playback_controls_fft(void) {
         int target_frame = inspection_frame - 1;
         if (inspection_ready && inspection_frame > 0 && target_frame >= inspection_frame_oldest + (LANE_COUNT - 1)) {
             inspection_frame = target_frame;
-            inspection_step(-1);
+            inspection_step(BACKWARD);
         } else {
             rebase_fft_history();
         }
@@ -309,7 +309,7 @@ static void update_playback_controls_fft(void) {
         int target_frame = inspection_frame + 1;
         if (inspection_ready && target_frame <= inspection_frame_newest) {
             inspection_frame = target_frame;
-            inspection_step(1);
+            inspection_step(FORWARD);
         } else if (inspection_ready && inspection_frame == inspection_frame_newest) {
             for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
                 int src = (wave_cursor + i) % wave.frameCount;
@@ -327,7 +327,7 @@ static void update_playback_controls_fft(void) {
                 inspection_frame_oldest = inspection_frame_newest - (ANALYSIS_FFT_HISTORY_FRAME_COUNT - 1);
             }
             inspection_frame = inspection_frame_newest;
-            inspection_step(1);
+            inspection_step(FORWARD);
         } else {
             rebase_fft_history();
         }
@@ -383,20 +383,13 @@ static void build_fft_terrain_lane_from_history(int lane, int frame) {
 }
 
 static void inspection_step(int dir) {
-    const int start = (dir < 0) ? 0 : (LANE_COUNT - 1);
-    const int end = (dir < 0) ? (LANE_COUNT - 1) : 0;
-    const int step = (dir < 0) ? 1 : -1;
-    const int target_lane = (dir < 0) ? (LANE_COUNT - 1) : 0;
-    const int target_frame = (dir < 0) ? (inspection_frame - (LANE_COUNT - 1)) : inspection_frame;
-
-    for (int i = start; i != end; i += step) {
-        const int src = i + step;
-        MEMCPY(lane_point_values[i], lane_point_values[src], sizeof(lane_point_values[i]));
-        MEMCPY(chroma_index_field[i], chroma_index_field[src], sizeof(chroma_index_field[i]));
-        MEMCPY(chroma_strength_field[i], chroma_strength_field[src], sizeof(chroma_strength_field[i]));
+    for (int i = (dir == FORWARD) ? LANE_COUNT - 1 : 0; i != ((dir == FORWARD) ? 0 : LANE_COUNT - 1); i -= dir) {
+        MEMCPY(lane_point_values[i], lane_point_values[i - dir], sizeof(lane_point_values[i]));
+        MEMCPY(chroma_index_field[i], chroma_index_field[i - dir], sizeof(chroma_index_field[i]));
+        MEMCPY(chroma_strength_field[i], chroma_strength_field[i - dir], sizeof(chroma_strength_field[i]));
     }
 
-    build_fft_terrain_lane_from_history(target_lane, target_frame);
+    build_fft_terrain_lane_from_history((dir == FORWARD) ? 0 : LANE_COUNT - 1, (dir == FORWARD) ? inspection_frame : inspection_frame - (LANE_COUNT - 1));
 }
 
 static void rebuild_fft_terrain_meshes(void) {

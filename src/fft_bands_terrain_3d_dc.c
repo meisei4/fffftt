@@ -70,16 +70,16 @@ static float high_band_vertices[HIGH_BAND_VERTEX_COUNT * 3] = {0};
 static float high_band_normals[HIGH_BAND_VERTEX_COUNT * 3] = {0};
 static Color high_band_colors[HIGH_BAND_VERTEX_COUNT] = {0};
 static float high_band_glitter_field[LANE_COUNT][HIGH_BAND_POINT_COUNT] = {0};
-static int inspection_ready = 0;
-static int inspection_frame = 0;
-static int inspection_frame_oldest = 0;
-static int inspection_frame_newest = 0;
 
 static void build_bands_terrain(int lane, const float* bin_levels);
 static void build_band_terrain(float* front_lane, int point_count, const float* bin_levels, const unsigned short band_bin_bounds[][2]);
 static void build_glitter_color_field(int lane, const float* bin_levels);
 static void update_mesh_colors_glitter(Color* colors, const float* glitter_field, int point_count, float t);
 
+static int inspection_ready = 0;
+static int inspection_frame = 0;
+static int inspection_frame_oldest = 0;
+static int inspection_frame_newest = 0;
 static void update_playback_controls_fft(void);
 static void consume_latest_fft_history_frame(void);
 static void build_fft_terrain_lane_from_history(int lane, int frame);
@@ -418,7 +418,7 @@ static void update_playback_controls_fft(void) {
         int target_frame = inspection_frame - 1;
         if (inspection_ready && inspection_frame > 0 && target_frame >= inspection_frame_oldest + (LANE_COUNT - 1)) {
             inspection_frame = target_frame;
-            inspection_step(-1);
+            inspection_step(BACKWARD);
         } else {
             rebase_fft_history();
         }
@@ -430,7 +430,7 @@ static void update_playback_controls_fft(void) {
         int target_frame = inspection_frame + 1;
         if (inspection_ready && target_frame <= inspection_frame_newest) {
             inspection_frame = target_frame;
-            inspection_step(1);
+            inspection_step(FORWARD);
         } else if (inspection_ready && inspection_frame == inspection_frame_newest) {
             for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
                 int src = (wave_cursor + i) % wave.frameCount;
@@ -449,7 +449,7 @@ static void update_playback_controls_fft(void) {
                 inspection_frame_oldest = inspection_frame_newest - (ANALYSIS_FFT_HISTORY_FRAME_COUNT - 1);
             }
             inspection_frame = inspection_frame_newest;
-            inspection_step(1);
+            inspection_step(FORWARD);
         } else {
             rebase_fft_history();
         }
@@ -479,23 +479,16 @@ static void build_fft_terrain_lane_from_history(int lane, int frame) {
 }
 
 static void inspection_step(int dir) {
-    const int start = (dir < 0) ? 0 : (LANE_COUNT - 1);
-    const int end = (dir < 0) ? (LANE_COUNT - 1) : 0;
-    const int step = (dir < 0) ? 1 : -1;
-    const int target_lane = (dir < 0) ? (LANE_COUNT - 1) : 0;
-    const int target_frame = (dir < 0) ? (inspection_frame - (LANE_COUNT - 1)) : inspection_frame;
-
-    for (int i = start; i != end; i += step) {
-        const int src = i + step;
-        MEMCPY(low_band_lane_point_values[i], low_band_lane_point_values[src], sizeof(low_band_lane_point_values[i]));
-        MEMCPY(mid_band_lane_point_values[i], mid_band_lane_point_values[src], sizeof(mid_band_lane_point_values[i]));
-        MEMCPY(high_band_lane_point_values[i], high_band_lane_point_values[src], sizeof(high_band_lane_point_values[i]));
-        MEMCPY(mid_chroma_index_field[i], mid_chroma_index_field[src], sizeof(mid_chroma_index_field[i]));
-        MEMCPY(mid_chroma_strength_field[i], mid_chroma_strength_field[src], sizeof(mid_chroma_strength_field[i]));
-        MEMCPY(high_band_glitter_field[i], high_band_glitter_field[src], sizeof(high_band_glitter_field[i]));
+    for (int i = (dir == FORWARD) ? LANE_COUNT - 1 : 0; i != ((dir == FORWARD) ? 0 : LANE_COUNT - 1); i -= dir) {
+        MEMCPY(lane_point_values[i], lane_point_values[i - dir], sizeof(lane_point_values[i]));
+        MEMCPY(low_band_lane_point_values[i], low_band_lane_point_values[i - dir], sizeof(low_band_lane_point_values[i]));
+        MEMCPY(mid_band_lane_point_values[i], mid_band_lane_point_values[i - dir], sizeof(mid_band_lane_point_values[i]));
+        MEMCPY(high_band_lane_point_values[i], high_band_lane_point_values[i - dir], sizeof(high_band_lane_point_values[i]));
+        MEMCPY(mid_chroma_index_field[i], mid_chroma_index_field[i - dir], sizeof(mid_chroma_index_field[i]));
+        MEMCPY(mid_chroma_strength_field[i], mid_chroma_strength_field[i - dir], sizeof(mid_chroma_strength_field[i]));
+        MEMCPY(high_band_glitter_field[i], high_band_glitter_field[i - dir], sizeof(high_band_glitter_field[i]));
     }
-
-    build_fft_terrain_lane_from_history(target_lane, target_frame);
+    build_fft_terrain_lane_from_history((dir == FORWARD) ? 0 : LANE_COUNT - 1, (dir == FORWARD) ? inspection_frame : inspection_frame - (LANE_COUNT - 1));
 }
 
 static void rebuild_fft_terrain_meshes(void) {

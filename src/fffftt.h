@@ -945,6 +945,8 @@ static Font font = {0};
 static Model* wave_cursor_model = NULL;
 static Texture2D wave_cursor_texture = {0};
 static Color wave_cursor_colors[MESH_VERTEX_COUNT] = {0};
+#define FORWARD 1
+#define BACKWARD -1
 
 static void draw_paused_wave_cursor_lane_marker(void) {
     float blink = SINF((float)GetTime() * WAVE_CURSOR_BLINK_RATE);
