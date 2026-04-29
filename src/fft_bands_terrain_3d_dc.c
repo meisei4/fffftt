@@ -74,12 +74,14 @@ static Color high_band_colors[HIGH_BAND_VERTEX_COUNT] = {0};
 static float high_band_texcoords[HIGH_BAND_VERTEX_COUNT * 2] = {0};
 static float high_band_timed_glitter_field[LANE_COUNT][HIGH_BAND_POINT_COUNT] = {0};
 static float high_band_spectral_flatness_glitter_field[HIGH_BAND_VERTEX_COUNT] = {0};
+static float spectral_flatness_glitter_scale = 0.0f;
+static float spectral_flatness_glitter_scale_history[ANALYSIS_FFT_HISTORY_FRAME_COUNT] = {0};
 
 static void build_bands_terrain(int lane, const float* bin_levels);
 static void build_band_terrain(float* front_lane, int point_count, const float* bin_levels, const unsigned short band_bin_bounds[][2]);
 static void build_timed_glitter_color_field(int lane, const float* bin_levels);
 static void update_mesh_colors_timed_glitter(Color* colors, const float* glitter_field, int point_count, float time);
-static void build_spectral_flatness_glitter_color_field(const float* raw_spectrum);
+static void update_spectral_flatness_glitter_scale(const float* raw_spectrum);
 static void update_mesh_colors_spectral_flatness_glitter(Color* colors, const float* glitter_field);
 
 static int inspection_ready = 0;
@@ -148,6 +150,7 @@ int main(void) {
         build_white_noise_mask(white_noise_dimensions[0], white_noise_dimensions[1], high_band_texcoords, HIGH_BAND_POINT_COUNT, WHITE_NOISE_TEXELS_PER_QUAD);
     high_band_model = LoadModelFromMesh(high_band_mesh);
     unsigned char* high_saved_colors = high_band_model.meshes[0].colors;
+    Color spectral_flatness_glitter_tint = WHITE;
     high_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = white_noise_texture;
     int white_noise_texture_id = high_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id;
     high_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
@@ -156,8 +159,9 @@ int main(void) {
 
     fill_mesh_colors(low_band_colors, LOW_BAND_POINT_COUNT);
     fill_mesh_colors(mid_band_colors, MID_BAND_POINT_COUNT);
-    update_mesh_colors_timed_glitter(high_band_colors, &high_band_timed_glitter_field[0][0], HIGH_BAND_POINT_COUNT, 0.0f);
-    update_mesh_colors_spectral_flatness_glitter(high_band_colors, high_band_spectral_flatness_glitter_field);
+    fill_mesh_colors(high_band_colors, HIGH_BAND_POINT_COUNT);
+    // update_mesh_colors_timed_glitter(high_band_colors, &high_band_timed_glitter_field[0][0], HIGH_BAND_POINT_COUNT, 0.0f);
+    // update_mesh_colors_spectral_flatness_glitter(high_band_colors, high_band_spectral_flatness_glitter_field);
 
     update_mesh_vertices(low_band_vertices, &low_band_lane_point_values[0][0], LOW_BAND_POINT_COUNT);
     update_mesh_normals_smooth(low_band_normals, low_band_vertices, LOW_BAND_POINT_COUNT);
@@ -236,12 +240,15 @@ int main(void) {
         DrawModelEx(mid_band_model, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         low_band_model.meshes[0].colors = NULL;
         mid_band_model.meshes[0].colors = NULL;
+        high_band_model.meshes[0].colors = NULL;
         high_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = white_noise_texture_id;
         // DrawModelEx(high_band_model, TOP, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
-        DrawModelPointsEx(high_band_model, TOP, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+        spectral_flatness_glitter_tint.a = (unsigned char)(spectral_flatness_glitter_scale * (float)DRAW_COLOR_CHANNEL_MAX);
+        DrawModelPointsEx(high_band_model, TOP, Y_AXIS, 0.0f, DEFAULT_SCALE, spectral_flatness_glitter_tint);
         high_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
         low_band_model.meshes[0].colors = low_saved_colors;
         mid_band_model.meshes[0].colors = mid_saved_colors;
+        high_band_model.meshes[0].colors = high_saved_colors;
 
         if (is_paused) {
             draw_paused_wave_cursor_lane_marker(); // TODO: make this actually idempotentent
@@ -380,17 +387,17 @@ static void update_mesh_colors_timed_glitter(Color* colors, const float* glitter
 
 //TODO: TUNE THIS BUT ONLY IF ITS USEFUL AFTER LIGHTING STUFF...
 // waste of time to focus on the per-wav envelopes. it jitters or is completely transparent for shadertoy tracks
-// two ideas:
+// three ideas:
 // 1. somehow pre-process the wav data to sort of "normalize" the assets into a common envelope
 // 2. find more librosa application examples that handle generic/sensitive wav envelope varieties??
-#define SPECTRAL_FLATNESS_GLITTER_SILENCE_GATE_POWER_LOW 1.0e-10f //1.0e-7f
-#define SPECTRAL_FLATNESS_GLITTER_SILENCE_GATE_POWER_HIGH 1.0e-8f //1.0e-7f
+// 3. smoothing of the attack and release ramp needs work
+#define SPECTRAL_FLATNESS_GLITTER_SILENCE_GATE_POWER_LOW 1.0e-7f  //1.0e-7f
+#define SPECTRAL_FLATNESS_GLITTER_SILENCE_GATE_POWER_HIGH 1.0e-7f //1.0e-7f
 
-#define SPECTRAL_FLATNESS_GLITTER_ATTACK_RATE 1.0f   //0.95f
-#define SPECTRAL_FLATNESS_GLITTER_RELEASE_RATE 0.50f //1.0f
-static float spectral_flatness_glitter_smooth_scalar = 0.0f;
+#define SPECTRAL_FLATNESS_GLITTER_ATTACK_RATE 1.0f  //0.95f
+#define SPECTRAL_FLATNESS_GLITTER_RELEASE_RATE 1.0f //1.0f
 
-static void build_spectral_flatness_glitter_color_field(const float* raw_spectrum) {
+static void update_spectral_flatness_glitter_scale(const float* raw_spectrum) {
     // https://librosa.org/doc/main/generated/librosa.feature.spectral_flatness.html
     const int bin_min = HIGH_BAND_BIN_BOUNDS[0][0];
     const int bin_max = HIGH_BAND_BIN_BOUNDS[HIGH_BAND_POINT_COUNT - 1][1];
@@ -416,20 +423,21 @@ static void build_spectral_flatness_glitter_color_field(const float* raw_spectru
     }
     const float scalar_target = scalar * presence;
     const float smoothing_rate =
-        (scalar_target > spectral_flatness_glitter_smooth_scalar) ? SPECTRAL_FLATNESS_GLITTER_ATTACK_RATE : SPECTRAL_FLATNESS_GLITTER_RELEASE_RATE;
-    spectral_flatness_glitter_smooth_scalar = LERP(spectral_flatness_glitter_smooth_scalar, scalar_target, smoothing_rate);
-    scalar = CLAMP(spectral_flatness_glitter_smooth_scalar, 0.0f, 1.0f);
-
+        (scalar_target > spectral_flatness_glitter_scale) ? SPECTRAL_FLATNESS_GLITTER_ATTACK_RATE : SPECTRAL_FLATNESS_GLITTER_RELEASE_RATE;
+    spectral_flatness_glitter_scale = LERP(spectral_flatness_glitter_scale, scalar_target, smoothing_rate);
+    spectral_flatness_glitter_scale = CLAMP(spectral_flatness_glitter_scale, 0.0f, 1.0f);
+    int current_index = (fft_data.history_pos - 1 + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
+    spectral_flatness_glitter_scale_history[current_index] = spectral_flatness_glitter_scale;
+    //TODO: and then do this for anticipating a distributed field from a 1D signal measurement... later...
     for (int i = 0; i < HIGH_BAND_VERTEX_COUNT; i++) {
-        high_band_spectral_flatness_glitter_field[i] = scalar;
+        high_band_spectral_flatness_glitter_field[i] = spectral_flatness_glitter_scale;
     }
 }
 
 static void update_mesh_colors_spectral_flatness_glitter(Color* colors, const float* glitter_field) {
     for (int i = 0; i < HIGH_BAND_VERTEX_COUNT; i++) {
-        const float alpha = CLAMP(glitter_field[i], 0.0f, 1.0f);
         colors[i] = WHITE;
-        colors[i].a = (unsigned char)(alpha * (float)DRAW_COLOR_CHANNEL_MAX);
+        colors[i].a = (unsigned char)(glitter_field[i] * (float)DRAW_COLOR_CHANNEL_MAX);
     }
 }
 
@@ -444,6 +452,7 @@ static void consume_latest_fft_history_frame(void) {
     advance_lane_history(&high_band_timed_glitter_field[0][0], HIGH_BAND_POINT_COUNT);
     build_bands_terrain(0, bin_levels);
     update_onset_interpolation_factor_fft(&fft_data);
+    update_spectral_flatness_glitter_scale(fft_data.raw_spectrum_history_levels[history_index]);
 }
 
 static void update_playback_controls_fft(void) {
@@ -501,7 +510,12 @@ static void update_playback_controls_fft(void) {
         } else {
             rebase_fft_history();
         }
-        onset_interpolation_factor = onset_interpolation_factor_history[(int)(inspection_frame % ANALYSIS_FFT_HISTORY_FRAME_COUNT)];
+        int history_index = (inspection_frame + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
+        onset_interpolation_factor = onset_interpolation_factor_history[history_index];
+        spectral_flatness_glitter_scale = spectral_flatness_glitter_scale_history[history_index];
+        for (int i = 0; i < HIGH_BAND_VERTEX_COUNT; i++) {
+            high_band_spectral_flatness_glitter_field[i] = spectral_flatness_glitter_scale;
+        }
         rebuild_fft_terrain_meshes();
     } else if (is_paused && sticky_nav(GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
         wave_cursor = (wave_cursor + AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
@@ -522,6 +536,8 @@ static void update_playback_controls_fft(void) {
 
             int frame = fft_data.frame_index - 1;
             update_onset_interpolation_factor_fft(&fft_data);
+            int history_index = (fft_data.history_pos - 1 + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
+            update_spectral_flatness_glitter_scale(fft_data.raw_spectrum_history_levels[history_index]);
 
             inspection_frame_newest = frame;
             if (inspection_frame_newest - inspection_frame_oldest >= ANALYSIS_FFT_HISTORY_FRAME_COUNT) {
@@ -532,7 +548,12 @@ static void update_playback_controls_fft(void) {
         } else {
             rebase_fft_history();
         }
-        onset_interpolation_factor = onset_interpolation_factor_history[(int)(inspection_frame % ANALYSIS_FFT_HISTORY_FRAME_COUNT)];
+        int history_index = (inspection_frame + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
+        onset_interpolation_factor = onset_interpolation_factor_history[history_index];
+        spectral_flatness_glitter_scale = spectral_flatness_glitter_scale_history[history_index];
+        for (int i = 0; i < HIGH_BAND_VERTEX_COUNT; i++) {
+            high_band_spectral_flatness_glitter_field[i] = spectral_flatness_glitter_scale;
+        }
         rebuild_fft_terrain_meshes();
     }
 
@@ -571,16 +592,6 @@ static void inspection_step(int dir) {
 }
 
 static void rebuild_fft_terrain_meshes(void) {
-    int has_current_raw_spectrum = 0;
-    int current_raw_history_index = 0;
-    if (inspection_ready) {
-        current_raw_history_index = (inspection_frame % ANALYSIS_FFT_HISTORY_FRAME_COUNT + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
-        has_current_raw_spectrum = 1;
-    } else if (fft_data.frame_index > 0) {
-        current_raw_history_index = (fft_data.history_pos - 1 + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
-        has_current_raw_spectrum = 1;
-    }
-
     update_mesh_vertices(low_band_vertices, &low_band_lane_point_values[0][0], LOW_BAND_POINT_COUNT);
     update_mesh_normals_smooth(low_band_normals, low_band_vertices, LOW_BAND_POINT_COUNT);
     build_mesh_smooth(&low_band_mesh, low_band_vertices, low_band_normals, low_band_colors, low_band_mesh.texcoords, LOW_BAND_VERTEX_COUNT);
@@ -592,11 +603,6 @@ static void rebuild_fft_terrain_meshes(void) {
 
     update_mesh_vertices(high_band_vertices, &high_band_lane_point_values[0][0], HIGH_BAND_POINT_COUNT);
     update_mesh_normals_smooth(high_band_normals, high_band_vertices, HIGH_BAND_POINT_COUNT);
-    if (has_current_raw_spectrum) {
-        build_spectral_flatness_glitter_color_field(fft_data.raw_spectrum_history_levels[current_raw_history_index]);
-    } else {
-        MEMSET(high_band_spectral_flatness_glitter_field, 0, sizeof(high_band_spectral_flatness_glitter_field));
-    }
     update_mesh_colors_spectral_flatness_glitter(high_band_colors, high_band_spectral_flatness_glitter_field);
     // update_mesh_colors_timed_glitter(high_band_colors, &high_band_timed_glitter_field[0][0], HIGH_BAND_POINT_COUNT, (float)GetTime());
     build_mesh_smooth(&high_band_mesh, high_band_vertices, high_band_normals, high_band_colors, high_band_texcoords, HIGH_BAND_VERTEX_COUNT);
@@ -608,6 +614,7 @@ static void rebase_fft_history(void) {
     MEMSET(fft_data.raw_spectrum_history_levels, 0, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]) * ANALYSIS_FFT_HISTORY_FRAME_COUNT);
     MEMSET(fft_data.spectrum_history_levels, 0, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]) * ANALYSIS_FFT_HISTORY_FRAME_COUNT);
     MEMSET(onset_interpolation_factor_history, 0, sizeof(onset_interpolation_factor_history));
+    MEMSET(spectral_flatness_glitter_scale_history, 0, sizeof(spectral_flatness_glitter_scale_history));
     MEMSET(low_band_lane_point_values, 0, sizeof(low_band_lane_point_values));
     MEMSET(mid_band_lane_point_values, 0, sizeof(mid_band_lane_point_values));
     MEMSET(high_band_lane_point_values, 0, sizeof(high_band_lane_point_values));
@@ -618,6 +625,7 @@ static void rebase_fft_history(void) {
     fft_data.history_pos = 0;
     fft_data.frame_index = 0;
     onset_interpolation_factor = 0.0f;
+    spectral_flatness_glitter_scale = 0.0f;
 
     for (int i = ANALYSIS_FFT_HISTORY_FRAME_COUNT - 1; i >= 0; i--) {
         int replay_frame_offset = (i * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
@@ -638,5 +646,10 @@ static void rebase_fft_history(void) {
     inspection_frame_newest = fft_data.frame_index - 1;
     inspection_frame_oldest = inspection_frame_newest - (ANALYSIS_FFT_HISTORY_FRAME_COUNT - 1);
     inspection_frame = inspection_frame_newest;
-    onset_interpolation_factor = onset_interpolation_factor_history[(int)(inspection_frame % ANALYSIS_FFT_HISTORY_FRAME_COUNT)];
+    int history_index = (inspection_frame + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
+    onset_interpolation_factor = onset_interpolation_factor_history[history_index];
+    spectral_flatness_glitter_scale = spectral_flatness_glitter_scale_history[history_index];
+    for (int i = 0; i < HIGH_BAND_VERTEX_COUNT; i++) {
+        high_band_spectral_flatness_glitter_field[i] = spectral_flatness_glitter_scale;
+    }
 }

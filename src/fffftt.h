@@ -580,7 +580,7 @@ static void update_mesh_normals_smooth(float* normals, const float* vertices, in
 
 static inline void update_mesh_texcoords_smooth_scroll(int w, int h, float* texcoords, int point_count, int texels_per_quad, float time) {
     const Vector2 scroll_direction = {1.0f, 0.25f}; //TODO: make this configurable and cleaner
-    const float scroll_speed = 0.015f;
+    const float scroll_speed = 0.0125f;
     float scroll_s = FMODF(scroll_direction.x * scroll_speed * time, 1.0f);
     float scroll_t = FMODF(scroll_direction.y * scroll_speed * time, 1.0f);
     for (int i = 0; i < LANE_COUNT; i++) {
