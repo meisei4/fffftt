@@ -38,7 +38,7 @@ static void rebuild_fft_terrain_meshes(void);
 static void rebase_fft_history(void);
 
 int main(void) {
-    SetTraceLogLevel(LOG_WARNING);
+    // SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     font = LoadFont(RD_FONT);
     fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;

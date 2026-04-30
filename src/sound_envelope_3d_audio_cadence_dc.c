@@ -9,7 +9,7 @@ static const char* domain = "SOUND-ENVELOPE-3D-AUDIO-CADENCE-DC";
 static Vector3 envelope_mesh_vertices[LANE_COUNT][LANE_POINT_COUNT] = {0};
 
 int main(void) {
-    SetTraceLogLevel(LOG_WARNING);
+    // SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
     InitAudioDevice();

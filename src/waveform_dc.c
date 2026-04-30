@@ -56,7 +56,7 @@ static void render_waveform_frame(void) {
 }
 
 int main(void) {
-    SetTraceLogLevel(LOG_WARNING); // TODO: note this should be commented out for testing logs on
+    // SetTraceLogLevel(LOG_WARNING); // TODO: note this should be commented out for testing logs on
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
     InitAudioDevice();

@@ -49,7 +49,7 @@ static void rebase_waveform_history(void);
 static void rebuild_waveform_terrain_meshes(void);
 
 int main(void) {
-    SetTraceLogLevel(LOG_WARNING);
+    // SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     font = LoadFont(RD_FONT);
 

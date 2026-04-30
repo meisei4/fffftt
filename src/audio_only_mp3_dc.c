@@ -3,6 +3,7 @@
 static const char* domain = "AUDIO-ONLY-MP3-DC";
 
 int main(void) {
+    // SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     InitAudioDevice();
     SetTargetFPS(60);

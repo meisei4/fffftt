@@ -41,7 +41,7 @@ static void update_camera_orbit(Camera3D* camera, float dt);
 static void fill_mesh_colors_yo(Mesh* mesh);
 
 int main(void) {
-    SetTraceLogLevel(LOG_WARNING);
+    // SetTraceLogLevel(LOG_WARNING);
     InitWindow(640, 480, domain);
 
     Camera3D camera = {
