@@ -26,9 +26,8 @@ FFT_FLAGS += -fno-fast-math -ffp-contract=off
 #FFT_FLAGS += -DFFT_ENABLE_PROFILE
 
 ############################ PERIOD ################################ 
-ALT_AUDIO_DEVICE_PERIOD_FRAMES_KOS_CFLAGS :=
-PERIOD_FRAMES := 1024 # Uncomment  below line for 1024-period testing
-#ALT_AUDIO_DEVICE_PERIOD_FRAMES_KOS_CFLAGS := KOS_CFLAGS="$(KOS_CFLAGS) -DAUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES=$(PERIOD_FRAMES)"
+AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES ?=
+DC_KOS_CFLAGS := $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(GLDC_INCLUDE_CFLAG)
 
 GL33_RAYLIB_DIR := $(BUILD_DIR)/gl33/raylib
 GL11_RAYLIB_DIR := $(BUILD_DIR)/gl11/raylib
@@ -175,8 +174,14 @@ cool-gl11: $(GL11_RAYLIB_DIR)/libraylib.a
 	$(CC) -std=c99 -O2 -Wall -Wextra -DPLATFORM_DESKTOP -I$(GL11_RAYLIB_DIR) $(GL11_SOURCE) $(GL11_RAYLIB_DIR)/libraylib.a -lm $(DESKTOP_LIBS) -o $(GL11_BIN)
 
 $(DC_RAYLIB_DIR)/libraylib.a: gldc-lib
-	$(MAKE) -C $(RAYLIB_DC_SRC) clean
-	$(MAKE) -C $(RAYLIB_DC_SRC) all PLATFORM=PLATFORM_DREAMCAST GRAPHICS=GRAPHICS_API_OPENGL_11 KOS_CFLAGS="$(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(GLDC_INCLUDE_CFLAG)"
+	@set -e; \
+	if [ -n "$(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES)" ]; then \
+		trap 'rm -f $(SRC_DIR)/config_redef.h' EXIT; \
+		printf '#undef AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES\n#define AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES %s\n' "$(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES)" > $(SRC_DIR)/config_redef.h; \
+	fi; \
+	$(MAKE) -C $(RAYLIB_DC_SRC) clean; \
+	$(MAKE) -C $(RAYLIB_DC_SRC) all PLATFORM=PLATFORM_DREAMCAST GRAPHICS=GRAPHICS_API_OPENGL_11 KOS_CFLAGS="$(DC_KOS_CFLAGS) $(if $(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES),-include $(abspath raylib_dc/src/config.h) -include $(abspath $(SRC_DIR))/config_redef.h,)"
+	rm -f $(SRC_DIR)/config_redef.h
 	mkdir -p $(DC_RAYLIB_DIR)
 	cp -f $(RAYLIB_DC_SRC)/libraylib.a $(RAYLIB_DC_SRC)/raylib.h $(RAYLIB_DC_SRC)/raymath.h $(RAYLIB_DC_SRC)/rlgl.h $(DC_RAYLIB_DIR)/
 
@@ -231,34 +236,30 @@ fftw-dc: $(DC_RAYLIB_DIR)/libraylib.a $(FFTW_1997_OBJS)
 	$(call WRITE_BIN,$(DC_FFTW_TARGET),$(DC_FFTW_LAUNCHER))
 	rm -f $(DC_FFTW_TARGET_DIR)/romdisk_tmp.c $(DC_FFTW_TARGET_DIR)/romdisk_tmp.o
 
-audio-only-wav-dc: gldc-lib
-	$(MAKE) -C $(RAYLIB_DC_SRC) clean
-	$(MAKE) -C $(RAYLIB_DC_SRC) all PLATFORM=PLATFORM_DREAMCAST GRAPHICS=GRAPHICS_API_OPENGL_11 KOS_CFLAGS="$(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(GLDC_INCLUDE_CFLAG)"
-	mkdir -p $(BIN_DIR) $(AUDIO_ONLY_WAV_TARGET_DIR)
-	cp -f $(SRC_DIR)/resources/country_44100hz_pcm16_stereo.wav $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk/
-	$(KOS_GENROMFS) -f $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk.img -d $(ROMDISK_DIR) -v -x .gitignore -x .DS_Store -x Thumbs.db
+audio-only-wav-dc: $(DC_RAYLIB_DIR)/libraylib.a
+	mkdir -p $(BIN_DIR) $(AUDIO_ONLY_WAV_TARGET_DIR) $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk
+	cp -f $(SRC_DIR)/resources/country_22050hz_pcm16_mono.wav $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk/
+	$(KOS_GENROMFS) -f $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk.img -d $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk -v -x .gitignore -x .DS_Store -x Thumbs.db
 	$(KOS_BASE)/utils/bin2c/bin2c $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk.img $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk_tmp.c romdisk
 	$(KOS_CC) $(KOS_CFLAGS) -o $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk_tmp.o -c $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk_tmp.c
 	$(KOS_CC) -o $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk.o -r $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk_tmp.o \
 	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
 	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
-	kos-cc -I$(RAYLIB_DC_SRC) -I$(SRC_DIR) -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(GLDC_INCLUDE_CFLAG) -std=gnu2x -c $(AUDIO_ONLY_WAV_SOURCE) -o $(AUDIO_ONLY_WAV_TARGET_DIR)/audio_only_wav_dc.o
+	kos-cc -I$(RAYLIB_DC_SRC) -I$(SRC_DIR) -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(DC_KOS_CFLAGS) $(if $(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES),-DAUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES=$(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES),) -std=gnu2x -c $(AUDIO_ONLY_WAV_SOURCE) -o $(AUDIO_ONLY_WAV_TARGET_DIR)/audio_only_wav_dc.o
 	kos-cc -o $(AUDIO_ONLY_WAV_TARGET) $(AUDIO_ONLY_WAV_TARGET_DIR)/audio_only_wav_dc.o $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk.o $(RAYLIB_DC_SRC)/libraylib.a $(GLDC_LIB) -lkosutils -lm -lpthread
 	$(call WRITE_BIN,$(AUDIO_ONLY_WAV_TARGET),$(AUDIO_ONLY_WAV_LAUNCHER))
 	rm -f $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk_tmp.c $(AUDIO_ONLY_WAV_TARGET_DIR)/romdisk_tmp.o
 
-audio-only-mp3-dc: gldc-lib
-	$(MAKE) -C $(RAYLIB_DC_SRC) clean
-	$(MAKE) -C $(RAYLIB_DC_SRC) all PLATFORM=PLATFORM_DREAMCAST GRAPHICS=GRAPHICS_API_OPENGL_11 KOS_CFLAGS="$(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(GLDC_INCLUDE_CFLAG)"
-	mkdir -p $(BIN_DIR) $(AUDIO_ONLY_MP3_TARGET_DIR)
+audio-only-mp3-dc: $(DC_RAYLIB_DIR)/libraylib.a
+	mkdir -p $(BIN_DIR) $(AUDIO_ONLY_MP3_TARGET_DIR) $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk
 	cp -f $(SRC_DIR)/resources/country_44100hz_128kbps_stereo.mp3 $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk/
-	$(KOS_GENROMFS) -f $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk.img -d $(ROMDISK_DIR) -v -x .gitignore -x .DS_Store -x Thumbs.db
+	$(KOS_GENROMFS) -f $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk.img -d $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk -v -x .gitignore -x .DS_Store -x Thumbs.db
 	$(KOS_BASE)/utils/bin2c/bin2c $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk.img $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk_tmp.c romdisk
 	$(KOS_CC) $(KOS_CFLAGS) -o $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk_tmp.o -c $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk_tmp.c
 	$(KOS_CC) -o $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk.o -r $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk_tmp.o \
 	  -L$(KOS_BASE)/lib/$(KOS_ARCH) -L$(KOS_BASE)/addons/lib/$(KOS_ARCH) \
 	  -L$(KOS_PORTS)/lib -Wl,--whole-archive -lromdiskbase
-	kos-cc -I$(RAYLIB_DC_SRC) -I$(SRC_DIR) -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(filter-out $(KOS_PORTS_INCLUDE),$(KOS_CFLAGS)) $(GLDC_INCLUDE_CFLAG) -std=gnu2x -c $(AUDIO_ONLY_MP3_SOURCE) -o $(AUDIO_ONLY_MP3_TARGET_DIR)/audio_only_mp3_dc.o
+	kos-cc -I$(RAYLIB_DC_SRC) -I$(SRC_DIR) -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11 $(DC_KOS_CFLAGS) $(if $(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES),-DAUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES=$(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES),) -std=gnu2x -c $(AUDIO_ONLY_MP3_SOURCE) -o $(AUDIO_ONLY_MP3_TARGET_DIR)/audio_only_mp3_dc.o
 	kos-cc -o $(AUDIO_ONLY_MP3_TARGET) $(AUDIO_ONLY_MP3_TARGET_DIR)/audio_only_mp3_dc.o $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk.o $(RAYLIB_DC_SRC)/libraylib.a $(GLDC_LIB) -lkosutils -lm -lpthread
 	$(call WRITE_BIN,$(AUDIO_ONLY_MP3_TARGET),$(AUDIO_ONLY_MP3_LAUNCHER))
 	rm -f $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk_tmp.c $(AUDIO_ONLY_MP3_TARGET_DIR)/romdisk_tmp.o

@@ -12,7 +12,6 @@ int main(void) {
     audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
 
-    unsigned int wave_sample_count = wave.frameCount * AUDIO_DEVICE_CHANNELS;
     wave_pcm16 = (int16_t*)wave.data;
 
     while (!WindowShouldClose()) {
@@ -23,7 +22,7 @@ int main(void) {
         while (IsAudioStreamProcessed(audio_stream)) {
             for (int i = 0; i < AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES; i++) {
                 chunk_samples[i] = wave_pcm16[wave_cursor];
-                if (++wave_cursor >= wave_sample_count) {
+                if (++wave_cursor >= wave.frameCount) {
                     wave_cursor = 0;
                 }
             }

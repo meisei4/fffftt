@@ -1,4 +1,5 @@
 #include "fffftt.h"
+#include "GL/gl.h"
 
 static const char* domain = "WAVEFORM-DC";
 static Vector3 waveform_vertices[ANALYSIS_WAVEFORM_SAMPLE_COUNT] = {0};

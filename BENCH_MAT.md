@@ -9,7 +9,9 @@ Key:
   - `INFO` = comment out [cool_dc.c:18](./src/cool_dc.c#L18), [fftw_dc.c:23](./src/fftw_dc.c#L23), [sh4zam_butterfly.c:19](./src/sh4zam_butterfly.c#L19)
 
 `period`
-  - `1024` = uncomment [Makefile:23](./Makefile#L23)
+  - `2048` = default build, e.g. `make audio-only-mp3-dc`
+  - `1024` = override build, e.g. `make audio-only-mp3-dc AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES=1024`
+  - same pattern applies to other dc targets e.g. `make cool-dc AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES=1024`
 
 ```
 +------------------------------------------------------------------------------------------------------------+
