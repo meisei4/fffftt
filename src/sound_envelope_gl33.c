@@ -12,7 +12,7 @@ static const char* domain = "SOUND-ENVELOPE-GL33";
 static void update_audio_texture_pixels(Color* audio_texture_pixels);
 
 int main(void) {
-    SetTraceLogLevel(LOG_WARNING);
+    // SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
     InitAudioDevice();

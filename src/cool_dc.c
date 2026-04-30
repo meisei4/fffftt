@@ -4,7 +4,7 @@ static const char* domain = "COOL-DC";
 
 int main(void) {
     float fft_compute_ms = 0.0f;
-    SetTraceLogLevel(LOG_WARNING); // TODO: note this should be commented out for testing logs on
+    // SetTraceLogLevel(LOG_WARNING); // TODO: note this should be commented out for testing logs on
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     float start_time = (float)GetTime();
     FFT_PROFILE_DEFINE(fft_profile_data);
@@ -23,7 +23,7 @@ int main(void) {
     PlayAudioStream(audio_stream);
 
     wave_pcm16 = (int16_t*)wave.data;
-    
+
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {

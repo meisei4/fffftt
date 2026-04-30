@@ -9,7 +9,7 @@ int main(void) {
     fftw_complex* fftw_input;
     fftw_complex* fftw_output;
 
-    SetTraceLogLevel(LOG_WARNING);
+    // SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     float start_time = (float)GetTime();
     FFT_PROFILE_DEFINE(fft_profile_data);

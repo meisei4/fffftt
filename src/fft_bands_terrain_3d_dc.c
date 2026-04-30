@@ -96,7 +96,7 @@ static void rebuild_fft_terrain_meshes(void);
 static void rebase_fft_history(void);
 
 int main(void) {
-    SetTraceLogLevel(LOG_WARNING);
+    // SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     font = LoadFont(RD_FONT);
     fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;
@@ -391,8 +391,8 @@ static void update_mesh_colors_timed_glitter(Color* colors, const float* glitter
 // 1. somehow pre-process the wav data to sort of "normalize" the assets into a common envelope
 // 2. find more librosa application examples that handle generic/sensitive wav envelope varieties??
 // 3. smoothing of the attack and release ramp needs work
-#define SPECTRAL_FLATNESS_GLITTER_SILENCE_GATE_POWER_LOW 1.0e-7f  //1.0e-7f
-#define SPECTRAL_FLATNESS_GLITTER_SILENCE_GATE_POWER_HIGH 1.0e-7f //1.0e-7f
+#define SPECTRAL_FLATNESS_GLITTER_SILENCE_GATE_POWER_LOW 1.0e-9f  //1.0e-7f
+#define SPECTRAL_FLATNESS_GLITTER_SILENCE_GATE_POWER_HIGH 1.0e-9f //1.0e-7f
 
 #define SPECTRAL_FLATNESS_GLITTER_ATTACK_RATE 1.0f  //0.95f
 #define SPECTRAL_FLATNESS_GLITTER_RELEASE_RATE 1.0f //1.0f

@@ -9,7 +9,7 @@ capture_seconds="${TMUX_AUDIO_ONLY_CAPTURE_SECONDS:-15}"
 any_build_failed=0
 successful_targets=()
 result_lines=()
-period_1024_flag='ALT_AUDIO_DEVICE_PERIOD_FRAMES_KOS_CFLAGS=KOS_CFLAGS="$(KOS_CFLAGS) -DAUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES=1024"'
+period_1024_flag='AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES=1024'
 
 targets=(
   "audio-only-wav-dc-2048|wav|2048|$project_root/bin/audio_only_wav_dc_2048|$log_directory/audio-only-wav-dc-2048.log"

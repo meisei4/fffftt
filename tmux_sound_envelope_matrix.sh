@@ -13,7 +13,7 @@ result_lines=()
 targets=(
   "gl33|sound-envelope-gl33|$project_root/bin/sound_envelope_gl33|$log_directory/sound-envelope-gl33.log"
   "dc|sound-envelope-dc|$project_root/bin/sound_envelope_dc|$log_directory/sound-envelope-dc.log"
-  "3d-dc|sound-envelope-3d-dc|$project_root/bin/sound_envelope_3D_dc|$log_directory/sound-envelope-3d-dc.log"
+  "3d-dc|sound-envelope-3d-dc|$project_root/bin/sound_envelope_3d_dc|$log_directory/sound-envelope-3d-dc.log"
 )
 
 mkdir -p "$log_directory"

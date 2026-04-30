@@ -2,13 +2,8 @@
 
 static const char* domain = "AUDIO-ONLY-MP3-DC";
 
-// TODO: raudio.c, this isnt helpful at all, remove the whole device controls completely from the build, its literally a single line in config.h, just update it...
-// unsigned int GetAudioDevicePeriodSizeInFrames(void) {
-//     if (!AUDIO.System.isReady) return 0;
-//     return AUDIO.System.device.playback.internalPeriodSizeInFrames*AUDIO.System.device.playback.internalPeriods;
-// }
-
 int main(void) {
+    // SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     InitAudioDevice();
     SetTargetFPS(60);

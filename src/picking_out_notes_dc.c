@@ -118,7 +118,7 @@ static void picking_out_the_notes(const FFTData* fft_data) {
 }
 
 int main(void) {
-    SetTraceLogLevel(LOG_WARNING);
+    // SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
 
     fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;

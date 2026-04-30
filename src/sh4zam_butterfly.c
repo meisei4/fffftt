@@ -5,7 +5,7 @@ static const char* domain = "SH4ZAM-BUTTERFLY";
 int main(void) {
     float fft_compute_ms = 0.0f;
 
-    SetTraceLogLevel(LOG_WARNING);
+    // SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     float start_time = (float)GetTime();
     FFT_PROFILE_DEFINE(fft_profile_data);

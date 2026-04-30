@@ -167,7 +167,7 @@ waveform and sound-envelope work
 make waveform-dc # -> out: build/dc/waveform_dc/waveform_dc.elf + run: ./bin/waveform_dc
 make waveform-sandbox-dc # -> out: build/dc/waveform_sandbox_dc/waveform_sandbox_dc.elf + run: ./bin/waveform_sandbox_dc
 make sound-envelope-dc # -> out: build/dc/sound_envelope_dc/sound_envelope_dc.elf + run: ./bin/sound_envelope_dc
-make sound-envelope-3d-dc # -> out: build/dc/sound_envelope_3D_dc/sound_envelope_3D_dc.elf + run: ./bin/sound_envelope_3D_dc
+make sound-envelope-3d-dc # -> out: build/dc/sound_envelope_3d_dc/sound_envelope_3d_dc.elf + run: ./bin/sound_envelope_3d_dc
 make sound-envelope-gl33 # -> then run: ./bin/sound_envelope_gl33
 ```
 
