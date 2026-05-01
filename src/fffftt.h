@@ -26,6 +26,7 @@
 #define FMODF(x, y) shz_fmodf((x), (y))
 #define LOGF(x) shz_logf((x))
 #define FMAXF(x, y) shz_fmaxf((x), (y))
+#define FMINF(x, y) shz_fminf((x), (y))
 #define FABSF(x) shz_fabsf((x))
 #define MEMSET(dst, value, size) memset((dst), (value), (size))
 #define MEMCPY(dst, src, size) memcpy((dst), (src), (size)) //TODO: Colors... hmmm
@@ -175,8 +176,8 @@ typedef struct FFTProfileData {
             fftprof_profile->dur_min_ms = fftprof_compute_ms;                                                                                                  \
             fftprof_profile->dur_max_ms = fftprof_compute_ms;                                                                                                  \
         } else {                                                                                                                                               \
-            fftprof_profile->dur_min_ms = fminf(fftprof_profile->dur_min_ms, fftprof_compute_ms);                                                              \
-            fftprof_profile->dur_max_ms = fmaxf(fftprof_profile->dur_max_ms, fftprof_compute_ms);                                                              \
+            fftprof_profile->dur_min_ms = FMINF(fftprof_profile->dur_min_ms, fftprof_compute_ms);                                                              \
+            fftprof_profile->dur_max_ms = FMAXF(fftprof_profile->dur_max_ms, fftprof_compute_ms);                                                              \
         }                                                                                                                                                      \
                                                                                                                                                                \
         int fftprof_elapsed_sec = (int)fftprof_elapsed_s;                                                                                                      \
@@ -265,12 +266,12 @@ static inline void apply_blackman_window(void) {
 }
 
 static inline void update_spectrum_bin(float* smoothed_spectrum, int bin, float real, float imaginary) {
-    float linear_magnitude = sqrtf(real * real + imaginary * imaginary) / ANALYSIS_WINDOW_SIZE_IN_FRAMES;
+    float linear_magnitude = SQRTF(real * real + imaginary * imaginary) / ANALYSIS_WINDOW_SIZE_IN_FRAMES;
     float smoothed_magnitude =
         ANALYSIS_SMOOTHING_TIME_CONSTANT * fft_data.prev_spectrum_bin_levels[bin] + (1.0f - ANALYSIS_SMOOTHING_TIME_CONSTANT) * linear_magnitude;
-    float db = logf(fmaxf(smoothed_magnitude, ANALYSIS_MIN_LOG_MAGNITUDE)) * ANALYSIS_DB_TO_LINEAR_SCALE;
+    float db = LOGF(FMAXF(smoothed_magnitude, ANALYSIS_MIN_LOG_MAGNITUDE)) * ANALYSIS_DB_TO_LINEAR_SCALE;
     float normalized = (db - ANALYSIS_MIN_DECIBELS) * ANALYSIS_INVERSE_DECIBEL_RANGE;
-    float clamped_magnitude = Clamp(normalized, 0.0f, 1.0f);
+    float clamped_magnitude = CLAMP(normalized, 0.0f, 1.0f);
 
     fft_data.prev_spectrum_bin_levels[bin] = smoothed_magnitude;
     smoothed_spectrum[bin] = clamped_magnitude;
@@ -283,40 +284,13 @@ static inline void build_spectrum(void) {
     for (int bin = 0; bin < ANALYSIS_SPECTRUM_BIN_COUNT; bin++) {
         float re = fft_data.work_buffer[bin].real;
         float im = fft_data.work_buffer[bin].imaginary;
-        float linear_magnitude = sqrtf(re * re + im * im) / ANALYSIS_WINDOW_SIZE_IN_FRAMES;
+        float linear_magnitude = SQRTF(re * re + im * im) / ANALYSIS_WINDOW_SIZE_IN_FRAMES;
         raw_spectrum[bin] = linear_magnitude;
         update_spectrum_bin(smoothed_spectrum, bin, re, im);
     }
 
     fft_data.history_pos = (fft_data.history_pos + 1) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
     fft_data.frame_index++;
-}
-
-static inline void render_fft_frame(void) {
-    float frames_since_tapback = floorf(fft_data.tapback_pos / ((float)ANALYSIS_WINDOW_SIZE_IN_FRAMES / (float)ANALYSIS_SAMPLE_RATE));
-    frames_since_tapback = Clamp(frames_since_tapback, 0.0f, (float)(ANALYSIS_FFT_HISTORY_FRAME_COUNT - 1));
-    int history_frame_index = (fft_data.history_pos - 1 - (int)frames_since_tapback + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
-    float* spectrum_bin_levels = fft_data.spectrum_history_levels[history_frame_index];
-
-    float cell_width = (float)SCREEN_WIDTH / (float)ANALYSIS_SPECTRUM_BIN_COUNT;    // fft.glsl#L19 float cellWidth = iResolution.x / NUM_OF_BINS;
-    for (int bin_index = 0; bin_index < ANALYSIS_SPECTRUM_BIN_COUNT; bin_index++) { // fft.glsl#L20 float binIndex = floor(fragCoord.x / cellWidth);
-        int bin_x_min = (int)floorf((float)bin_index * cell_width);                 //????? fft.glsl#L21 float localX = mod(fragCoord.x, cellWidth);
-        int bin_x_max = (int)ceilf((float)(bin_index + 1) * cell_width);
-        int bar_width = (bin_x_max - bin_x_min) - 1; // fft.glsl#L22 float barWidth = cellWidth - 1.0;
-
-        if (bar_width < DRAW_MIN_SPECTRUM_BIN_WIDTH) {
-            bar_width = DRAW_MIN_SPECTRUM_BIN_WIDTH;
-        }
-
-        float spectrum_level = spectrum_bin_levels[bin_index]; // fft.glsl#L28 float amplitude = texture(iChannel0, sampleCoord).r;
-        if (spectrum_level <= 0.0f) {
-            continue;
-        }
-
-        int bar_y = (int)ceilf(spectrum_level * (float)SCREEN_HEIGHT); // fft.glsl#L29 float barY = 1.0 - fragTexCoord.y;
-        // fft.glsl#L30 if (barY < amplitude) color = WHITE;
-        DrawRectangle(bin_x_min, SCREEN_HEIGHT - bar_y, bar_width, bar_y, WHITE);
-    }
 }
 
 // ENVELOPE AND TERRIAN PROFILES + CONSTANTS
@@ -384,7 +358,7 @@ static inline void advance_lane_history_u8(unsigned char* lane_point_values, int
     }
 }
 
-static inline void smooth_front_lane(void) {
+static inline void smooth_lane(int lane) {
     for (int i = 0; i < LANE_POINT_COUNT; i++) {
         float sample_sum = 0.0f;
         int k = i * WAVEFORM_SAMPLES_PER_LANE_POINT;
@@ -392,7 +366,7 @@ static inline void smooth_front_lane(void) {
             sample_sum += FABSF(analysis_window_samples[k + j]);
         }
 
-        lane_point_values[0][i] = (sample_sum / (float)WAVEFORM_SAMPLES_PER_LANE_POINT) * FRONT_LANE_SMOOTHING;
+        lane_point_values[lane][i] = (sample_sum / (float)WAVEFORM_SAMPLES_PER_LANE_POINT) * FRONT_LANE_SMOOTHING;
     }
 }
 
@@ -787,8 +761,8 @@ static inline void update_camera_orbit(Camera3D* camera, float dt) {
     if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_TRIGGER) > 0.0f)
         fovy += GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_TRIGGER) * CAMERA_FOVY_VELOCITY * dt;
 
-    pitch = Clamp(pitch, CAMERA_PITCH_MIN, CAMERA_PITCH_MAX);
-    fovy = Clamp(fovy, CAMERA_FOVY_MIN, CAMERA_FOVY_MAX);
+    pitch = CLAMP(pitch, CAMERA_PITCH_MIN, CAMERA_PITCH_MAX);
+    fovy = CLAMP(fovy, CAMERA_FOVY_MIN, CAMERA_FOVY_MAX);
     camera->position.x = camera->target.x + orbit_radius * cosf(pitch) * cosf(yaw);
     camera->position.y = camera->target.y + orbit_radius * sinf(pitch);
     camera->position.z = camera->target.z + orbit_radius * cosf(pitch) * sinf(yaw);
@@ -864,20 +838,18 @@ static inline int sticky_nav(int button) {
     return nav_flag;
 }
 
-static void rebuild_envelope_history_from_wave(void) {
+static void rebase_smooth_envelope_at_wave_cursor(void) {
+    for (int i = 0; i < LANE_COUNT; i++) {
+        int start_frame = (wave_cursor + wave.frameCount - ((i * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount)) % wave.frameCount;
+        for (int j = 0; j < ANALYSIS_WINDOW_SIZE_IN_FRAMES; j++) {
+            int src = (start_frame + j) % wave.frameCount;
+            analysis_window_samples[j] = (float)wave_pcm16[src] / ANALYSIS_PCM16_UPPER_BOUND;
+        }
+        smooth_lane(i);
+    }
     for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
         int src = (wave_cursor + i) % wave.frameCount;
         analysis_window_samples[i] = (float)wave_pcm16[src] / ANALYSIS_PCM16_UPPER_BOUND;
-    }
-
-    for (int i = 0; i < LANE_COUNT; i++) {
-        int start_frame = (wave_cursor + wave.frameCount - ((i * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount)) % wave.frameCount;
-
-        for (int j = 0; j < LANE_POINT_COUNT; j++) {
-            int window_sample = (j * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (LANE_POINT_COUNT - 1);
-            int src = (start_frame + window_sample) % wave.frameCount;
-            lane_point_values[i][j] = (float)wave_pcm16[src] / ANALYSIS_PCM16_UPPER_BOUND;
-        }
     }
 }
 
@@ -974,7 +946,7 @@ static void draw_playback_inspection_hud(void) {
     }
 }
 
-static void update_playback_controls(void) {
+static void update_playback_controls_sound_envelope(void) {
     if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT)) {
         reset_sticky_nav();
         if (!is_paused) {
@@ -989,7 +961,7 @@ static void update_playback_controls(void) {
                 UpdateAudioStream(audio_stream, drain_chunk_samples, AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
             }
             PauseAudioStream(audio_stream);
-            rebuild_envelope_history_from_wave();
+            rebase_smooth_envelope_at_wave_cursor();
         } else {
             is_paused = false;
             PlayAudioStream(audio_stream);
@@ -1007,20 +979,62 @@ static void update_playback_controls(void) {
                 }
 
                 advance_lane_history(&lane_point_values[0][0], LANE_POINT_COUNT);
-                for (int i = 0; i < LANE_POINT_COUNT; i++) {
-                    lane_point_values[0][i] = analysis_window_samples[(i * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (LANE_POINT_COUNT - 1)];
-                }
+                smooth_lane(0);
             }
         }
     }
     if (is_paused && sticky_nav(GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)) {
         wave_cursor = (wave_cursor + wave.frameCount - AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
         seek_delta_chunks--;
-        rebuild_envelope_history_from_wave();
+        rebase_smooth_envelope_at_wave_cursor();
     } else if (is_paused && sticky_nav(GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
         wave_cursor = (wave_cursor + AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
         seek_delta_chunks++;
-        rebuild_envelope_history_from_wave();
+        rebase_smooth_envelope_at_wave_cursor();
+    }
+}
+
+static void update_playback_controls_fft_spectrum(void) {
+    if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT)) {
+        reset_sticky_nav();
+
+        if (!is_paused) {
+            is_paused = true;
+            wave_cursor = (wave_cursor + wave.frameCount - AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
+            paused_wave_cursor = wave_cursor;
+            seek_delta_chunks = 0;
+
+            for (int i = 0; i < MAX_DRAIN_CHUNK_COUNT; i++) {
+                while (!IsAudioStreamProcessed(audio_stream)) {
+                    /* KEEP DRAINING! */
+                }
+                UpdateAudioStream(audio_stream, drain_chunk_samples, AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
+            }
+
+            PauseAudioStream(audio_stream);
+            for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
+                int src = (wave_cursor + i) % wave.frameCount;
+                analysis_window_samples[i] = (float)wave_pcm16[src] / ANALYSIS_PCM16_UPPER_BOUND;
+            }
+        } else {
+            is_paused = false;
+            PlayAudioStream(audio_stream);
+        }
+    }
+    if (is_paused && sticky_nav(GAMEPAD_BUTTON_RIGHT_FACE_RIGHT)) {
+        wave_cursor = (wave_cursor + wave.frameCount - AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
+        seek_delta_chunks--;
+        for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
+            int src = (wave_cursor + i) % wave.frameCount;
+            analysis_window_samples[i] = (float)wave_pcm16[src] / ANALYSIS_PCM16_UPPER_BOUND;
+        }
+    } else if (is_paused && sticky_nav(GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
+        wave_cursor = (wave_cursor + AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
+        seek_delta_chunks++;
+        for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
+            int src = (wave_cursor + i) % wave.frameCount;
+            analysis_window_samples[i] = (float)wave_pcm16[src] / ANALYSIS_PCM16_UPPER_BOUND;
+        }
     }
 }
 

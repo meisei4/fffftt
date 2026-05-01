@@ -107,14 +107,7 @@ int main(void) {
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
-    //wave = LoadWave(RD_SHADERTOY_EXPERIMENT_22K_WAV);
-    // wave = LoadWave(RD_SHADERTOY_ELECTRONEBULAE_ONE_FOURTH_22K_WAV);
-    // wave = LoadWave(RD_DDS_FFM_22K_WAV);
-    // wave = LoadWave(RD_RAMA_22K_WAV);
-    // wave = LoadWave(RD_CT_LOR_22K_WAV);
-    // wave = LoadWave(RD_AT_UNTITLED_22K_WAV);
-    // wave = LoadWave(RD_TJ_SAYO_22K_WAV);
-    LOAD_AUDIO_TRACK(DEFAULT_AUDIO_TRACK_ELECTRONEBULAE);
+    LOAD_AUDIO_TRACK(DEFAULT_AUDIO_TRACK_SHADERTOY_EXPERIMENT);
     WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);

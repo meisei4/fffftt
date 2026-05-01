@@ -46,7 +46,7 @@ static const float cols[GRID_COLUMN_COUNT][3] = {{1., 1., 0.},
 static void picking_out_the_notes(const FFTData* fft_data) {
     float u = fft_data->tapback_pos / ((float)ANALYSIS_WINDOW_SIZE_IN_FRAMES / (float)ANALYSIS_SAMPLE_RATE); // #L32 u / iResolution.xy
     int history_position =
-        (fft_data->history_pos - 1 - (int)floorf(u) + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT; // #L34 TO = floor(to)
+        (fft_data->history_pos - 1 - (int)FLOORF(u) + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT; // #L34 TO = floor(to)
 
     float cell_w = (float)SCREEN_WIDTH / GRID_COLUMN_COUNT; // #L33 U * vec2(12,10)
     float cell_h = (float)SCREEN_HEIGHT / GRID_ROW_COUNT;   // #L33 U * vec2(12,10)
@@ -61,15 +61,15 @@ static void picking_out_the_notes(const FFTData* fft_data) {
             float frequency = notes[TOx] / exp2(9. - (float)TOy);      // #L39 frequency = notes[int(TO.x)] / exp2(9.-TO.y)
             float nyquist = (float)ANALYSIS_SAMPLE_RATE * .5;          // #L40 11025.
             // #L40 f = texture(iChannel0, vec2(frequency/11025.,0)).r
-            float f = texture[(int)floorf(Clamp(frequency / nyquist, 0., 1.) * (ANALYSIS_SPECTRUM_BIN_COUNT - 1) + .5)];
+            float f = texture[(int)FLOORF(CLAMP(frequency / nyquist, 0., 1.) * (ANALYSIS_SPECTRUM_BIN_COUNT - 1) + .5)];
             // #L41 fa = texture(iChannel0, vec2((frequency*1.13)/11025.,0)).r
-            float fa = texture[(int)floorf(Clamp(frequency * 1.13 / nyquist, 0., 1.) * (ANALYSIS_SPECTRUM_BIN_COUNT - 1) + .5)];
+            float fa = texture[(int)FLOORF(CLAMP(frequency * 1.13 / nyquist, 0., 1.) * (ANALYSIS_SPECTRUM_BIN_COUNT - 1) + .5)];
             // #L42 fb = texture(iChannel0, vec2((frequency*0.87)/11025.,0)).r
-            float fb = texture[(int)floorf(Clamp(frequency * 0.87 / nyquist, 0., 1.) * (ANALYSIS_SPECTRUM_BIN_COUNT - 1) + .5)];
+            float fb = texture[(int)FLOORF(CLAMP(frequency * 0.87 / nyquist, 0., 1.) * (ANALYSIS_SPECTRUM_BIN_COUNT - 1) + .5)];
             // #L43 fc = texture(iChannel0, vec2((frequency*1.2)/11025.,0)).r
-            float fc = texture[(int)floorf(Clamp(frequency * 1.2 / nyquist, 0., 1.) * (ANALYSIS_SPECTRUM_BIN_COUNT - 1) + .5)];
+            float fc = texture[(int)FLOORF(CLAMP(frequency * 1.2 / nyquist, 0., 1.) * (ANALYSIS_SPECTRUM_BIN_COUNT - 1) + .5)];
             // #L44 fd = texture(iChannel0, vec2((frequency*0.8)/11025.,0)).r
-            float fd = texture[(int)floorf(Clamp(frequency * 0.8 / nyquist, 0., 1.) * (ANALYSIS_SPECTRUM_BIN_COUNT - 1) + .5)];
+            float fd = texture[(int)FLOORF(CLAMP(frequency * 0.8 / nyquist, 0., 1.) * (ANALYSIS_SPECTRUM_BIN_COUNT - 1) + .5)];
 
             float av = (f + fa + fb + fc + fd) / 5.; // #L45 av = (f+fa+fb+fc+fd)/5.
             float ff = (f - av) * 8. * f;            // #L46 ff = (f-av)*8.*f
@@ -78,25 +78,25 @@ static void picking_out_the_notes(const FFTData* fft_data) {
             for (int j = 0; j < 8; j++) {                                           // #L35 fract(to).y
                 float subcell_y = to_y + (float)j / 8.;                             // #L33 to.y
                 float to_y_end = to_y + (float)(j + 1) / 8.;                        // #L33 to.y
-                int py_min = (int)floorf((float)SCREEN_HEIGHT - to_y_end * cell_h); // #L33 to.y * iResolution.y
-                int py_max = (int)ceilf((float)SCREEN_HEIGHT - subcell_y * cell_h); // #L33 to.y * iResolution.y
+                int py_min = (int)FLOORF((float)SCREEN_HEIGHT - to_y_end * cell_h); // #L33 to.y * iResolution.y
+                int py_max = (int)CEILF((float)SCREEN_HEIGHT - subcell_y * cell_h); // #L33 to.y * iResolution.y
                 if (py_max - py_min < 1)
                     py_max = py_min + 1;                  // #L35 abs(fract(to) - .5)
                 for (int i = 0; i < 8; i++) {             // #L35 fract(to).x
                     float local_x = ((float)i + .5) / 8.; // #L35 fract(to).x
                     float local_y = ((float)j + .5) / 8.; // #L35 fract(to).y
-                    float dx = fabsf(local_x - .5);       // #L35 abs(fract(to) - .5)
-                    float dy = fabsf(local_y - .5);       // #L35 abs(fract(to) - .5)
-                    float dist = fmaxf(dx, dy);           // #L38 dist = max(D.x, D.y)
+                    float dx = FABSF(local_x - .5);       // #L35 abs(fract(to) - .5)
+                    float dy = FABSF(local_y - .5);       // #L35 abs(fract(to) - .5)
+                    float dist = FMAXF(dx, dy);           // #L38 dist = max(D.x, D.y)
 
                     //TODO: LOOK INTO USING shz_smoothstepf AND FULL REVIEW OF SHADER STUFF WITH sh4zam maths ofc!!!
-                    float t = Clamp(((f * f * f * f) - dist * 2.) / .01, 0., 1.); // #L48 smoothstep
+                    float t = CLAMP(((f * f * f * f) - dist * 2.) / .01, 0., 1.); // #L48 smoothstep
                     float bright = t * t * (3. - 2. * t);                         // #L48 t*t*(3.-2.*t)
                     if (bright > 0.) {                                            // #L50 O = bright *
                         float subcell_x = to_x + (float)i / 8.;                   // #L33 to.x
                         float to_x_end = to_x + (float)(i + 1) / 8.;              // #L33 to.x
-                        int px_min = (int)floorf(subcell_x * cell_w);             // #L33 to.x * iResolution.x
-                        int px_max = (int)ceilf(to_x_end * cell_w);               // #L33 to.x * iResolution.x
+                        int px_min = (int)FLOORF(subcell_x * cell_w);             // #L33 to.x * iResolution.x
+                        int px_max = (int)CEILF(to_x_end * cell_w);               // #L33 to.x * iResolution.x
                         if (px_max - px_min < 1)
                             px_max = px_min + 1; // #L35 abs(fract(to) - .5)
                         DrawRectangle(px_min,
@@ -120,6 +120,7 @@ static void picking_out_the_notes(const FFTData* fft_data) {
 int main(void) {
     // SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
+    font = LoadFont(RD_FONT);
 
     fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;
     fft_data.work_buffer = RL_CALLOC(ANALYSIS_WINDOW_SIZE_IN_FRAMES, sizeof(FFTComplex));
@@ -129,7 +130,7 @@ int main(void) {
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
-    wave = LoadWave(RD_SHADERTOY_ELECTRONEBULAE_ONE_FOURTH_22K_WAV);
+    LOAD_AUDIO_TRACK(DEFAULT_AUDIO_TRACK_SHADERTOY_EXPERIMENT);
     WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
@@ -143,7 +144,9 @@ int main(void) {
             break;
         }
 
-        while (IsAudioStreamProcessed(audio_stream)) {
+        update_playback_controls_fft_spectrum();
+
+        while (!is_paused && IsAudioStreamProcessed(audio_stream)) {
             for (int i = 0; i < AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES; i++) {
                 chunk_samples[i] = wave_pcm16[wave_cursor];
                 if (++wave_cursor >= wave.frameCount) {
@@ -161,9 +164,13 @@ int main(void) {
         apply_blackman_window();
         shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)ANALYSIS_WINDOW_SIZE_IN_FRAMES);
         build_spectrum();
+
+        update_audio_track_cycle();
         BeginDrawing();
         ClearBackground(BLACK);
         picking_out_the_notes(&fft_data);
+        draw_playback_inspection_hud();
+        DrawTextEx(font, TextFormat("%2i FPS", GetFPS()), (Vector2){50.0f, 440.0f}, FONT_SIZE, 0.0f, WHITE);
         EndDrawing();
     }
 
@@ -174,6 +181,7 @@ int main(void) {
     RL_FREE(fft_data.spectrum_history_levels);
     RL_FREE(fft_data.prev_spectrum_bin_levels);
     RL_FREE(fft_data.work_buffer);
+    UnloadFont(font);
     CloseWindow();
     return 0;
 }
