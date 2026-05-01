@@ -5,15 +5,12 @@
 #include "raymath.h"
 #include "rlgl.h"
 #include "../sh4zam/include/sh4zam/shz_sh4zam.h"
-#include "../fftw_1997/fftw.h"
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
-
-#ifdef PLATFORM_DREAMCAST
 #include <dc/perfctr.h>
-#endif // PLATFORM_DREAMCAST
 
 //TODO: investigate orbital camera!!!!
 #define SINF(x) shz_sinf((x))
@@ -73,14 +70,14 @@
      RETURN_HU3_PO4}
 
 #define SRC_CHANNELS 1
-#define AUDIO_DEVICE_CHANNELS 2
+//#define AUDIO_DEVICE_CHANNELS 2
 
 #define SRC_SAMPLE_RATE 22050
-#define AUDIO_DEVICE_SAMPLE_RATE 44100
+//#define AUDIO_DEVICE_SAMPLE_RATE 44100
 #define ANALYSIS_SAMPLE_RATE 22050 //44100
 
 #define SRC_BIT_DEPTH 16
-#define AUDIO_DEVICE_BIT_DEPTH 16
+//#define AUDIO_DEVICE_FORMAT 16
 #define ANALYSIS_PCM16_UPPER_BOUND 32767.0f
 
 #define ANALYSIS_WINDOW_SIZE_IN_FRAMES 1024 //2048
@@ -95,11 +92,8 @@
 #define DEFAULT_SCALE (Vector3){1.0f, 1.0f, 1.0f}
 
 #define RD_COUNTRY_22K_WAV "/rd/country_22050hz_pcm16_mono.wav"
-#define RD_COUNTRY_STEREO_MP3 "/rd/country_44100hz_128kbps_stereo.mp3"
-#define RES_COUNTRY_STEREO_44K_WAV "src/resources/country_44100hz_pcm16_stereo.wav"
 
 #define RD_SHADERTOY_EXPERIMENT_22K_WAV "/rd/shadertoy_experiment_22050hz_pcm16_mono.wav"
-#define RES_SHADERTOY_EXPERIMENT_22K_WAV "src/resources/shadertoy_experiment_22050hz_pcm16_mono.wav"
 #define RD_SHADERTOY_ELECTRONEBULAE_ONE_FOURTH_22K_WAV "/rd/shadertoy_electronebulae_one_fourth_22050hz_pcm16_mono.wav"
 
 #define RD_DDS_FFM_22K_WAV "/rd/dds_ffm_22050hz_pcm16_mono.wav"
@@ -120,15 +114,8 @@
 #define RD_TJ_SAYO_22K_WAV "/rd/tj_sayo_22050hz_pcm16_mono.wav"
 #define RD_TJ_SAYO_FULL_22K_WAV "/rd/tj_sayo_full_22050hz_pcm16_mono.wav"
 
-// #define RD_FONT "/rd/vga_rom_f16.fnt"
-// #define RD_FONT "/rd/vga_rom_f16_1px_tight.fnt"
 #define RD_FONT "/rd/vga_rom_f16_0px_TIGHT.fnt" //TODO: nice 1KB...
 #define FONT_SIZE 16.0f
-
-#define SHADER_FFT "src/resources/fft.glsl"
-#define SHADER_WAVEFORM "src/resources/waveform.glsl"
-#define SHADER_SOUND_ENVELOPE_BUFFER_A "src/resources/sound_envelope_buffer_a.glsl"
-#define SHADER_SOUND_ENVELOPE_IMAGE "src/resources/sound_envelope_image.glsl"
 
 typedef struct FFTComplex {
     float real;
@@ -277,62 +264,6 @@ static inline void apply_blackman_window(void) {
     }
 }
 
-static inline void apply_blackman_window_fftw_complex(fftw_complex* fft_input) {
-    for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
-        float x = (2.0f * PI * i) / (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1.0f);
-        float blackman_weight = ANALYSIS_BLACKMAN_A - ANALYSIS_BLACKMAN_B * cosf(x) + ANALYSIS_BLACKMAN_C * cosf(2.0f * x);
-        float sample = analysis_window_samples[i];
-        float windowed_sample = sample * blackman_weight;
-
-        fft_input[i].re = (fftw_real)windowed_sample;
-        fft_input[i].im = 0.0;
-    }
-}
-
-static inline void cooley_tukey_fft_slow(FFTComplex* spectrum) {
-    int j = 0;
-
-    for (int i = 1; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1; i++) {
-        int bit = ANALYSIS_WINDOW_SIZE_IN_FRAMES >> 1;
-
-        while (j >= bit) {
-            j -= bit;
-            bit >>= 1;
-        }
-
-        j += bit;
-        if (i < j) {
-            FFTComplex tmp = spectrum[i];
-            spectrum[i] = spectrum[j];
-            spectrum[j] = tmp;
-        }
-    }
-
-    for (int len = 2; len <= ANALYSIS_WINDOW_SIZE_IN_FRAMES; len <<= 1) {
-        float angle_rad = -2.0f * PI / len;
-        FFTComplex twiddle_unit = {cosf(angle_rad), sinf(angle_rad)};
-
-        for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i += len) {
-            FFTComplex twiddle_cur = {1.0f, 0.0f};
-
-            for (int k = 0; k < len / 2; k++) {
-                FFTComplex even = spectrum[i + k];
-                FFTComplex odd = spectrum[i + k + len / 2];
-                FFTComplex twiddled_odd = {odd.real * twiddle_cur.real - odd.imaginary * twiddle_cur.imaginary,
-                                           odd.real * twiddle_cur.imaginary + odd.imaginary * twiddle_cur.real};
-                float twiddle_real_next = twiddle_cur.real * twiddle_unit.real - twiddle_cur.imaginary * twiddle_unit.imaginary;
-
-                spectrum[i + k].real = even.real + twiddled_odd.real;
-                spectrum[i + k].imaginary = even.imaginary + twiddled_odd.imaginary;
-                spectrum[i + k + len / 2].real = even.real - twiddled_odd.real;
-                spectrum[i + k + len / 2].imaginary = even.imaginary - twiddled_odd.imaginary;
-                twiddle_cur.imaginary = twiddle_cur.real * twiddle_unit.imaginary + twiddle_cur.imaginary * twiddle_unit.real;
-                twiddle_cur.real = twiddle_real_next;
-            }
-        }
-    }
-}
-
 static inline void update_spectrum_bin(float* smoothed_spectrum, int bin, float real, float imaginary) {
     float linear_magnitude = sqrtf(real * real + imaginary * imaginary) / ANALYSIS_WINDOW_SIZE_IN_FRAMES;
     float smoothed_magnitude =
@@ -352,22 +283,6 @@ static inline void build_spectrum(void) {
     for (int bin = 0; bin < ANALYSIS_SPECTRUM_BIN_COUNT; bin++) {
         float re = fft_data.work_buffer[bin].real;
         float im = fft_data.work_buffer[bin].imaginary;
-        float linear_magnitude = sqrtf(re * re + im * im) / ANALYSIS_WINDOW_SIZE_IN_FRAMES;
-        raw_spectrum[bin] = linear_magnitude;
-        update_spectrum_bin(smoothed_spectrum, bin, re, im);
-    }
-
-    fft_data.history_pos = (fft_data.history_pos + 1) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
-    fft_data.frame_index++;
-}
-
-static inline void build_spectrum_fftw(fftw_complex* fft_output) {
-    float* smoothed_spectrum = fft_data.spectrum_history_levels[fft_data.history_pos];
-    float* raw_spectrum = fft_data.raw_spectrum_history_levels[fft_data.history_pos];
-
-    for (int bin = 0; bin < ANALYSIS_SPECTRUM_BIN_COUNT; bin++) {
-        float re = (float)fft_output[bin].re;
-        float im = (float)fft_output[bin].im;
         float linear_magnitude = sqrtf(re * re + im * im) / ANALYSIS_WINDOW_SIZE_IN_FRAMES;
         raw_spectrum[bin] = linear_magnitude;
         update_spectrum_bin(smoothed_spectrum, bin, re, im);
@@ -441,10 +356,7 @@ static inline void render_fft_frame(void) {
 #define ISOMETRIC_GRID_CENTER_X (0.5f * (-(float)(LANE_COUNT - 1) * ISOMETRIC_LANE_SPACING + (float)(LANE_POINT_COUNT - 1)))
 #define ISOMETRIC_GRID_CENTER_Y (0.25f * ((float)(LANE_POINT_COUNT - 1) + (float)(LANE_COUNT - 1) * ISOMETRIC_LANE_SPACING))
 #define LANE_SPACING_SCALE 0.50f
-#define POINT_SIZE_RASTER_PIXELS 3.0f
 #define MESH_VERTEX_COUNT (LANE_COUNT * LANE_POINT_COUNT)
-#define LINE_SEGMENT_COUNT (LANE_COUNT * (LANE_POINT_COUNT - 1))
-#define LINE_INDEX_COUNT (LINE_SEGMENT_COUNT * 2)
 #define TERRAIN_TRIANGLE_COUNT (((LANE_COUNT - 1) * (LANE_POINT_COUNT - 1)) * 2)
 #define FLAT_VERTEX_COUNT (TERRAIN_TRIANGLE_COUNT * 3)
 #define DRAW_COLOR_CHANNEL_MAX 255

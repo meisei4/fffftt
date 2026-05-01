@@ -1,7 +1,3 @@
-[submodule "raylib_desktop"]
-	path = raylib_desktop
-	url = https://github.com/raysan5/raylib.git
-	branch = master
 [submodule "raylib_dc"]
 	path = raylib_dc
 	url = https://github.com/raylib4Consoles/raylib.git
@@ -9,7 +5,7 @@
 [submodule "GLdc"]
 	path = GLdc
 	url = https://gitlab.com/simulant/GLdc.git
-	branch = master
+	branch = new-vertex-structure
 [submodule "sh4zam"]
 	path = sh4zam
 	url = https://github.com/gyrovorbis/sh4zam.git

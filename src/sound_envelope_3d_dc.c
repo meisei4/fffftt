@@ -28,7 +28,7 @@ int main(void) {
         .projection = CAMERA_ORTHOGRAPHIC,
     };
 
-    SetTargetFPS(15);
+    SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
         if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_MIDDLE_RIGHT) && IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
@@ -51,6 +51,10 @@ int main(void) {
             }
             advance_lane_history(&lane_point_values[0][0], LANE_POINT_COUNT);
             smooth_front_lane();
+            //TODO: to avoid smoothing comment out the above and uncomment the below
+            // for (int i = 0; i < LANE_POINT_COUNT; i++) {
+            //     lane_point_values[0][i] = analysis_window_samples[(i * (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1)) / (LANE_POINT_COUNT - 1)];
+            // }
         }
 
         update_envelope_mesh_vertices(&envelope_mesh_vertices[0][0]);

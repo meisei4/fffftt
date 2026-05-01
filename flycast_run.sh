@@ -15,6 +15,8 @@ window_height="${FLYCAST_WINDOW_HEIGHT:-480}"
 render_resolution="${FLYCAST_RENDER_RESOLUTION:-480}"
 
 flycast_config_args=(
+  -config "window:fullscreen=no"
+  -config "window:maximized=no"
   -config "window:width=${window_width}"
   -config "window:height=${window_height}"
   -config "config:rend.Resolution=${render_resolution}"
