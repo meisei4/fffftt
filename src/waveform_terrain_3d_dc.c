@@ -55,12 +55,10 @@ int main(void) {
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
-    LOAD_AUDIO_TRACK(DEFAULT_AUDIO_TRACK_SHADERTOY_EXPERIMENT);
-    WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    load_audio_tracks();
+    set_audio_track(DEFAULT_AUDIO_TRACK_SHADERTOY_EXPERIMENT);
     audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
-
-    wave_pcm16 = (int16_t*)wave.data;
 
     Camera3D camera = {
         .position = (Vector3){1.456f * 2.0, 1.345f * 2.0, -1.366f * 2.0},
@@ -163,7 +161,7 @@ int main(void) {
         glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){light0_position.x, light0_position.y, light0_position.z, 1.0f});
         DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         glDisable(GL_LIGHTING);
-        // draw_light_position_marker();
+        // draw_light_position_marker(light0_position);
 
         DrawModelEx(model_b, BOTTOM, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
 
@@ -206,7 +204,7 @@ int main(void) {
     UnloadModel(model_b);
     UnloadModel(flat_model);
     UnloadAudioStream(audio_stream);
-    UnloadWave(wave);
+    unload_audio_tracks();
     CloseAudioDevice();
     UnloadFont(font);
     CloseWindow();

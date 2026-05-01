@@ -650,6 +650,8 @@ static Texture2D build_lane_mask_glow(float* texcoords, int point_count) {
 static float onset_interpolation_factor = 0.0f;
 static float onset_interpolation_factor_history[ANALYSIS_FFT_HISTORY_FRAME_COUNT] = {0};
 static float light0_diffuse[4] = {LIGHT0_DIFFUSE_MIN, LIGHT0_DIFFUSE_MIN, LIGHT0_DIFFUSE_MIN, 1.0f};
+static bool padmouse_light0_hovered = false;
+static bool padmouse_light0_grabbed = false;
 static Vector3 light0_position = {1.330f, 1.345f, -1.418f};
 
 static void update_onset_interpolation_factor_fft(FFTData* fft_data) {
@@ -700,7 +702,13 @@ static void update_diffuse_strength(void) {
     light0_diffuse[3] = 1.0f;
 }
 
-static inline void draw_light_position_marker(void) {
+static inline void draw_light_position_marker(Vector3 position) {
+    Color marker_color = SUNFLOWER;
+    if (padmouse_light0_grabbed) {
+        marker_color = NEON_CARROT;
+    } else if (padmouse_light0_hovered) {
+        marker_color = MARINER;
+    }
     for (int i = 0; i < LIGHT0_MARKER_SEGMENTS; i++) {
         float angle_0_rad = ((float)i / (float)LIGHT0_MARKER_SEGMENTS) * (2.0f * PI);
         float angle_1_rad = ((float)(i + 1) / (float)LIGHT0_MARKER_SEGMENTS) * (2.0f * PI);
@@ -713,17 +721,17 @@ static inline void draw_light_position_marker(void) {
             float ring_x = COSF(ring_angle_rad);
             float ring_y = SINF(ring_angle_rad);
             Vector3 point_0 = {
-                light0_position.x + ring_cos_0 * ring_x,
-                light0_position.y + ring_cos_0 * ring_y,
-                light0_position.z + ring_sin_0,
+                position.x + ring_cos_0 * ring_x,
+                position.y + ring_cos_0 * ring_y,
+                position.z + ring_sin_0,
             };
             Vector3 point_1 = {
-                light0_position.x + ring_cos_1 * ring_x,
-                light0_position.y + ring_cos_1 * ring_y,
-                light0_position.z + ring_sin_1,
+                position.x + ring_cos_1 * ring_x,
+                position.y + ring_cos_1 * ring_y,
+                position.z + ring_sin_1,
             };
             rlDisableDepthTest();
-            DrawLine3D(point_0, point_1, NEON_CARROT);
+            DrawLine3D(point_0, point_1, marker_color);
             rlEnableDepthTest();
         }
     }
@@ -775,7 +783,6 @@ static inline void update_camera_orbit(Camera3D* camera, float dt) {
 static Vector2 padmouse_pos = {0.5f * SCREEN_WIDTH, 0.5f * SCREEN_HEIGHT};
 
 static inline void update_padmouse(float dt, const Camera3D* camera) {
-    static bool light0_grabbed = false;
     float axis_x = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
     float axis_y = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
     if (FABSF(axis_x) < PADMOUSE_DEADZONE)
@@ -792,13 +799,14 @@ static inline void update_padmouse(float dt, const Camera3D* camera) {
     float light_dy = padmouse_pos.y - light_screen_pos.y;
     float light_dist_sq = light_dx * light_dx + light_dy * light_dy;
     float light_hover_radius_sq = PADMOUSE_HOVER_RADIUS_PIXELS * PADMOUSE_HOVER_RADIUS_PIXELS;
-    if (light0_grabbed && !IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
-        light0_grabbed = false;
-    } else if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN) && light_dist_sq <= light_hover_radius_sq) {
-        light0_grabbed = true;
+    padmouse_light0_hovered = light_dist_sq <= light_hover_radius_sq;
+    if (padmouse_light0_grabbed && !IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
+        padmouse_light0_grabbed = false;
+    } else if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN) && padmouse_light0_hovered) {
+        padmouse_light0_grabbed = true;
     }
 
-    if (light0_grabbed) {
+    if (padmouse_light0_grabbed) {
         Ray screen_ray = GetScreenToWorldRay(padmouse_pos, *camera);
         Vector3 plane_normal = Vector3Normalize(Vector3Subtract(camera->position, camera->target));
         float plane_dist = Vector3DotProduct(light0_position, plane_normal);
@@ -811,8 +819,8 @@ static inline void update_padmouse(float dt, const Camera3D* camera) {
 }
 
 static inline void draw_padmouse(void) {
-    DrawCircleLines((int)padmouse_pos.x, (int)padmouse_pos.y, 7.0f, Fade(WHITE, 0.8f));
-    DrawPixel((int)padmouse_pos.x, (int)padmouse_pos.y, WHITE);
+    DrawCircleLines((int)padmouse_pos.x, (int)padmouse_pos.y, 7.0f, Fade(SUNFLOWER, 0.8f));
+    DrawPixel((int)padmouse_pos.x, (int)padmouse_pos.y, SUNFLOWER);
 }
 
 static float sticky_nav_at[2] = {0};
@@ -896,27 +904,42 @@ static void draw_paused_wave_cursor_lane_marker(void) {
 }
 
 static inline void draw_wave_cursor_wheel_hud_row(const char* s, float x, float y, Color c) {
-    char g[2] = {0};
     for (int i = 0; s[i]; i++) {
         if (s[i] == ' ')
             continue;
-        g[0] = s[i];
+        char g[2] = {s[i], 0};
         DrawTextEx(font, g, (Vector2){x + (float)i * 7.0f, y}, FONT_SIZE, 0.0f, c);
     }
+}
+
+static inline void draw_wave_cursor_wheel_hud_labeled_value(const char* label, const char* value, float x, float y, Color value_color) {
+    size_t label_len = strlen(label);
+    size_t value_len = strlen(value);
+    DrawTextEx(font, "[", (Vector2){x, y}, FONT_SIZE, 0.0f, SUNFLOWER);
+    draw_wave_cursor_wheel_hud_row(label, x + 7.0f, y, SUNFLOWER);
+    DrawTextEx(font, ":", (Vector2){x + (float)(label_len + 1) * 7.0f, y}, FONT_SIZE, 0.0f, SUNFLOWER);
+    draw_wave_cursor_wheel_hud_row(value, x + (float)(label_len + 2) * 7.0f, y, value_color);
+    DrawTextEx(font, "]", (Vector2){x + (float)(label_len + value_len + 2) * 7.0f, y}, FONT_SIZE, 0.0f, SUNFLOWER);
+}
+
+static inline void draw_wave_cursor_wheel_hud_bracketed_value(const char* value, float x, float y, Color value_color) {
+    size_t value_len = strlen(value);
+    DrawTextEx(font, "[", (Vector2){x, y}, FONT_SIZE, 0.0f, SUNFLOWER);
+    draw_wave_cursor_wheel_hud_row(value, x + 7.0f, y, value_color);
+    DrawTextEx(font, "]", (Vector2){x + (float)(value_len + 1) * 7.0f, y}, FONT_SIZE, 0.0f, SUNFLOWER);
 }
 
 static inline void draw_inspection_hud_wheel_row(int indent, float y, int row_offset, Color row_color) {
     int row_delta_chunks = seek_delta_chunks + row_offset;
     int row_delta_ms = (row_delta_chunks * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES * MILLISECONDS_PER_SECOND) / SRC_SAMPLE_RATE;
-    bool selected = row_delta_chunks == 0;
     int display_cursor = (paused_wave_cursor + row_delta_chunks * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
     if (display_cursor < 0)
         display_cursor += wave.frameCount;
     int display_cursor_ms = SAMPLE_CURSOR_TO_MS(display_cursor);
-    Color color = selected ? SUNFLOWER : row_color;
+    Color color = row_delta_chunks == 0 ? NEON_CARROT : row_color;
     float x = 376.0f + (float)indent * 7.0f;
     if (row_offset == 0)
-        draw_wave_cursor_wheel_hud_row(">", x - 14.0f, y, SUNFLOWER);
+        draw_wave_cursor_wheel_hud_row(">", x - 14.0f, y, NEON_CARROT);
     draw_wave_cursor_wheel_hud_row(TextFormat("%6d", display_cursor), x, y, color);
     DrawTextEx(font, ":", (Vector2){x + 42.0f, y}, FONT_SIZE, 0.0f, color);
     draw_wave_cursor_wheel_hud_row(TextFormat("%+04d", row_delta_chunks), x + 56.0f, y, color);
@@ -929,20 +952,20 @@ static inline void draw_inspection_hud_wheel_row(int indent, float y, int row_of
 static void draw_playback_inspection_hud(void) {
     int cursor = is_paused ? paused_wave_cursor : wave_cursor;
     int cursor_ms = SAMPLE_CURSOR_TO_MS(cursor);
-    Color top_color = is_paused ? SUNFLOWER : MARINER;
-    draw_wave_cursor_wheel_hud_row(TextFormat("[CURSOR:%6d]", cursor), 7.0f + 20.0f, 25.0f, top_color);
-    draw_wave_cursor_wheel_hud_row(TextFormat("[STEP:%4d]", AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES), 140.0f + 20.0f, 25.0f, top_color);
-    draw_wave_cursor_wheel_hud_row(TextFormat("[SAMPLE_RATE:%5d]", SRC_SAMPLE_RATE), 244.0f + 20.0f, 25.0f, top_color);
-    draw_wave_cursor_wheel_hud_row(TextFormat("[TIME:" MMSSMMM_FMT "]", MMSSMMM_ARGS(cursor_ms)), 402.0f + 20.0f, 25.0f, top_color);
-    draw_wave_cursor_wheel_hud_row(is_paused ? "[PAUSED]" : "[PLAYING]", 533.0f + 20.0f, 25.0f, is_paused ? NEON_CARROT : SUNFLOWER);
+    Color activity_color = is_paused ? MARINER : NEON_CARROT;
+    draw_wave_cursor_wheel_hud_labeled_value("CURSOR", TextFormat("%6d", cursor), 7.0f + 20.0f, 25.0f, activity_color);
+    draw_wave_cursor_wheel_hud_labeled_value("STEP", TextFormat("%4d", AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES), 140.0f + 20.0f, 25.0f, MARINER);
+    draw_wave_cursor_wheel_hud_labeled_value("SAMPLE_RATE", TextFormat("%5d", SRC_SAMPLE_RATE), 244.0f + 20.0f, 25.0f, MARINER);
+    draw_wave_cursor_wheel_hud_labeled_value("TIME", TextFormat(MMSSMMM_FMT, MMSSMMM_ARGS(cursor_ms)), 402.0f + 20.0f, 25.0f, activity_color);
+    draw_wave_cursor_wheel_hud_bracketed_value(is_paused ? "PAUSED" : "PLAYING", 533.0f + 20.0f, 25.0f, activity_color);
     if (is_paused) {
-        draw_wave_cursor_wheel_hud_row("        [...]", 376.0f, 352.0f - 5.0f, seek_delta_chunks < -2 ? SUNFLOWER : MARINER);
+        draw_wave_cursor_wheel_hud_row("        [...]", 376.0f, 352.0f - 5.0f, seek_delta_chunks < -2 ? NEON_CARROT : MARINER);
         draw_inspection_hud_wheel_row(6, 368.0f - 5.0f, 2, MARINER);
         draw_inspection_hud_wheel_row(4, 384.0f - 5.0f, 1, MARINER);
         draw_inspection_hud_wheel_row(2, 400.0f - 5.0f, 0, MARINER);
         draw_inspection_hud_wheel_row(4, 416.0f - 5.0f, -1, MARINER);
         draw_inspection_hud_wheel_row(6, 432.0f - 5.0f, -2, MARINER);
-        draw_wave_cursor_wheel_hud_row("        [...]", 376.0f, 448.0f - 5.0f, seek_delta_chunks > 2 ? SUNFLOWER : MARINER);
+        draw_wave_cursor_wheel_hud_row("        [...]", 376.0f, 448.0f - 5.0f, seek_delta_chunks > 2 ? NEON_CARROT : MARINER);
     }
 }
 
@@ -1056,13 +1079,27 @@ static void update_playback_controls_fft_spectrum(void) {
      : (track_index) == DEFAULT_AUDIO_TRACK_AT_UNTITLED        ? RD_AT_UNTITLED_22K_WAV                                                                        \
                                                                : RD_TJ_SAYO_22K_WAV)
 
-#define LOAD_AUDIO_TRACK(track_index)                                                                                                                          \
-    do {                                                                                                                                                       \
-        audio_track_index = (track_index);                                                                                                                     \
-        wave = LoadWave(AUDIO_TRACK_PATH(audio_track_index));                                                                                                  \
-    } while (0)
-
 static int audio_track_index = DEFAULT_AUDIO_TRACK_SHADERTOY_EXPERIMENT;
+static Wave loaded_audio_tracks[AUDIO_TRACK_COUNT] = {0};
+
+static inline void load_audio_tracks(void) {
+    for (int i = 0; i < AUDIO_TRACK_COUNT; i++) {
+        loaded_audio_tracks[i] = LoadWave(AUDIO_TRACK_PATH(i));
+        WaveFormat(&loaded_audio_tracks[i], SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    }
+}
+
+static inline void set_audio_track(int track_index) {
+    audio_track_index = track_index;
+    wave = loaded_audio_tracks[audio_track_index];
+    wave_pcm16 = (int16_t*)wave.data;
+}
+
+static inline void unload_audio_tracks(void) {
+    for (int i = 0; i < AUDIO_TRACK_COUNT; i++) {
+        UnloadWave(loaded_audio_tracks[i]);
+    }
+}
 
 static inline void update_audio_track_cycle(void) {
     int dir = 0;
@@ -1083,10 +1120,7 @@ static inline void update_audio_track_cycle(void) {
     }
 
     StopAudioStream(audio_stream);
-    UnloadWave(wave);
-    wave = LoadWave(AUDIO_TRACK_PATH(audio_track_index));
-    WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
-    wave_pcm16 = (int16_t*)wave.data;
+    set_audio_track(audio_track_index);
     wave_cursor = 0;
     paused_wave_cursor = 0;
     seek_delta_chunks = 0;

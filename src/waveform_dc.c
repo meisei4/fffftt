@@ -62,12 +62,10 @@ int main(void) {
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
-    LOAD_AUDIO_TRACK(DEFAULT_AUDIO_TRACK_SHADERTOY_EXPERIMENT);
-    WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    load_audio_tracks();
+    set_audio_track(DEFAULT_AUDIO_TRACK_SHADERTOY_EXPERIMENT);
     audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
-
-    wave_pcm16 = (int16_t*)wave.data;
 
     SetTargetFPS(60);
 
@@ -152,7 +150,7 @@ int main(void) {
     }
 
     UnloadAudioStream(audio_stream);
-    UnloadWave(wave);
+    unload_audio_tracks();
     CloseAudioDevice();
     UnloadFont(font);
     CloseWindow();

@@ -49,12 +49,10 @@ int main(void) {
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
-    LOAD_AUDIO_TRACK(DEFAULT_AUDIO_TRACK_SHADERTOY_EXPERIMENT);
-    WaveFormat(&wave, SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
+    load_audio_tracks();
+    set_audio_track(DEFAULT_AUDIO_TRACK_SHADERTOY_EXPERIMENT);
     audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
-
-    wave_pcm16 = (int16_t*)wave.data;
 
     Camera3D camera = {
         .position = (Vector3){1.45625f * 3.0f, 1.345f * 3.0f, -1.36625f * 3.0f},
@@ -192,7 +190,7 @@ int main(void) {
         glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){light0_position.x, light0_position.y, light0_position.z, 1.0f});
         DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         glDisable(GL_LIGHTING);
-        draw_light_position_marker();
+        draw_light_position_marker(light0_position);
 
         glEnable(GL_LIGHTING);
         glShadeModel(GL_FLAT);
@@ -222,7 +220,7 @@ int main(void) {
 
         model_a.meshes[0].colors = saved_colors;
 
-        draw_light_position_marker();
+        draw_light_position_marker(light0_position);
         EndMode3D();
         DrawTextEx(font, TextFormat("%2i FPS", GetFPS()), (Vector2){50.0f, 440.0f}, FONT_SIZE, 0.0f, WHITE);
         draw_playback_inspection_hud();
@@ -236,7 +234,7 @@ int main(void) {
     UnloadModel(model_b);
     UnloadModel(flat_model);
     UnloadAudioStream(audio_stream);
-    UnloadWave(wave);
+    unload_audio_tracks();
     CloseAudioDevice();
     RL_FREE(fft_data.raw_spectrum_history_levels);
     RL_FREE(fft_data.spectrum_history_levels);
