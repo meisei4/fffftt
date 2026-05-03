@@ -4,54 +4,70 @@
 
 #define LINE_WIDTH_RASTER_PIXELS 1.0f
 #define POINT_SIZE_RASTER_PIXELS 3.0f
-
-#define LOW_BAND_POINT_COUNT 9
-#define MID_BAND_POINT_COUNT LANE_POINT_COUNT
-#define HIGH_BAND_POINT_COUNT 49
 #define WHITE_NOISE_TEXELS_PER_QUAD 16
+
+// https://en.wikipedia.org/wiki/12_equal_temperament
+#define LOW_BAND_POINT_COUNT 44  // CEIL(12 * LOG2(250 / 20)) = 44
+#define MID_BAND_POINT_COUNT 48  // CEIL(12 * LOG2(4000 / 250)) = 48,
+#define HIGH_BAND_POINT_COUNT 18 // CEIL(12 * LOG2(11025 / 4000)) = 18
+
 //TODO: look up tables to make it clear what the bands actually consist of,
-//NOTE: THESE ARE MANUALLY WRITTEN AND SHOULD STAY IN ALIGNMENT WITH ANY CHANGES TO THE ABOVE *_BAND_POINT_COUNT values!
+//NOTE: THESE ARE MANUALLY WRITTEN AND SHOULD STAY IN ALIGNMENT WITH ANY CHANGES TO THE ABOVE *_BAND_POINT_COUNT DENSITY POLICY!!
 static const unsigned short LOW_BAND_BIN_BOUNDS[LOW_BAND_POINT_COUNT][2] = {
-    // 20 Hz -> 400 Hz : bins 1..19
-    {1, 2},
-    {2, 4},
-    {4, 6},
-    {6, 9},
-    {8, 11},
-    {11, 13},
-    {13, 15},
-    {15, 18},
-    {17, 19},
+    // 20 Hz -> 250 Hz
+    {1, 1}, {1, 1}, {1, 1}, {1, 2}, {1, 2}, {2, 2},  {2, 2},  {2, 3},  {2, 3},  {3, 3},   {3, 3},   {3, 4},   {3, 4},   {4, 4},   {4, 4},
+    {4, 5}, {4, 5}, {4, 5}, {5, 5}, {5, 6}, {5, 6},  {5, 6},  {6, 6},  {6, 7},  {6, 7},   {6, 7},   {7, 7},   {7, 8},   {7, 8},   {7, 8},
+    {7, 8}, {8, 9}, {8, 9}, {8, 9}, {8, 9}, {9, 10}, {9, 10}, {9, 10}, {9, 10}, {10, 11}, {10, 11}, {10, 11}, {10, 11}, {11, 11},
 };
 
 static const unsigned short MID_BAND_BIN_BOUNDS[MID_BAND_POINT_COUNT][2] = {
-    // 400 Hz -> 4000 Hz : bins 20..186
-    {20, 23},   {22, 28},   {27, 33},   {32, 38},   {37, 43},   {42, 48},   {48, 54},   {53, 59},   {58, 64},   {63, 69},   {68, 74},
-    {74, 80},   {79, 85},   {84, 90},   {89, 95},   {94, 100},  {100, 106}, {105, 111}, {110, 116}, {115, 121}, {120, 126}, {125, 131},
-    {131, 137}, {136, 142}, {141, 147}, {146, 152}, {151, 157}, {157, 163}, {162, 168}, {167, 173}, {172, 178}, {177, 183}, {183, 186},
+    // 250 Hz -> 4000 Hz
+    {12, 15},   {15, 19},   {19, 22},   {23, 26},   {26, 30},   {30, 33},   {34, 37},   {37, 41},   {41, 44},   {45, 48},   {48, 51},   {52, 55},
+    {56, 59},   {59, 62},   {63, 66},   {67, 70},   {70, 73},   {74, 77},   {78, 80},   {81, 84},   {85, 88},   {89, 91},   {92, 95},   {96, 99},
+    {100, 102}, {104, 106}, {107, 109}, {111, 113}, {115, 117}, {118, 120}, {122, 124}, {126, 128}, {129, 131}, {133, 135}, {137, 138}, {140, 142},
+    {144, 146}, {148, 149}, {151, 153}, {155, 157}, {159, 160}, {162, 164}, {166, 167}, {170, 171}, {173, 175}, {177, 178}, {181, 182}, {185, 185},
 };
 
 static const unsigned short HIGH_BAND_BIN_BOUNDS[HIGH_BAND_POINT_COUNT][2] = {
-    // 4000 Hz -> Nyquist : bins 187..511
-    {187, 190}, {190, 197}, {196, 204}, {203, 211}, {210, 217}, {217, 224}, {223, 231}, {230, 238}, {237, 244}, {244, 251}, {250, 258}, {257, 265}, {264, 271},
-    {271, 278}, {277, 285}, {284, 292}, {291, 298}, {298, 305}, {304, 312}, {311, 319}, {318, 325}, {325, 332}, {331, 339}, {338, 346}, {345, 352}, {352, 359},
-    {358, 366}, {365, 373}, {372, 379}, {379, 386}, {385, 393}, {392, 400}, {399, 406}, {406, 413}, {412, 420}, {419, 427}, {426, 433}, {433, 440}, {439, 447},
-    {446, 454}, {453, 460}, {460, 467}, {466, 474}, {473, 481}, {480, 487}, {487, 494}, {493, 501}, {500, 508}, {507, 511},
+    // 4000 Hz -> Nyquist (11025 Hz)
+    {186, 204},
+    {205, 222},
+    {224, 240},
+    {243, 258},
+    {262, 276},
+    {281, 294},
+    {300, 312},
+    {319, 330},
+    {338, 349},
+    {358, 367},
+    {377, 385},
+    {396, 403},
+    {415, 421},
+    {434, 439},
+    {453, 457},
+    {472, 475},
+    {491, 493},
+    {511, 511},
 };
 
 #define LOW_BAND_VERTEX_COUNT (LANE_COUNT * LOW_BAND_POINT_COUNT)
 #define MID_BAND_VERTEX_COUNT (LANE_COUNT * MID_BAND_POINT_COUNT)
 #define HIGH_BAND_VERTEX_COUNT (LANE_COUNT * HIGH_BAND_POINT_COUNT)
 
+#define MID_BAND_TERRAIN_TRIANGLE_COUNT (((LANE_COUNT - 1) * (MID_BAND_POINT_COUNT - 1)) * 2)
+#define FLAT_MID_BAND_VERTEX_COUNT (MID_BAND_TERRAIN_TRIANGLE_COUNT * 3)
+
 static const char* domain = "FFT-BANDS-TERRAIN-3D-DC";
 
 static Mesh low_band_mesh = {0};
 static Mesh mid_band_mesh = {0};
 static Mesh high_band_mesh = {0};
+static Mesh flat_mesh = {0};
 
 static Model low_band_model = {0};
 static Model mid_band_model = {0};
 static Model high_band_model = {0};
+static Model flat_model = {0};
 
 static float low_band_lane_point_values[LANE_COUNT][LOW_BAND_POINT_COUNT] = {0};
 static float mid_band_lane_point_values[LANE_COUNT][MID_BAND_POINT_COUNT] = {0};
@@ -77,7 +93,10 @@ static float high_band_spectral_flatness_glitter_field[HIGH_BAND_VERTEX_COUNT] =
 static float spectral_flatness_glitter_scale = 0.0f;
 static float spectral_flatness_glitter_scale_history[ANALYSIS_FFT_HISTORY_FRAME_COUNT] = {0};
 
-static void build_bands_terrain(int lane, const float* bin_levels);
+static float flat_vertices[FLAT_MID_BAND_VERTEX_COUNT * 3] = {0};
+static float flat_normals[FLAT_MID_BAND_VERTEX_COUNT * 3] = {0};
+static Color flat_colors[FLAT_MID_BAND_VERTEX_COUNT] = {0};
+
 static void build_band_terrain(float* front_lane, int point_count, const float* bin_levels, const unsigned short band_bin_bounds[][2]);
 static void build_timed_glitter_color_field(int lane, const float* bin_levels);
 static void update_mesh_colors_timed_glitter(Color* colors, const float* glitter_field, int point_count, float time);
@@ -92,7 +111,7 @@ static void update_playback_controls_fft(void);
 static void consume_latest_fft_history_frame(void);
 static void build_fft_terrain_lane_from_history(int lane, int frame);
 static void inspection_step(int dir);
-static void rebuild_fft_terrain_meshes(void);
+static void update_fft_bands_terrain_meshes(void);
 static void rebase_fft_history(void);
 
 int main(void) {
@@ -108,6 +127,8 @@ int main(void) {
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
     load_audio_tracks();
+    // set_audio_track(DEFAULT_AUDIO_TRACK_KREUZSCHMERZEN_RENT_DUE);
+    // set_audio_track(DEFAULT_AUDIO_TRACK_KREUZSCHMERZEN);
     set_audio_track(DEFAULT_AUDIO_TRACK_SHADERTOY_EXPERIMENT);
     audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
@@ -146,26 +167,23 @@ int main(void) {
     int white_noise_texture_id = high_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id;
     high_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
 
+    flat_mesh = (Mesh){
+        .vertexCount = mid_band_mesh.triangleCount * 3,
+        .triangleCount = mid_band_mesh.triangleCount,
+        .vertices = RL_CALLOC(mid_band_mesh.triangleCount * 3 * 3, sizeof(float)),
+        .normals = RL_CALLOC(mid_band_mesh.triangleCount * 3 * 3, sizeof(float)),
+        .colors = RL_CALLOC(mid_band_mesh.triangleCount * 3, sizeof(Color)),
+        .indices = NULL, //NOTE: explicit here for didactic
+    };
+    flat_model = LoadModelFromMesh(flat_mesh);
+
     wave_cursor_model = &mid_band_model;
 
     fill_mesh_colors(low_band_colors, LOW_BAND_POINT_COUNT);
     fill_mesh_colors(mid_band_colors, MID_BAND_POINT_COUNT);
     fill_mesh_colors(high_band_colors, HIGH_BAND_POINT_COUNT);
-    // update_mesh_colors_timed_glitter(high_band_colors, &high_band_timed_glitter_field[0][0], HIGH_BAND_POINT_COUNT, 0.0f);
-    // update_mesh_colors_spectral_flatness_glitter(high_band_colors, high_band_spectral_flatness_glitter_field);
 
-    update_mesh_vertices(low_band_vertices, &low_band_lane_point_values[0][0], LOW_BAND_POINT_COUNT);
-    update_mesh_normals_smooth(low_band_normals, low_band_vertices, LOW_BAND_POINT_COUNT);
-    build_mesh_smooth(&low_band_mesh, low_band_vertices, low_band_normals, low_band_colors, low_band_mesh.texcoords, LOW_BAND_VERTEX_COUNT);
-
-    update_mesh_vertices(mid_band_vertices, &mid_band_lane_point_values[0][0], MID_BAND_POINT_COUNT);
-    update_mesh_normals_smooth(mid_band_normals, mid_band_vertices, MID_BAND_POINT_COUNT);
-    update_mesh_colors_pitch_class(mid_band_colors, &mid_chroma_index_field[0][0], &mid_chroma_strength_field[0][0], MID_BAND_POINT_COUNT);
-    build_mesh_smooth(&mid_band_mesh, mid_band_vertices, mid_band_normals, mid_band_colors, mid_band_texcoords, MID_BAND_VERTEX_COUNT);
-
-    update_mesh_vertices(high_band_vertices, &high_band_lane_point_values[0][0], HIGH_BAND_POINT_COUNT);
-    update_mesh_normals_smooth(high_band_normals, high_band_vertices, HIGH_BAND_POINT_COUNT);
-    build_mesh_smooth(&high_band_mesh, high_band_vertices, high_band_normals, high_band_colors, high_band_texcoords, HIGH_BAND_VERTEX_COUNT);
+    update_fft_bands_terrain_meshes();
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
@@ -198,7 +216,7 @@ int main(void) {
         }
 
         if (audio_dirty) {
-            rebuild_fft_terrain_meshes();
+            update_fft_bands_terrain_meshes();
         }
 
         update_audio_track_cycle();
@@ -225,10 +243,25 @@ int main(void) {
         glLightfv(GL_LIGHT0, GL_AMBIENT, (const GLfloat[]){0.0f, 0.0f, 0.0f, 1.0f});
         glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
         glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){light0_position.x, light0_position.y, light0_position.z, 1.0f});
+        rlDisableBackfaceCulling();
         DrawModelEx(low_band_model, BOTTOM_BASS, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+        rlEnableBackfaceCulling();
         glDisable(GL_LIGHTING);
 
-        DrawModelEx(mid_band_model, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+        // DrawModelEx(mid_band_model, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+
+        glEnable(GL_LIGHTING);
+        glShadeModel(GL_FLAT);
+        glLightModelfv(GL_LIGHT_MODEL_AMBIENT, (const GLfloat[]){0.0f, 0.0f, 0.0f, 1.0f});
+        glLightfv(GL_LIGHT0, GL_AMBIENT, (const GLfloat[]){0.0f, 0.0f, 0.0f, 1.0f});
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, (const GLfloat[]){1.0f, 1.0f, 1.0f, 1.0f});
+        glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, (const GLfloat[]){0.0f, 0.0f, 0.0f, 0.0f});
+        rlDisableBackfaceCulling();
+        DrawModelEx(flat_model, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+        rlEnableBackfaceCulling();
+        glShadeModel(GL_SMOOTH);
+        glDisable(GL_LIGHTING);
+
         low_band_model.meshes[0].colors = NULL;
         mid_band_model.meshes[0].colors = NULL;
         high_band_model.meshes[0].colors = NULL;
@@ -242,8 +275,7 @@ int main(void) {
         high_band_model.meshes[0].colors = high_saved_colors;
 
         if (is_paused) {
-            draw_paused_wave_cursor_lane_marker(); // TODO: make this actually idempotentent
-            mid_band_model.meshes[0].colors = mid_saved_colors;
+            draw_paused_wave_cursor_lane_marker(MID_BAND_POINT_COUNT); // TODO: make this actually idempotentent
         }
         draw_light_position_marker(light0_position);
 
@@ -260,6 +292,7 @@ int main(void) {
     UnloadModel(low_band_model);
     UnloadModel(mid_band_model);
     UnloadModel(high_band_model);
+    UnloadModel(flat_model);
     UnloadAudioStream(audio_stream);
     unload_audio_tracks();
     CloseAudioDevice();
@@ -270,22 +303,6 @@ int main(void) {
     UnloadFont(font);
     CloseWindow();
     return 0;
-}
-
-static void build_bands_terrain(int lane, const float* bin_levels) {
-    build_band_terrain(&low_band_lane_point_values[lane][0], LOW_BAND_POINT_COUNT, bin_levels, LOW_BAND_BIN_BOUNDS);
-    build_band_terrain(&mid_band_lane_point_values[lane][0], MID_BAND_POINT_COUNT, bin_levels, MID_BAND_BIN_BOUNDS);
-    build_band_terrain(&high_band_lane_point_values[lane][0], HIGH_BAND_POINT_COUNT, bin_levels, HIGH_BAND_BIN_BOUNDS);
-    // TODO: THIS NEEDS ADDRESSED because i still want *_BAND_BIN_BOUNDS pattern for explicitness but `build_pitch_class_color_field` will
-    // end up doing the whole generalized `spectrum_band_point_sample_bin_bounds` rederivation of the tables, needs confidence on a single common pattern...
-    build_pitch_class_color_field(&mid_chroma_index_field[lane][0],
-                                  &mid_chroma_strength_field[lane][0],
-                                  &mid_band_lane_point_values[lane][0],
-                                  bin_levels,
-                                  MID_BAND_POINT_COUNT,
-                                  MID_BAND_BIN_BOUNDS[0][0],
-                                  MID_BAND_BIN_BOUNDS[MID_BAND_POINT_COUNT - 1][1]);
-    build_timed_glitter_color_field(lane, bin_levels);
 }
 
 static void build_band_terrain(float* front_lane, int point_count, const float* bin_levels, const unsigned short band_bin_bounds[][2]) {
@@ -388,7 +405,7 @@ static void update_mesh_colors_timed_glitter(Color* colors, const float* glitter
 #define SPECTRAL_FLATNESS_GLITTER_ATTACK_RATE 1.0f  //0.95f
 #define SPECTRAL_FLATNESS_GLITTER_RELEASE_RATE 1.0f //1.0f
 
-static void update_spectral_flatness_glitter_scale(const float* raw_spectrum) {
+static void update_spectral_flatness_glitter_scale(const float* bin_levels) {
     // https://librosa.org/doc/main/generated/librosa.feature.spectral_flatness.html
     const int bin_min = HIGH_BAND_BIN_BOUNDS[0][0];
     const int bin_max = HIGH_BAND_BIN_BOUNDS[HIGH_BAND_POINT_COUNT - 1][1];
@@ -397,7 +414,7 @@ static void update_spectral_flatness_glitter_scale(const float* raw_spectrum) {
     float arithmetic_power_sum = 0.0f;
 
     for (int i = bin_min; i <= bin_max; i++) {
-        const float power = FMAXF(POWF(raw_spectrum[i], SPECTRAL_FLATNESS_POWER), SPECTRAL_FLATNESS_AMIN);
+        const float power = FMAXF(POWF(bin_levels[i], SPECTRAL_FLATNESS_POWER), SPECTRAL_FLATNESS_AMIN);
         log_power_sum += LOGF(power);
         arithmetic_power_sum += power;
     }
@@ -434,16 +451,30 @@ static void update_mesh_colors_spectral_flatness_glitter(Color* colors, const fl
 
 static void consume_latest_fft_history_frame(void) {
     int history_index = (fft_data.history_pos - 1 + ANALYSIS_FFT_HISTORY_FRAME_COUNT) % ANALYSIS_FFT_HISTORY_FRAME_COUNT;
-    float* bin_levels = fft_data.spectrum_history_levels[history_index];
+    float* spectrum_bin_levels = fft_data.spectrum_history_levels[history_index];
+    float* raw_bin_levels = fft_data.raw_spectrum_history_levels[history_index];
     advance_lane_history(&low_band_lane_point_values[0][0], LOW_BAND_POINT_COUNT);
     advance_lane_history(&mid_band_lane_point_values[0][0], MID_BAND_POINT_COUNT);
     advance_lane_history(&high_band_lane_point_values[0][0], HIGH_BAND_POINT_COUNT);
     advance_lane_history_u8(&mid_chroma_index_field[0][0], MID_BAND_POINT_COUNT);
     advance_lane_history(&mid_chroma_strength_field[0][0], MID_BAND_POINT_COUNT);
     advance_lane_history(&high_band_timed_glitter_field[0][0], HIGH_BAND_POINT_COUNT);
-    build_bands_terrain(0, bin_levels);
+
+    build_band_terrain(&low_band_lane_point_values[0][0], LOW_BAND_POINT_COUNT, spectrum_bin_levels, LOW_BAND_BIN_BOUNDS);
+    build_band_terrain(&mid_band_lane_point_values[0][0], MID_BAND_POINT_COUNT, spectrum_bin_levels, MID_BAND_BIN_BOUNDS);
+    build_band_terrain(&high_band_lane_point_values[0][0], HIGH_BAND_POINT_COUNT, spectrum_bin_levels, HIGH_BAND_BIN_BOUNDS);
+    // TODO: THIS NEEDS ADDRESSED because i still want *_BAND_BIN_BOUNDS pattern for explicitness but `build_pitch_class_color_field` will
+    // end up doing the whole generalized `spectrum_band_point_sample_bin_bounds` rederivation of the tables, needs confidence on a single common pattern...
+    build_pitch_class_color_field(&mid_chroma_index_field[0][0],
+                                  &mid_chroma_strength_field[0][0],
+                                  &mid_band_lane_point_values[0][0],
+                                  raw_bin_levels, //spectrum_bin_levels,
+                                  MID_BAND_POINT_COUNT,
+                                  1,
+                                  ANALYSIS_SPECTRUM_BIN_COUNT - 1);
+    build_timed_glitter_color_field(0, spectrum_bin_levels);
     update_onset_interpolation_factor_fft(&fft_data);
-    update_spectral_flatness_glitter_scale(fft_data.raw_spectrum_history_levels[history_index]);
+    update_spectral_flatness_glitter_scale(raw_bin_levels);
 }
 
 static void update_playback_controls_fft(void) {
@@ -464,7 +495,7 @@ static void update_playback_controls_fft(void) {
             }
             PauseAudioStream(audio_stream);
             rebase_fft_history();
-            rebuild_fft_terrain_meshes();
+            update_fft_bands_terrain_meshes();
         } else {
             is_paused = false;
             inspection_ready = 0;
@@ -507,7 +538,7 @@ static void update_playback_controls_fft(void) {
         for (int i = 0; i < HIGH_BAND_VERTEX_COUNT; i++) {
             high_band_spectral_flatness_glitter_field[i] = spectral_flatness_glitter_scale;
         }
-        rebuild_fft_terrain_meshes();
+        update_fft_bands_terrain_meshes();
     } else if (is_paused && sticky_nav(GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
         wave_cursor = (wave_cursor + AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
         seek_delta_chunks++;
@@ -545,11 +576,11 @@ static void update_playback_controls_fft(void) {
         for (int i = 0; i < HIGH_BAND_VERTEX_COUNT; i++) {
             high_band_spectral_flatness_glitter_field[i] = spectral_flatness_glitter_scale;
         }
-        rebuild_fft_terrain_meshes();
+        update_fft_bands_terrain_meshes();
     }
 
     if (analysis_dirty) {
-        rebuild_fft_terrain_meshes();
+        update_fft_bands_terrain_meshes();
     }
 }
 
@@ -565,8 +596,21 @@ static void build_fft_terrain_lane_from_history(int lane, int frame) {
     }
 
     int history_index = (int)(frame % ANALYSIS_FFT_HISTORY_FRAME_COUNT);
-    float* bin_levels = fft_data.spectrum_history_levels[history_index];
-    build_bands_terrain(lane, bin_levels);
+    float* spectrum_bin_levels = fft_data.spectrum_history_levels[history_index];
+    float* raw_bin_levels = fft_data.raw_spectrum_history_levels[history_index];
+    build_band_terrain(&low_band_lane_point_values[lane][0], LOW_BAND_POINT_COUNT, spectrum_bin_levels, LOW_BAND_BIN_BOUNDS);
+    build_band_terrain(&mid_band_lane_point_values[lane][0], MID_BAND_POINT_COUNT, spectrum_bin_levels, MID_BAND_BIN_BOUNDS);
+    build_band_terrain(&high_band_lane_point_values[lane][0], HIGH_BAND_POINT_COUNT, spectrum_bin_levels, HIGH_BAND_BIN_BOUNDS);
+    // TODO: THIS NEEDS ADDRESSED because i still want *_BAND_BIN_BOUNDS pattern for explicitness but `build_pitch_class_color_field` will
+    // end up doing the whole generalized `spectrum_band_point_sample_bin_bounds` rederivation of the tables, needs confidence on a single common pattern...
+    build_pitch_class_color_field(&mid_chroma_index_field[lane][0],
+                                  &mid_chroma_strength_field[lane][0],
+                                  &mid_band_lane_point_values[lane][0],
+                                  raw_bin_levels, //spectrum_bin_levels,
+                                  MID_BAND_POINT_COUNT,
+                                  1,
+                                  ANALYSIS_SPECTRUM_BIN_COUNT - 1);
+    build_timed_glitter_color_field(lane, spectrum_bin_levels);
 }
 
 static void inspection_step(int dir) {
@@ -582,21 +626,28 @@ static void inspection_step(int dir) {
     build_fft_terrain_lane_from_history((dir == FORWARD) ? 0 : LANE_COUNT - 1, (dir == FORWARD) ? inspection_frame : inspection_frame - (LANE_COUNT - 1));
 }
 
-static void rebuild_fft_terrain_meshes(void) {
+static void update_fft_bands_terrain_meshes(void) {
     update_mesh_vertices(low_band_vertices, &low_band_lane_point_values[0][0], LOW_BAND_POINT_COUNT);
     update_mesh_normals_smooth(low_band_normals, low_band_vertices, LOW_BAND_POINT_COUNT);
-    build_mesh_smooth(&low_band_mesh, low_band_vertices, low_band_normals, low_band_colors, low_band_mesh.texcoords, LOW_BAND_VERTEX_COUNT);
 
     update_mesh_vertices(mid_band_vertices, &mid_band_lane_point_values[0][0], MID_BAND_POINT_COUNT);
     update_mesh_normals_smooth(mid_band_normals, mid_band_vertices, MID_BAND_POINT_COUNT);
     update_mesh_colors_pitch_class(mid_band_colors, &mid_chroma_index_field[0][0], &mid_chroma_strength_field[0][0], MID_BAND_POINT_COUNT);
-    build_mesh_smooth(&mid_band_mesh, mid_band_vertices, mid_band_normals, mid_band_colors, mid_band_texcoords, MID_BAND_VERTEX_COUNT);
+    // update_mesh_colors_primary_pitch_class(mid_band_colors, &mid_chroma_index_field[0][0], &mid_chroma_strength_field[0][0], MID_BAND_POINT_COUNT);
 
     update_mesh_vertices(high_band_vertices, &high_band_lane_point_values[0][0], HIGH_BAND_POINT_COUNT);
     update_mesh_normals_smooth(high_band_normals, high_band_vertices, HIGH_BAND_POINT_COUNT);
     update_mesh_colors_spectral_flatness_glitter(high_band_colors, high_band_spectral_flatness_glitter_field);
     // update_mesh_colors_timed_glitter(high_band_colors, &high_band_timed_glitter_field[0][0], HIGH_BAND_POINT_COUNT, (float)GetTime());
+
+    expand_mesh_colors_flat(flat_colors, mid_band_colors, mid_band_mesh.indices, FLAT_MID_BAND_VERTEX_COUNT);
+    update_mesh_vertices_flat(flat_vertices, mid_band_vertices, mid_band_mesh.indices, FLAT_MID_BAND_VERTEX_COUNT);
+    update_mesh_normals_flat(flat_normals, flat_vertices, MID_BAND_TERRAIN_TRIANGLE_COUNT);
+
+    build_mesh_smooth(&low_band_mesh, low_band_vertices, low_band_normals, low_band_colors, low_band_mesh.texcoords, LOW_BAND_VERTEX_COUNT);
+    build_mesh_smooth(&mid_band_mesh, mid_band_vertices, mid_band_normals, mid_band_colors, mid_band_texcoords, MID_BAND_VERTEX_COUNT);
     build_mesh_smooth(&high_band_mesh, high_band_vertices, high_band_normals, high_band_colors, high_band_texcoords, HIGH_BAND_VERTEX_COUNT);
+    build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors, FLAT_MID_BAND_VERTEX_COUNT);
 }
 
 static void rebase_fft_history(void) {

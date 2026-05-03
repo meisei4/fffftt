@@ -33,8 +33,14 @@ DC_LDFLAGS := $(KOS_LIB_PATHS) -L$(KOS_PORTS)/libwav/inst/lib
 DC_LDLIBS := $(RAYLIB_DC_LIB) $(GLDC_LIB) -lkosutils -lm -lpthread
 DC_WAV_LDLIBS := $(RAYLIB_DC_LIB) $(GLDC_LIB) -lkosutils -lwav -lm -lpthread
 
+RES_KREUZSCHMERZEN_YOU_KNOW_WHY_WAV := $(RES_DIR)/kreuzschmerzen_you_know_why_22050hz_pcm16_mono.wav
+RES_KREUZSCHMERZEN_RENT_DUE_WAV := $(RES_DIR)/kreuzschmerzen_rent_due_22050hz_pcm16_mono.wav
 RES_EXPERIMENT_WAV := $(RES_DIR)/shadertoy_experiment_22050hz_pcm16_mono.wav
-RES_ELECTRONEBULAE_WAV := $(RES_DIR)/shadertoy_electronebulae_one_fourth_22050hz_pcm16_mono.wav
+RES_ELECTRONEBULAE_WAV := $(RES_DIR)/shadertoy_electronebulae_22050hz_pcm16_mono.wav
+RES_8BIT_WAV := $(RES_DIR)/shadertoy_8bit_22050hz_pcm16_mono.wav
+RES_GEOMETRIC_PERSON_WAV := $(RES_DIR)/shadertoy_geometric_person_22050hz_pcm16_mono.wav
+RES_TROPICAL_WAV := $(RES_DIR)/shadertoy_tropical_22050hz_pcm16_mono.wav
+RES_XTRACK_WAV := $(RES_DIR)/shadertoy_xtrack_22050hz_pcm16_mono.wav
 RES_FONT_ASSETS := $(RES_DIR)/vga_rom_f16_0px_TIGHT.fnt $(RES_DIR)/vga_rom_f16_0px_TIGHT.png
 
 SH4ZAM_BUTTERFLY_SRC := $(SRC_DIR)/sh4zam_butterfly.c
@@ -126,7 +132,9 @@ $(DC_ELFS): TARGET_CFLAGS := $(DC_BASE_CFLAGS) $(FFT_CFLAGS)
 $(DC_ELFS): TARGET_LDLIBS := $(DC_WAV_LDLIBS)
 $(DC_ELFS): TARGET_LDFLAGS := $(DC_LDFLAGS)
 $(DC_ELFS): EXTRA_OBJS :=
-$(DC_ELFS): ASSETS := $(RES_COUNTRY_WAV) $(RES_EXPERIMENT_WAV) $(RES_ELECTRONEBULAE_WAV) $(RES_FONT_ASSETS)
+# $(DC_ELFS): ASSETS := $(RES_KREUZSCHMERZEN_YOU_KNOW_WHY_WAV) $(RES_KREUZSCHMERZEN_RENT_DUE_WAV) $(RES_FONT_ASSETS)
+$(DC_ELFS): ASSETS := $(RES_EXPERIMENT_WAV) $(RES_ELECTRONEBULAE_WAV) $(RES_FONT_ASSETS)
+# $(DC_ELFS): ASSETS += $(RES_8BIT_WAV) $(RES_GEOMETRIC_PERSON_WAV) $(RES_TROPICAL_WAV) $(RES_XTRACK_WAV)
 
 $(SH4ZAM_BUTTERFLY_ELF): SRC := $(SH4ZAM_BUTTERFLY_SRC)
 $(SH4ZAM_BUTTERFLY_ELF): TARGET_CPPFLAGS := $(SH4ZAM_CPPFLAGS) $(DC_CPPFLAGS)

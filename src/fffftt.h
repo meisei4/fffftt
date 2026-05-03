@@ -94,8 +94,15 @@
 
 #define RD_COUNTRY_22K_WAV "/rd/country_22050hz_pcm16_mono.wav"
 
+#define RD_KREUZSCHMERZEN_YOU_KNOW_WHY_22K_WAV "/rd/kreuzschmerzen_you_know_why_22050hz_pcm16_mono.wav"
+#define RD_KREUZSCHMERZEN_RENT_DUE_22K_WAV "/rd/kreuzschmerzen_rent_due_22050hz_pcm16_mono.wav"
+
 #define RD_SHADERTOY_EXPERIMENT_22K_WAV "/rd/shadertoy_experiment_22050hz_pcm16_mono.wav"
-#define RD_SHADERTOY_ELECTRONEBULAE_ONE_FOURTH_22K_WAV "/rd/shadertoy_electronebulae_one_fourth_22050hz_pcm16_mono.wav"
+#define RD_SHADERTOY_ELECTRONEBULAE_ONE_FOURTH_22K_WAV "/rd/shadertoy_electronebulae_22050hz_pcm16_mono.wav"
+#define RD_SHADERTOY_8BIT_22K_WAV "/rd/shadertoy_8bit_22050hz_pcm16_mono.wav"
+#define RD_SHADERTOY_GEOMETRIC_PERSON_22K_WAV "/rd/shadertoy_geometric_person_22050hz_pcm16_mono.wav"
+#define RD_SHADERTOY_TROPICAL_22K_WAV "/rd/shadertoy_tropical_22050hz_pcm16_mono.wav"
+#define RD_SHADERTOY_XTRACK_22K_WAV "/rd/shadertoy_xtrack_22050hz_pcm16_mono.wav"
 
 #define RD_DDS_FFM_22K_WAV "/rd/dds_ffm_22050hz_pcm16_mono.wav"
 #define RD_DDS_FFM_FULL_22K_WAV "/rd/dds_ffm_full_22050hz_pcm16_mono.wav"
@@ -468,7 +475,7 @@ static void update_mesh_normals_smooth(float* normals, const float* vertices, in
 
 static inline void update_mesh_texcoords_smooth_scroll(int w, int h, float* texcoords, int point_count, int texels_per_quad, float time) {
     const Vector2 scroll_direction = {1.0f, 0.25f}; //TODO: make this configurable and cleaner
-    const float scroll_speed = 0.0125f;
+    const float scroll_speed = 0.025f;
     float scroll_s = FMODF(scroll_direction.x * scroll_speed * time, 1.0f);
     float scroll_t = FMODF(scroll_direction.y * scroll_speed * time, 1.0f);
     for (int i = 0; i < LANE_COUNT; i++) {
@@ -482,8 +489,8 @@ static inline void update_mesh_texcoords_smooth_scroll(int w, int h, float* texc
     }
 }
 
-static void update_mesh_vertices_flat(float* dst_vertices, const float* src_vertices, const unsigned short* indices) {
-    for (int i = 0; i < FLAT_VERTEX_COUNT; i++) {
+static void update_mesh_vertices_flat(float* dst_vertices, const float* src_vertices, const unsigned short* indices, int flat_vertex_count) {
+    for (int i = 0; i < flat_vertex_count; i++) {
         int src_index = indices[i];
         int src_vertex = src_index * 3;
         int dst_vertex = i * 3;
@@ -493,15 +500,15 @@ static void update_mesh_vertices_flat(float* dst_vertices, const float* src_vert
     }
 }
 
-static void expand_mesh_colors_flat(Color* dst_colors, const Color* src_colors, const unsigned short* indices) {
-    for (int i = 0; i < FLAT_VERTEX_COUNT; i++) {
+static void expand_mesh_colors_flat(Color* dst_colors, const Color* src_colors, const unsigned short* indices, int flat_vertex_count) {
+    for (int i = 0; i < flat_vertex_count; i++) {
         int src_index = indices[i];
         dst_colors[i] = src_colors[src_index];
     }
 }
 
-static void update_mesh_normals_flat(float* normals, const float* vertices) {
-    for (int i = 0; i < TERRAIN_TRIANGLE_COUNT; i++) {
+static void update_mesh_normals_flat(float* normals, const float* vertices, int triangle_count) {
+    for (int i = 0; i < triangle_count; i++) {
         int tri_vertex = i * 9;
         Vector3 p0 = {vertices[tri_vertex + 0], vertices[tri_vertex + 1], vertices[tri_vertex + 2]};
         Vector3 p1 = {vertices[tri_vertex + 3], vertices[tri_vertex + 4], vertices[tri_vertex + 5]};
@@ -519,8 +526,8 @@ static void update_mesh_normals_flat(float* normals, const float* vertices) {
     }
 }
 
-static void expand_mesh_normals_flat(float* dst_normals, const float* src_normals, const unsigned short* indices) {
-    for (int i = 0; i < FLAT_VERTEX_COUNT; i++) {
+static void expand_mesh_normals_flat(float* dst_normals, const float* src_normals, const unsigned short* indices, int flat_vertex_count) {
+    for (int i = 0; i < flat_vertex_count; i++) {
         int src_index = indices[i];
         int src_normal = src_index * 3;
         int dst_normal = i * 3;
@@ -538,10 +545,10 @@ build_mesh_smooth(Mesh* dst_mesh, const float* vertices, const float* src_normal
     MEMCPY(dst_mesh->colors, src_colors, sizeof(Color) * vertex_count);
 }
 
-static void build_mesh_flat(Mesh* dst_mesh, const float* flat_vertices, const float* src_normals, const Color* src_colors) {
-    MEMCPY4(dst_mesh->vertices, flat_vertices, sizeof(float) * FLAT_VERTEX_COUNT * 3);
-    MEMCPY4(dst_mesh->normals, src_normals, sizeof(float) * FLAT_VERTEX_COUNT * 3);
-    MEMCPY(dst_mesh->colors, src_colors, sizeof(Color) * FLAT_VERTEX_COUNT);
+static void build_mesh_flat(Mesh* dst_mesh, const float* flat_vertices, const float* src_normals, const Color* src_colors, int flat_vertex_count) {
+    MEMCPY4(dst_mesh->vertices, flat_vertices, sizeof(float) * flat_vertex_count * 3);
+    MEMCPY4(dst_mesh->normals, src_normals, sizeof(float) * flat_vertex_count * 3);
+    MEMCPY(dst_mesh->colors, src_colors, sizeof(Color) * flat_vertex_count);
 }
 
 #define LANE_MASK_TEXTURE_WIDTH 8
@@ -865,15 +872,16 @@ static Font font = {0};
 #define WAVE_CURSOR_BLINK_RATE 8.0f
 static Model* wave_cursor_model = NULL;
 static Texture2D wave_cursor_texture = {0};
-static Color wave_cursor_colors[MESH_VERTEX_COUNT] = {0};
 #define FORWARD 1
 #define BACKWARD -1
 
-static void draw_paused_wave_cursor_lane_marker(void) {
+static void draw_paused_wave_cursor_lane_marker(int point_count) {
+    int mesh_vertex_count = LANE_COUNT * point_count;
+    Color wave_cursor_colors[mesh_vertex_count];
     float blink = SINF((float)GetTime() * WAVE_CURSOR_BLINK_RATE);
     int lane_index = seek_delta_chunks;
     float z_shift = 0.0f;
-    Color marker_color = CLITERAL(Color){
+    Color blink_color = CLITERAL(Color){
         (unsigned char)((float)NEON_CARROT.r * (0.725f + 0.275f * blink)),
         (unsigned char)((float)NEON_CARROT.g * (0.725f + 0.275f * blink)),
         (unsigned char)((float)NEON_CARROT.b * (0.725f + 0.275f * blink)),
@@ -886,13 +894,15 @@ static void draw_paused_wave_cursor_lane_marker(void) {
         lane_index = LANE_COUNT - 1;
         z_shift = 0.75f * LANE_SPACING_SCALE;
     }
-    for (int i = 0; i < MESH_VERTEX_COUNT; i++) {
+    for (int i = 0; i < mesh_vertex_count; i++) {
         wave_cursor_colors[i] = BLANK;
     }
-    for (int i = 0; i < LANE_POINT_COUNT; i++) {
-        wave_cursor_colors[lane_index * LANE_POINT_COUNT + i] = marker_color;
+    for (int i = 0; i < point_count; i++) {
+        wave_cursor_colors[lane_index * point_count + i] = blink_color;
     }
 
+    unsigned char* saved_colors = wave_cursor_model->meshes[0].colors;
+    int saved_texture_id = wave_cursor_model->materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id;
     wave_cursor_model->meshes[0].colors = (unsigned char*)wave_cursor_colors;
     wave_cursor_model->materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = wave_cursor_texture.id;
     rlDisableDepthTest();
@@ -900,7 +910,8 @@ static void draw_paused_wave_cursor_lane_marker(void) {
     DrawModelEx(*wave_cursor_model, (Vector3){0.0f, 0.0f, z_shift}, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
     rlEnableBackfaceCulling();
     rlEnableDepthTest();
-    wave_cursor_model->materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = 0;
+    wave_cursor_model->materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = saved_texture_id;
+    wave_cursor_model->meshes[0].colors = saved_colors;
 }
 
 static inline void draw_wave_cursor_wheel_hud_row(const char* s, float x, float y, Color c) {
@@ -1068,7 +1079,9 @@ static void update_playback_controls_fft_spectrum(void) {
 #define DEFAULT_AUDIO_TRACK_CT_LOR 4
 #define DEFAULT_AUDIO_TRACK_AT_UNTITLED 5
 #define DEFAULT_AUDIO_TRACK_TJ_SAYO 6
-#define AUDIO_TRACK_COUNT 7
+#define DEFAULT_AUDIO_TRACK_KREUZSCHMERZEN 7
+#define DEFAULT_AUDIO_TRACK_KREUZSCHMERZEN_RENT_DUE 8
+#define AUDIO_TRACK_COUNT 9
 
 #define AUDIO_TRACK_PATH(track_index)                                                                                                                          \
     ((track_index) == DEFAULT_AUDIO_TRACK_SHADERTOY_EXPERIMENT ? RD_SHADERTOY_EXPERIMENT_22K_WAV                                                               \
@@ -1077,7 +1090,9 @@ static void update_playback_controls_fft_spectrum(void) {
      : (track_index) == DEFAULT_AUDIO_TRACK_RAMA               ? RD_RAMA_22K_WAV                                                                               \
      : (track_index) == DEFAULT_AUDIO_TRACK_CT_LOR             ? RD_CT_LOR_22K_WAV                                                                             \
      : (track_index) == DEFAULT_AUDIO_TRACK_AT_UNTITLED        ? RD_AT_UNTITLED_22K_WAV                                                                        \
-                                                               : RD_TJ_SAYO_22K_WAV)
+     : (track_index) == DEFAULT_AUDIO_TRACK_TJ_SAYO            ? RD_TJ_SAYO_22K_WAV                                                                            \
+     : (track_index) == DEFAULT_AUDIO_TRACK_KREUZSCHMERZEN     ? RD_KREUZSCHMERZEN_YOU_KNOW_WHY_22K_WAV                                                        \
+                                                               : RD_KREUZSCHMERZEN_RENT_DUE_22K_WAV)
 
 static int audio_track_index = DEFAULT_AUDIO_TRACK_SHADERTOY_EXPERIMENT;
 static Wave loaded_audio_tracks[AUDIO_TRACK_COUNT] = {0};
@@ -1156,7 +1171,7 @@ static Color sample_pitch_class_palette(unsigned char chroma_index, float confid
     Color base_color = WUXING_COLOR_LOOKUP(chroma_index);
     float visibility = CLAMP((confidence - PITCH_CLASS_VISIBILITY_MIN) / (PITCH_CLASS_VISIBILITY_MAX - PITCH_CLASS_VISIBILITY_MIN), 0.0f, 1.0f);
     if (visibility <= 0.0f) {
-        return BLACK;
+        return BLANK;
     }
 
     visibility = POWF(visibility, 0.45f);
@@ -1176,7 +1191,17 @@ static void update_mesh_colors_pitch_class(Color* colors, const unsigned char* c
     for (int i = 0; i < LANE_COUNT; i++) {
         for (int j = 0; j < point_count; j++) {
             int k = i * point_count + j;
-            colors[k] = sample_pitch_class_palette(chroma_index_field[k], chroma_strength_field[k]);
+            unsigned char chroma_index = chroma_index_field[k];
+            float strength = chroma_strength_field[k];
+
+            if (strength <= PITCH_CLASS_VISIBILITY_MIN || chroma_index >= PITCH_CLASS_COUNT) {
+                colors[k] = BLANK;
+                continue;
+            }
+
+            Color color = sample_pitch_class_palette(chroma_index, strength);
+            color.a = (unsigned char)((float)DRAW_COLOR_CHANNEL_MAX * CLAMP(strength, 0.0f, 1.0f));
+            colors[k] = color;
         }
     }
 }
@@ -1204,89 +1229,108 @@ static inline Vector2 spectrum_band_point_sample_bin_bounds(int point_index, int
 static void build_pitch_class_color_field(unsigned char* chroma_index_field,
                                           float* chroma_strength_field,
                                           const float* front_lane_point_values,
-                                          const float* bin_levels,
+                                          const float* bin_levels, //TODO: this needs to be raw levels, but you can mess with it
                                           int point_count,
                                           int band_bin_min,
                                           int band_bin_max) {
     // https://librosa.org/doc/main/generated/librosa.feature.chroma_stft.html
-    for (int i = 0; i < point_count; i++) {
-        int point_span = point_count - 1;
-        int bin_span = band_bin_max - band_bin_min;
-        int center_bin = band_bin_min;
-        Vector2 point_bin_bounds = spectrum_band_point_sample_bin_bounds(i, point_count, band_bin_min, band_bin_max);
-        int bin_min = point_bin_bounds.x;
-        int bin_max = point_bin_bounds.y;
-        if (point_count > 1) {
-            center_bin = band_bin_min + (i * bin_span) / point_span;
+    // https://librosa.org/doc/main/generated/librosa.filters.chroma.html
+    float chroma_energy[PITCH_CLASS_COUNT] = {0};
+    int source_bin_min = band_bin_min;
+    int source_bin_max = band_bin_max;
+    if (source_bin_min < 1) {
+        source_bin_min = 1;
+    }
+    if (source_bin_max > ANALYSIS_SPECTRUM_BIN_COUNT - 1) {
+        source_bin_max = ANALYSIS_SPECTRUM_BIN_COUNT - 1;
+    }
+
+    if (source_bin_max < source_bin_min) {
+        for (int i = 0; i < point_count; i++) {
+            chroma_index_field[i] = 0;
+            chroma_strength_field[i] = 0.0f;
+        }
+        return;
+    }
+
+    for (int i = source_bin_min; i <= source_bin_max; i++) {
+        float bin_level = bin_levels[i];
+        if (bin_level <= 0.0f) {
+            continue;
         }
 
-        float chroma_energy[PITCH_CLASS_COUNT] = {0};
-        float band_energy_sum = 0.0f;
-        float band_peak = 0.0f;
-        float locality_radius_bins = FMAXF(0.5f * (float)(bin_max - bin_min + 1), 1.0f);
+        float bin_hz = ((float)i * (float)ANALYSIS_SAMPLE_RATE) / (float)ANALYSIS_WINDOW_SIZE_IN_FRAMES;
+        float bin_octave = LOGF(bin_hz / 27.5f) * PITCH_CLASS_INVERSE_LN_2; // 27.5 = 440.0 / 16.0, librosa hz_to_octs A0 reference.
+        float bin_chroma_position = 12.0f * bin_octave;                     // 12.0 = n_chroma / bins_per_octave in librosa chroma default.
 
-        for (int j = bin_min; j <= bin_max; j++) {
-            float bin_hz = ((float)j * (float)ANALYSIS_SAMPLE_RATE) / (float)ANALYSIS_WINDOW_SIZE_IN_FRAMES;
-            float bin_level = bin_levels[j];
-            if (bin_level <= 0.0f) {
-                continue;
-            }
-
-            float locality_gain = 1.0f - (FABSF((float)j - (float)center_bin) / locality_radius_bins);
-            locality_gain = CLAMP(locality_gain, 0.0f, 1.0f);
-            locality_gain = LERP(0.35f, 1.0f, locality_gain);
-
-            band_energy_sum += bin_level;
-            band_peak = FMAXF(band_peak, bin_level);
-
-            for (int k = 0; k < PITCH_CLASS_COUNT; k++) {
-                float ref_hz = REF_HZ_LOOKUP(k);
-                float octave_offset = FLOORF((LOGF(ref_hz / bin_hz) * PITCH_CLASS_INVERSE_LN_2) + 0.5f);
-                float folded_hz = ref_hz / POWF(2.0f, octave_offset);
-                float semitone_error = FABSF(PITCH_CLASS_SEMITONES_PER_OCTAVE * LOGF(bin_hz / folded_hz) * PITCH_CLASS_INVERSE_LN_2);
-                float tuning_gain = CLAMP(1.0f - (semitone_error / PITCH_CLASS_TUNING_RADIUS_SEMITONES), 0.0f, 1.0f);
-                tuning_gain = tuning_gain * tuning_gain * (3.0f - 2.0f * tuning_gain);
-                if (tuning_gain <= 0.0f) {
-                    continue;
-                }
-
-                chroma_energy[k] += bin_level * locality_gain * tuning_gain;
-            }
+        float bin_width_chroma = 1.0f; // librosa appends [1] for the final binwidthbins entry.
+        if (i < ANALYSIS_SPECTRUM_BIN_COUNT - 1) {
+            float next_bin_hz = ((float)(i + 1) * (float)ANALYSIS_SAMPLE_RATE) / (float)ANALYSIS_WINDOW_SIZE_IN_FRAMES;
+            float next_bin_octave = LOGF(next_bin_hz / 27.5f) * PITCH_CLASS_INVERSE_LN_2;   // 27.5 = 440.0 / 16.0, librosa hz_to_octs.
+            float next_bin_chroma_position = 12.0f * next_bin_octave;                       // 12.0 = n_chroma.
+            bin_width_chroma = FMAXF(next_bin_chroma_position - bin_chroma_position, 1.0f); // librosa: maximum(frqbins[1:] - frqbins[:-1], 1.0).
         }
 
-        int best_chroma = 0;
-        float best_energy = 0.0f;
-        float next_energy = 0.0f;
+        float filter_l2_sum = 0.0f;
         for (int j = 0; j < PITCH_CLASS_COUNT; j++) {
-            float energy = chroma_energy[j];
-            if (energy > best_energy) {
-                next_energy = best_energy;
-                best_energy = energy;
-                best_chroma = j;
-            } else if (energy > next_energy) {
-                next_energy = energy;
-            }
+            float chroma_filter_row = (float)j + 3.0f; // 3.0 = librosa base_c=True roll offset for 12 chroma bins.
+            float chroma_delta = bin_chroma_position - chroma_filter_row;
+            chroma_delta = FMODF(chroma_delta + 6.0f + 120.0f, 12.0f) - 6.0f; // 6.0 = round(12/2), 120.0 = 10*12, 12.0 = n_chroma.
+            float chroma_filter_weight =
+                EXPF(-0.5f * POWF((2.0f * chroma_delta) / bin_width_chroma,
+                                  2.0f)); // 2.0 = librosa "2*D to make them narrower". Gaussian bump: wts = exp(-0.5 * (2 * D / binwidthbins) ** 2)
+            filter_l2_sum += chroma_filter_weight * chroma_filter_weight; // librosa filters.chroma default norm=2, normalize each FFT-bin column.
         }
 
-        float ridge_level = front_lane_point_values[i];
-        float dominance = 0.0f;
-        float separation = 0.0f;
-        if (band_energy_sum > 0.0f) {
-            dominance = best_energy / band_energy_sum;
+        float filter_l2_norm = SQRTF(filter_l2_sum);
+        if (filter_l2_norm <= 1.0e-20f) { // librosa handles this inside util.normalize. AND SO SHOULD WE!!!!!!!!
+            continue;
         }
-        if (best_energy > 0.0f) {
-            separation = (best_energy - next_energy) / best_energy;
-        }
-        float peak_strength = CLAMP(band_peak * 18.0f, 0.0f, 1.0f);
-        float chroma_strength = ridge_level * 0.55f + peak_strength * 0.20f + CLAMP(dominance, 0.0f, 1.0f) * 0.15f + CLAMP(separation, 0.0f, 1.0f) * 0.10f;
-        chroma_strength = CLAMP(chroma_strength, 0.0f, 1.0f);
-        chroma_strength = POWF(chroma_strength, 0.65f);
-        if (best_energy <= 0.0f || ridge_level <= 0.0f) {
-            chroma_strength = 0.0f;
-        }
+        float octave_delta = (bin_octave - 5.0f) / 2.0f; // 5.0 = ctroct, 2.0 = octwidth, librosa.filters.chroma defaults.
+        float octave_weight = EXPF(-0.5f * octave_delta * octave_delta);
+        float bin_power = bin_level * bin_level; // librosa.feature.chroma_stft uses a power spectrogram
 
+        for (int j = 0; j < PITCH_CLASS_COUNT; j++) {
+            float chroma_filter_row = (float)j + 3.0f; // 3.0 = librosa base_c=True roll offset for 12 chroma bins.
+            float chroma_delta = bin_chroma_position - chroma_filter_row;
+            chroma_delta = FMODF(chroma_delta + 6.0f + 120.0f, 12.0f) - 6.0f; // 6.0 = round(12/2), 120.0 = 10*12, 12.0 = n_chroma.
+            float chroma_filter_weight = EXPF(-0.5f * POWF((2.0f * chroma_delta) / bin_width_chroma, 2.0f)); // librosa Gaussian bump.
+            chroma_filter_weight /= filter_l2_norm;                                                          // librosa filters.chroma default norm=2, axis=0.
+            chroma_energy[j] += bin_power * chroma_filter_weight * octave_weight;
+        }
+    }
+
+    int best_chroma = 0;
+    float best_energy = 0.0f;
+    float next_energy = 0.0f;
+
+    for (int i = 0; i < PITCH_CLASS_COUNT; i++) {
+        float energy = chroma_energy[i];
+        if (energy > best_energy) {
+            next_energy = best_energy;
+            best_energy = energy;
+            best_chroma = i;
+        } else if (energy > next_energy) {
+            next_energy = energy;
+        }
+    }
+
+    float chroma_margin = 0.0f;
+    if (best_energy > 0.0f) {
+        // librosa.feature.chroma_stft default norm=inf normalizes each frame by max chroma!????????????!?!?!
+        chroma_margin = CLAMP((best_energy - next_energy) / best_energy, 0.0f, 1.0f);
+    }
+
+    for (int i = 0; i < point_count; i++) {
+        float ridge_level = CLAMP(front_lane_point_values[i], 0.0f, 1.0f);
         chroma_index_field[i] = (unsigned char)best_chroma;
-        chroma_strength_field[i] = chroma_strength;
+        if (best_energy <= 0.0f || ridge_level <= 0.0f) {
+            chroma_strength_field[i] = 0.0f;
+        } else {
+            float visibility =
+                ridge_level * (0.60f + 0.40f * chroma_margin); // 0.60/0.40 are visual weighting, not librosa.  WHAT WHAT WHAT SHOULD WE DECIDE BETTER?
+            chroma_strength_field[i] = POWF(CLAMP(visibility, 0.0f, 1.0f), 0.65f); // 0.65 is our display gamma???!?!? WHAT WHAT WHAT SHOULD WE DECIDE BETTER?
+        }
     }
 }
 

@@ -46,7 +46,7 @@ static void update_playback_controls_waveform(void);
 static void recompute_waveform_onset(void);
 static void inspection_step(int dir);
 static void rebase_waveform_history(void);
-static void rebuild_waveform_terrain_meshes(void);
+static void update_waveform_terrain_meshes(void);
 
 int main(void) {
     // SetTraceLogLevel(LOG_WARNING);
@@ -56,6 +56,8 @@ int main(void) {
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
     load_audio_tracks();
+    // set_audio_track(DEFAULT_AUDIO_TRACK_KREUZSCHMERZEN_RENT_DUE);
+    // set_audio_track(DEFAULT_AUDIO_TRACK_KREUZSCHMERZEN);
     set_audio_track(DEFAULT_AUDIO_TRACK_SHADERTOY_EXPERIMENT);
     audio_stream = LoadAudioStream(SRC_SAMPLE_RATE, SRC_BIT_DEPTH, SRC_CHANNELS);
     PlayAudioStream(audio_stream);
@@ -96,10 +98,10 @@ int main(void) {
     flat_model = LoadModelFromMesh(flat_mesh);
 
     fill_mesh_colors(colors, LANE_POINT_COUNT);
-    expand_mesh_colors_flat(flat_colors, colors, mesh_a.indices);
+    expand_mesh_colors_flat(flat_colors, colors, mesh_a.indices, FLAT_VERTEX_COUNT);
     init_hilbert_filter();
     rebase_waveform_history();
-    rebuild_waveform_terrain_meshes();
+    update_waveform_terrain_meshes();
 
     SetTargetFPS(60);
 
@@ -138,7 +140,7 @@ int main(void) {
         }
 
         if (audio_dirty) {
-            rebuild_waveform_terrain_meshes();
+            update_waveform_terrain_meshes();
         }
 
         update_audio_track_cycle();
@@ -161,7 +163,7 @@ int main(void) {
         glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){light0_position.x, light0_position.y, light0_position.z, 1.0f});
         DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         glDisable(GL_LIGHTING);
-        // draw_light_position_marker(light0_position);
+        draw_light_position_marker(light0_position);
 
         DrawModelEx(model_b, BOTTOM, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
 
@@ -186,7 +188,7 @@ int main(void) {
         DrawModelPointsEx(model_a, TOP, Y_AXIS, 0.0f, DEFAULT_SCALE, BLUE);
         DrawModelWiresEx(model_a, BOTTOM, Y_AXIS, 0.0f, DEFAULT_SCALE, MAGENTA);
         if (is_paused) {
-            draw_paused_wave_cursor_lane_marker();
+            draw_paused_wave_cursor_lane_marker(LANE_POINT_COUNT);
         }
 
         model_a.meshes[0].colors = saved_colors;
@@ -194,7 +196,7 @@ int main(void) {
         EndMode3D();
         DrawTextEx(font, TextFormat("%2i FPS", GetFPS()), (Vector2){50.0f, 440.0f}, FONT_SIZE, 0.0f, WHITE);
         draw_playback_inspection_hud();
-        // draw_padmouse();
+        draw_padmouse();
         EndDrawing();
     }
 
@@ -518,14 +520,15 @@ static void rebase_waveform_history(void) {
     inspection_ready = 1;
 }
 
-static void rebuild_waveform_terrain_meshes(void) {
+static void update_waveform_terrain_meshes(void) {
     update_mesh_vertices(vertices, &lane_point_values[0][0], LANE_POINT_COUNT);
     update_mesh_normals_smooth(normals, vertices, LANE_POINT_COUNT);
     update_mesh_normals_hilbert(hilbert_normals, normals, &hilbert_normal_field[0][0], vertices);
     update_mesh_colors_rms(rms_colors);
-    update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices);
-    update_mesh_normals_flat(flat_normals, flat_vertices);
-    expand_mesh_normals_flat(flat_hilbert_normals, hilbert_normals, mesh_a.indices);
+
+    update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices, FLAT_VERTEX_COUNT);
+    update_mesh_normals_flat(flat_normals, flat_vertices, TERRAIN_TRIANGLE_COUNT);
+    expand_mesh_normals_flat(flat_hilbert_normals, hilbert_normals, mesh_a.indices, FLAT_VERTEX_COUNT);
 
     // build_mesh_smooth(&mesh_a, vertices, normals, colors);
     build_mesh_smooth(&mesh_a, vertices, normals, colors, texcoords, MESH_VERTEX_COUNT);
@@ -534,9 +537,9 @@ static void rebuild_waveform_terrain_meshes(void) {
     // build_mesh_smooth(&mesh_b, vertices, normals, colors);
     build_mesh_smooth(&mesh_b, vertices, normals, rms_colors, mesh_b.texcoords, MESH_VERTEX_COUNT);
 
-    // build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors);
-    // build_mesh_flat(&flat_mesh, flat_vertices, flat_hilbert_normals, flat_colors);
-    build_mesh_flat(&flat_mesh, flat_vertices, flat_hilbert_normals, flat_colors);
+    // build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors, FLAT_VERTEX_COUNT);
+    // build_mesh_flat(&flat_mesh, flat_vertices, flat_hilbert_normals, flat_colors, FLAT_VERTEX_COUNT);
+    build_mesh_flat(&flat_mesh, flat_vertices, flat_hilbert_normals, flat_colors, FLAT_VERTEX_COUNT);
 }
 
 static void update_playback_controls_waveform(void) {
@@ -557,7 +560,7 @@ static void update_playback_controls_waveform(void) {
             }
             PauseAudioStream(audio_stream);
             rebase_waveform_history();
-            rebuild_waveform_terrain_meshes();
+            update_waveform_terrain_meshes();
         } else {
             is_paused = false;
             inspection_ready = 0;
@@ -597,7 +600,7 @@ static void update_playback_controls_waveform(void) {
         } else {
             rebase_waveform_history();
         }
-        rebuild_waveform_terrain_meshes();
+        update_waveform_terrain_meshes();
     } else if (is_paused && sticky_nav(GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
         wave_cursor = (wave_cursor + AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES) % wave.frameCount;
         seek_delta_chunks++;
@@ -606,10 +609,10 @@ static void update_playback_controls_waveform(void) {
         } else {
             rebase_waveform_history();
         }
-        rebuild_waveform_terrain_meshes();
+        update_waveform_terrain_meshes();
     }
 
     if (analysis_dirty) {
-        rebuild_waveform_terrain_meshes();
+        update_waveform_terrain_meshes();
     }
 }
