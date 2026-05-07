@@ -237,14 +237,14 @@ int main(void) {
                                             (Vector2){1.0f, 0.25f},
                                             0.05f,
                                             (float)GetTime());
-        update_mesh_texcoords_smooth_scroll(low_band_white_noise_dimensions[0],
-                                            low_band_white_noise_dimensions[1],
-                                            low_band_mesh.texcoords,
-                                            LOW_BAND_POINT_COUNT,
-                                            WHITE_NOISE_TEXELS_PER_QUAD * 8,
-                                            (Vector2){1.0f, 0.25f},
-                                            0.05f,
-                                            (float)GetTime());
+        // update_mesh_texcoords_smooth_scroll(low_band_white_noise_dimensions[0],
+        //                                     low_band_white_noise_dimensions[1],
+        //                                     low_band_mesh.texcoords,
+        //                                     LOW_BAND_POINT_COUNT,
+        //                                     WHITE_NOISE_TEXELS_PER_QUAD * 8,
+        //                                     (Vector2){1.0f, 0.25f},
+        //                                     0.05f,
+        //                                     (float)GetTime());
         update_mesh_texcoords_smooth_scroll(mid_band_white_noise_dimensions[0],
                                             mid_band_white_noise_dimensions[1],
                                             mid_band_mesh.texcoords,
