@@ -96,6 +96,7 @@ int main(void) {
 
     fill_mesh_colors(colors, LANE_POINT_COUNT);
     update_fft_terrain_meshes();
+    update_mesh_normals_smooth(normals, vertices, LANE_POINT_COUNT);
 
     SetTargetFPS(60);
 
@@ -130,25 +131,7 @@ int main(void) {
         }
 
         if (audio_dirty) {
-            update_mesh_vertices(vertices, &lane_point_values[0][0], LANE_POINT_COUNT, AMPLITUDE_Y_SCALE);
-            update_mesh_colors_chroma(chroma_colors, lane_chroma_id, &chroma_mask_field[0][0], LANE_POINT_COUNT);
-            expand_mesh_colors_flat(flat_colors, chroma_colors, mesh_a.indices, FLAT_VERTEX_COUNT);
-
-            //NOTE: by pure accident i was forgetting to update the normals here. This lead me to an intersting finding... position lights actually shade faces based on:
-            // 1. Normals themselves (ofc -- in this case static, and the result of `GenMeshPlane` filling everything as {0.0f, 1.0f, 0.0f})
-            // 2. BUT ALSO "direction from vertex -> position light" **This will actually CHANGE as the vertex positions animate with the terrain!!!!**
-            //    - what results with static upfacing normals and then animated/dynamic vertex positions is a very strange but cool effect of like a thundercloud where
-            //    - the lightings actual source is very hard to see but in a way that emulates faint almost curtain like shading...
-            /*
-            update_mesh_normals_smooth(normals, vertices, LANE_POINT_COUNT);
-            */
-
-            update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices, FLAT_VERTEX_COUNT);
-            update_mesh_normals_flat(flat_normals, flat_vertices, TERRAIN_TRIANGLE_COUNT);
-
-            build_mesh_smooth(&mesh_a, vertices, normals, colors, texcoords, MESH_VERTEX_COUNT);
-            build_mesh_smooth(&mesh_b, vertices, normals, chroma_colors, mesh_b.texcoords, MESH_VERTEX_COUNT);
-            build_mesh_flat(&flat_mesh, flat_vertices, flat_normals, flat_colors, FLAT_VERTEX_COUNT);
+            update_fft_terrain_meshes();
         }
         update_camera_orbit(&camera, GetFrameTime());
         update_light_camera_strafe(&camera,
@@ -385,8 +368,16 @@ static void inspection_step(int dir) {
 
 static void update_fft_terrain_meshes(void) {
     update_mesh_vertices(vertices, &lane_point_values[0][0], LANE_POINT_COUNT, AMPLITUDE_Y_SCALE);
-    update_mesh_normals_smooth(normals, vertices, LANE_POINT_COUNT);
     update_mesh_colors_chroma(chroma_colors, lane_chroma_id, &chroma_mask_field[0][0], LANE_POINT_COUNT);
+    update_mesh_normals_smooth(normals, vertices, LANE_POINT_COUNT);
+    //NOTE: by pure accident i was forgetting to update the normals here. This lead me to an intersting finding... position lights actually shade faces based on:
+    // 1. Normals themselves (ofc -- in this case static, and the result of `GenMeshPlane` filling everything as {0.0f, 1.0f, 0.0f})
+    // 2. BUT ALSO "direction from vertex -> position light" **This will actually CHANGE as the vertex positions animate with the terrain!!!!**
+    //    - what results with static upfacing normals and then animated/dynamic vertex positions is a very strange but cool effect of like a thundercloud where
+    //    - the lightings actual source is very hard to see but in a way that emulates faint almost curtain like shading...
+    /*
+    update_mesh_normals_smooth(normals, vertices, LANE_POINT_COUNT);
+    */
 
     expand_mesh_colors_flat(flat_colors, chroma_colors, mesh_a.indices, FLAT_VERTEX_COUNT);
     update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices, FLAT_VERTEX_COUNT);
