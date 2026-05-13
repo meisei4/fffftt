@@ -1,0 +1,21 @@
+[project]
+name = "mathworks"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+  "matplotlib",
+  "numpy",
+  "pillow",
+  "scipy",
+]
+
+[dependency-groups]
+dev = [
+  "ruff",
+]
+
+[tool.ruff]
+line-length = 160
+
+[tool.ruff.format]
+quote-style = "double"
