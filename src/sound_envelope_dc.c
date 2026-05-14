@@ -44,13 +44,7 @@ int main(void) {
             glDrawArrays(GL_LINE_STRIP, 0, LANE_POINT_COUNT);
         }
         if (is_paused) {
-            float blink = SINF((float)GetTime() * WAVE_CURSOR_BLINK_RATE);
-            Color marker_color = CLITERAL(Color){
-                (unsigned char)((float)NEON_CARROT.r * (0.725f + 0.275f * blink)),
-                (unsigned char)((float)NEON_CARROT.g * (0.725f + 0.275f * blink)),
-                (unsigned char)((float)NEON_CARROT.b * (0.725f + 0.275f * blink)),
-                (unsigned char)(175.5f + 79.5f * blink),
-            };
+            Color marker_color = fffftt_wave_cursor_blink_color();
             Vector2 marker_vertices[LANE_POINT_COUNT] = {0};
             int marker_lane_index = seek_delta_chunks;
 
@@ -88,13 +82,6 @@ int main(void) {
         }
 
         draw_playback_inspection_hud();
-        DrawTextEx(font, TextFormat("%2i FPS", GetFPS()), (Vector2){50.0f, 440.0f}, FONT_SIZE, 0.0f, WHITE);
-        DrawTextEx(font,
-                   TextFormat("TRACK [%d/%d]: %s", audio_track_index, AUDIO_TRACK_COUNT - 1, AUDIO_TRACK_PATH(audio_track_index)),
-                   (Vector2){7.0f + 20.0f, 25.0f + FONT_SIZE},
-                   FONT_SIZE,
-                   0.0f,
-                   MARINER);
         EndDrawing();
     }
 

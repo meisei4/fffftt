@@ -1282,6 +1282,16 @@ static void rebase_smooth_envelope_at_wave_cursor(void) {
 static Model* wave_cursor_model = NULL;
 static Texture2D wave_cursor_texture = {0};
 
+static inline Color fffftt_wave_cursor_blink_color(void) {
+    float blink = SINF((float)GetTime() * WAVE_CURSOR_BLINK_RATE);
+    return CLITERAL(Color){
+        (unsigned char)((float)NEON_CARROT.r * (0.725f + 0.275f * blink)),
+        (unsigned char)((float)NEON_CARROT.g * (0.725f + 0.275f * blink)),
+        (unsigned char)((float)NEON_CARROT.b * (0.725f + 0.275f * blink)),
+        (unsigned char)(175.5f + 79.5f * blink),
+    };
+}
+
 //TODO: this sticks ou like a sore thumb compared to when we just did it in the envelope code itself i think? or at least in parity with the terrains
 static inline void fffftt_inspection_step_sound_envelope(int dir) {
     if (dir == BACKWARD) {
@@ -1312,15 +1322,9 @@ static inline void fffftt_inspection_step_sound_envelope(int dir) {
 static void draw_paused_wave_cursor_lane_marker(int point_count) {
     int mesh_vertex_count = LANE_COUNT * point_count;
     Color wave_cursor_colors[mesh_vertex_count];
-    float blink = SINF((float)GetTime() * WAVE_CURSOR_BLINK_RATE);
     int lane_index = seek_delta_chunks;
     float z_offset = 0.0f;
-    Color blink_color = CLITERAL(Color){
-        (unsigned char)((float)NEON_CARROT.r * (0.725f + 0.275f * blink)),
-        (unsigned char)((float)NEON_CARROT.g * (0.725f + 0.275f * blink)),
-        (unsigned char)((float)NEON_CARROT.b * (0.725f + 0.275f * blink)),
-        (unsigned char)(175.5f + 79.5f * blink),
-    };
+    Color blink_color = fffftt_wave_cursor_blink_color();
     if (lane_index < 0) {
         lane_index = 0;
         z_offset = -0.75f * LANE_SPACING_SCALE;
@@ -1355,7 +1359,7 @@ static void draw_paused_wave_cursor_lane_marker(int point_count) {
 
 static Font font = {0};
 
-static inline void draw_wave_cursor_wheel_hud_row(const char* s, float x, float y, Color c) {
+static inline void draw_hud_text(const char* s, float x, float y, Color c) {
     for (int i = 0; s[i]; i++) {
         if (s[i] == ' ')
             continue;
@@ -1364,58 +1368,72 @@ static inline void draw_wave_cursor_wheel_hud_row(const char* s, float x, float 
     }
 }
 
-static inline void draw_wave_cursor_wheel_hud_labeled_value(const char* label, const char* value, float x, float y, Color value_color) {
-    size_t label_len = strlen(label);
-    size_t value_len = strlen(value);
-    DrawTextEx(font, "[", (Vector2){x, y}, FONT_SIZE, 0.0f, SUNFLOWER);
-    draw_wave_cursor_wheel_hud_row(label, x + 7.0f, y, SUNFLOWER);
-    DrawTextEx(font, ":", (Vector2){x + (float)(label_len + 1) * 7.0f, y}, FONT_SIZE, 0.0f, SUNFLOWER);
-    draw_wave_cursor_wheel_hud_row(value, x + (float)(label_len + 2) * 7.0f, y, value_color);
-    DrawTextEx(font, "]", (Vector2){x + (float)(label_len + value_len + 2) * 7.0f, y}, FONT_SIZE, 0.0f, SUNFLOWER);
-}
-
-static inline void draw_wave_cursor_wheel_hud_bracketed_value(const char* value, float x, float y, Color value_color) {
-    size_t value_len = strlen(value);
-    DrawTextEx(font, "[", (Vector2){x, y}, FONT_SIZE, 0.0f, SUNFLOWER);
-    draw_wave_cursor_wheel_hud_row(value, x + 7.0f, y, value_color);
-    DrawTextEx(font, "]", (Vector2){x + (float)(value_len + 1) * 7.0f, y}, FONT_SIZE, 0.0f, SUNFLOWER);
-}
-
-static inline void draw_inspection_hud_wheel_row(int indent, float y, int row_offset, Color row_color) {
-    int row_delta_chunks = seek_delta_chunks + row_offset;
-    int row_delta_ms = (row_delta_chunks * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES * MILLISECONDS_PER_SECOND) / SRC_SAMPLE_RATE;
-    int display_cursor = WRAP(paused_wave_cursor + row_delta_chunks * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES, wave.frameCount);
-    int display_cursor_ms = SAMPLE_CURSOR_TO_MS(display_cursor);
-    Color color = row_delta_chunks == 0 ? NEON_CARROT : row_color;
-    float x = 376.0f + (float)indent * 7.0f;
-    if (row_offset == 0)
-        draw_wave_cursor_wheel_hud_row(">", x - 14.0f, y, NEON_CARROT);
-    draw_wave_cursor_wheel_hud_row(TextFormat("%6d", display_cursor), x, y, color);
-    DrawTextEx(font, ":", (Vector2){x + 42.0f, y}, FONT_SIZE, 0.0f, color);
-    draw_wave_cursor_wheel_hud_row(TextFormat("%+04d", row_delta_chunks), x + 56.0f, y, color);
-    DrawTextEx(font, "c", (Vector2){x + 84.0f, y}, FONT_SIZE, 0.0f, color);
-    draw_wave_cursor_wheel_hud_row(TextFormat("%+04d", row_delta_ms), x + 98.0f, y, color);
-    DrawTextEx(font, "ms", (Vector2){x + 126.0f, y}, FONT_SIZE, 0.0f, color);
-    draw_wave_cursor_wheel_hud_row(TextFormat(MMSSMMM_FMT, MMSSMMM_ARGS(display_cursor_ms)), x + 147.0f, y, color);
-}
-
 static void draw_playback_inspection_hud(void) {
-    int cursor = is_paused ? paused_wave_cursor : wave_cursor;
+    int cursor = wave_cursor;
     int cursor_ms = SAMPLE_CURSOR_TO_MS(cursor);
-    Color activity_color = is_paused ? MARINER : NEON_CARROT;
-    draw_wave_cursor_wheel_hud_labeled_value("CURSOR", TextFormat("%6d", cursor), 7.0f + 20.0f, 25.0f, activity_color);
-    draw_wave_cursor_wheel_hud_labeled_value("STEP", TextFormat("%4d", AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES), 140.0f + 20.0f, 25.0f, MARINER);
-    draw_wave_cursor_wheel_hud_labeled_value("SAMPLE_RATE", TextFormat("%5d", SRC_SAMPLE_RATE), 244.0f + 20.0f, 25.0f, MARINER);
-    draw_wave_cursor_wheel_hud_labeled_value("TIME", TextFormat(MMSSMMM_FMT, MMSSMMM_ARGS(cursor_ms)), 402.0f + 20.0f, 25.0f, activity_color);
-    draw_wave_cursor_wheel_hud_bracketed_value(is_paused ? "PAUSED" : "PLAYING", 533.0f + 20.0f, 25.0f, activity_color);
+    Color hud_color = is_paused ? MARINER : NEON_CARROT;
+
+    const char* labels[] = {"CURSOR", "STEP", "SAMPLE_RATE", "TIME"};
+    const char* values[] = {
+        TextFormat("%6d", cursor),
+        TextFormat("%4d", AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES),
+        TextFormat("%5d", SRC_SAMPLE_RATE),
+        TextFormat(MMSSMMM_FMT, MMSSMMM_ARGS(cursor_ms)),
+    };
+    float xs[] = {7.0f + 20.0f, 140.0f + 20.0f, 244.0f + 20.0f, 402.0f + 20.0f};
+    for (int i = 0; i < 4; i++) {
+        size_t label_len = strlen(labels[i]);
+        size_t value_len = strlen(values[i]);
+        DrawTextEx(font, "[", (Vector2){xs[i], 25.0f}, FONT_SIZE, 0.0f, hud_color);
+        draw_hud_text(labels[i], xs[i] + 7.0f, 25.0f, hud_color);
+        DrawTextEx(font, ":", (Vector2){xs[i] + (float)(label_len + 1) * 7.0f, 25.0f}, FONT_SIZE, 0.0f, hud_color);
+        draw_hud_text(values[i], xs[i] + (float)(label_len + 2) * 7.0f, 25.0f, hud_color);
+        DrawTextEx(font, "]", (Vector2){xs[i] + (float)(label_len + value_len + 2) * 7.0f, 25.0f}, FONT_SIZE, 0.0f, hud_color);
+    }
+
+    const char* state = is_paused ? "PAUSED" : "PLAYING";
+    size_t state_len = strlen(state);
+    DrawTextEx(font, "[", (Vector2){533.0f + 20.0f, 25.0f}, FONT_SIZE, 0.0f, hud_color);
+    draw_hud_text(state, 533.0f + 20.0f + 7.0f, 25.0f, hud_color);
+    DrawTextEx(font, "]", (Vector2){533.0f + 20.0f + (float)(state_len + 1) * 7.0f, 25.0f}, FONT_SIZE, 0.0f, hud_color);
+
+    DrawTextEx(font, TextFormat("%2i FPS", GetFPS()), (Vector2){50.0f, 440.0f}, FONT_SIZE, 0.0f, WHITE);
+    DrawTextEx(font,
+               TextFormat("TRACK [%d/%d]: %s", audio_track_index, AUDIO_TRACK_COUNT - 1, AUDIO_TRACK_PATH(audio_track_index)),
+               (Vector2){7.0f + 20.0f, 25.0f + FONT_SIZE},
+               FONT_SIZE,
+               0.0f,
+               MARINER);
+
     if (is_paused) {
-        draw_wave_cursor_wheel_hud_row("        [...]", 376.0f, 352.0f - 5.0f, seek_delta_chunks < -2 ? NEON_CARROT : MARINER);
-        draw_inspection_hud_wheel_row(6, 368.0f - 5.0f, 2, MARINER);
-        draw_inspection_hud_wheel_row(4, 384.0f - 5.0f, 1, MARINER);
-        draw_inspection_hud_wheel_row(2, 400.0f - 5.0f, 0, MARINER);
-        draw_inspection_hud_wheel_row(4, 416.0f - 5.0f, -1, MARINER);
-        draw_inspection_hud_wheel_row(6, 432.0f - 5.0f, -2, MARINER);
-        draw_wave_cursor_wheel_hud_row("        [...]", 376.0f, 448.0f - 5.0f, seek_delta_chunks > 2 ? NEON_CARROT : MARINER);
+        draw_hud_text(seek_delta_chunks > 4 ? " > [...]" : "   [...]",
+                      376.0f + -4.0f * 7.0f,
+                      352.0f - 5.0f,
+                      seek_delta_chunks > 4 ? fffftt_wave_cursor_blink_color() : MARINER);
+
+        for (int i = 0; i < 5; i++) {
+            int row_delta_chunks = seek_delta_chunks - 4 + i;
+            int row_delta_ms = (row_delta_chunks * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES * MILLISECONDS_PER_SECOND) / SRC_SAMPLE_RATE;
+            int display_cursor = WRAP(paused_wave_cursor + row_delta_chunks * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES, wave.frameCount);
+            int display_cursor_ms = SAMPLE_CURSOR_TO_MS(display_cursor);
+            Color row_color = (row_delta_chunks == 0) ? fffftt_wave_cursor_blink_color() : MARINER;
+            float x = 376.0f + (float)(-2 + i * 2) * 7.0f;
+            float y = 368.0f - 5.0f + (float)i * 16.0f;
+            if (row_delta_chunks == 0)
+                draw_hud_text(">", x - 14.0f, y, row_color);
+            draw_hud_text(TextFormat("%6d", display_cursor), x, y, row_color);
+            DrawTextEx(font, ":", (Vector2){x + 42.0f, y}, FONT_SIZE, 0.0f, row_color);
+            draw_hud_text(TextFormat("%+04d", row_delta_chunks), x + 56.0f, y, row_color);
+            DrawTextEx(font, "c", (Vector2){x + 84.0f, y}, FONT_SIZE, 0.0f, row_color);
+            draw_hud_text(TextFormat("%+04d", row_delta_ms), x + 98.0f, y, row_color);
+            DrawTextEx(font, "ms", (Vector2){x + 126.0f, y}, FONT_SIZE, 0.0f, row_color);
+            draw_hud_text(TextFormat(MMSSMMM_FMT, MMSSMMM_ARGS(display_cursor_ms)), x + 147.0f, y, row_color);
+        }
+
+        draw_hud_text(seek_delta_chunks < 0 ? "  > [...]" : "    [...]",
+                      376.0f + 4.0f * 7.0f,
+                      448.0f - 5.0f,
+                      seek_delta_chunks < 0 ? fffftt_wave_cursor_blink_color() : MARINER);
     }
 }
 

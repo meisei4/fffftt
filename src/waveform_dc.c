@@ -116,13 +116,6 @@ int main(void) {
         // rlSetPointSize(WAVEFORM_LINE_WIDTH);
         // glDrawArrays(GL_POINTS, 0, ANALYSIS_WAVEFORM_SAMPLE_COUNT);
         draw_playback_inspection_hud();
-        DrawTextEx(font, TextFormat("%2i FPS", GetFPS()), (Vector2){50.0f, 440.0f}, FONT_SIZE, 0.0f, WHITE);
-        DrawTextEx(font,
-                   TextFormat("TRACK [%d/%d]: %s", audio_track_index, AUDIO_TRACK_COUNT - 1, AUDIO_TRACK_PATH(audio_track_index)),
-                   (Vector2){7.0f + 20.0f, 25.0f + FONT_SIZE},
-                   FONT_SIZE,
-                   0.0f,
-                   MARINER);
         EndDrawing();
     }
 
