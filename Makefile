@@ -26,6 +26,10 @@ DC_BASE_CFLAGS := $(filter-out -I$(KOS_PORTS)/include,$(KOS_CFLAGS)) -std=gnu2x
 DC_KOS_CFLAGS := $(filter-out -I$(KOS_PORTS)/include,$(KOS_CFLAGS)) -I$(abspath $(GLDC_DIR))/include
 
 DC_CPPFLAGS := -I$(RAYLIB_DC_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -I$(abspath $(GLDC_DIR))/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11
+
+AUDIO_ASSET_PATH_PREFIX := /rd/
+# AUDIO_ASSET_PATH_PREFIX := /pc/ # toggle this on and off for release .cdi vs direct romdisk packing
+DC_CPPFLAGS += -DAUDIO_ASSET_PATH_PREFIX=\"$(AUDIO_ASSET_PATH_PREFIX)\"
 DC_CPPFLAGS += $(if $(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES),-DAUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES=$(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES),)
 SH4ZAM_CPPFLAGS := -iquote $(SH4ZAM_DIR)/include
 
@@ -33,24 +37,12 @@ DC_LDFLAGS := $(KOS_LIB_PATHS) -L$(KOS_PORTS)/libwav/inst/lib
 DC_LDLIBS := $(RAYLIB_DC_LIB) $(GLDC_LIB) -lkosutils -lm -lpthread
 DC_WAV_LDLIBS := $(RAYLIB_DC_LIB) $(GLDC_LIB) -lkosutils -lwav -lm -lpthread
 
-RES_EXPERIMENT_WAV := $(RES_DIR)/shadertoy_experiment_22050hz_pcm16_mono.wav
-RES_ELECTRONEBULAE_WAV := $(RES_DIR)/shadertoy_electronebulae_22050hz_pcm16_mono.wav
-RES_8BIT_WAV := $(RES_DIR)/shadertoy_8bit_22050hz_pcm16_mono.wav
-RES_GEOMETRIC_PERSON_WAV := $(RES_DIR)/shadertoy_geometric_person_22050hz_pcm16_mono.wav
-RES_TROPICAL_WAV := $(RES_DIR)/shadertoy_tropical_22050hz_pcm16_mono.wav
-RES_XTRACK_WAV := $(RES_DIR)/shadertoy_xtrack_22050hz_pcm16_mono.wav
-RES_AUDIO_PC_FULL_TRACKS := $(RES_EXPERIMENT_WAV) $(RES_ELECTRONEBULAE_WAV) $(RES_8BIT_WAV) $(RES_GEOMETRIC_PERSON_WAV) $(RES_TROPICAL_WAV) $(RES_XTRACK_WAV)
-
-RES_KREUZSCHMERZEN_YOU_KNOW_WHY_FULL_WAV := $(RES_DIR)/kreuzschmerzen_you_know_why_full_22050hz_pcm16_mono.wav
-RES_M4_TBH_FULL_WAV := $(RES_DIR)/m4_tbh_full_22050hz_pcm16_mono.wav
-RES_MG_NO_MONEY_FULL_WAV := $(RES_DIR)/mg_no_money_full_22050hz_pcm16_mono.wav
-RES_DDS_FFM_FULL_WAV := $(RES_DIR)/dds_ffm_full_22050hz_pcm16_mono.wav
-RES_RAMA_FULL_WAV := $(RES_DIR)/rama_full_22050hz_pcm16_mono.wav
-RES_CT_LOR_FULL_WAV := $(RES_DIR)/ct_lor_full_22050hz_pcm16_mono.wav
-RES_AT_UNTITLED_FULL_WAV := $(RES_DIR)/at_untitled_full_22050hz_pcm16_mono.wav
-RES_TJ_SAYO_FULL_WAV := $(RES_DIR)/tj_sayo_full_22050hz_pcm16_mono.wav
-# RES_AUDIO_PC_FULL_TRACKS += $(RES_DDS_FFM_FULL_WAV) $(RES_RAMA_FULL_WAV) $(RES_CT_LOR_FULL_WAV) $(RES_AT_UNTITLED_FULL_WAV) $(RES_TJ_SAYO_FULL_WAV) $(RES_KREUZSCHMERZEN_YOU_KNOW_WHY_FULL_WAV) $(RES_M4_TBH_FULL_WAV) $(RES_MG_NO_MONEY_FULL_WAV)
-
+RES_EXPERIMENT_WAV := $(RES_DIR)/experiment_22k_mono_adpcm.wav
+RES_ELECTRONEBULAE_WAV := $(RES_DIR)/electronebl_22k_mono_adpcm.wav
+RES_8BIT_WAV := $(RES_DIR)/8bit_22k_mono_adpcm.wav
+RES_GEOMETRIC_PERSON_WAV := $(RES_DIR)/geometric_person_22k_mono_adpcm.wav
+RES_TROPICAL_WAV := $(RES_DIR)/tropical_22k_mono_adpcm.wav
+RES_XTRACK_WAV := $(RES_DIR)/xtrack_22k_mono_adpcm.wav
 RES_FONT_ASSETS := $(RES_DIR)/vga_rom_f16_0px_TIGHT.fnt $(RES_DIR)/vga_rom_f16_0px_TIGHT.png
 
 SH4ZAM_BUTTERFLY_SRC := $(SRC_DIR)/sh4zam_butterfly.c
@@ -143,8 +135,7 @@ $(DC_ELFS): TARGET_LDLIBS := $(DC_WAV_LDLIBS)
 $(DC_ELFS): TARGET_LDFLAGS := $(DC_LDFLAGS)
 $(DC_ELFS): EXTRA_OBJS :=
 $(DC_ELFS): ASSETS := $(RES_FONT_ASSETS)
-$(DC_ELFS): ASSETS += $(RES_EXPERIMENT_WAV) $(RES_ELECTRONEBULAE_WAV)
-# $(DC_ELFS): PC_ASSETS := $(RES_AUDIO_PC_FULL_TRACKS)
+$(DC_ELFS): ASSETS += $(RES_EXPERIMENT_WAV) $(RES_ELECTRONEBULAE_WAV) $(RES_8BIT_WAV) $(RES_GEOMETRIC_PERSON_WAV) $(RES_TROPICAL_WAV) $(RES_XTRACK_WAV)
 
 $(SH4ZAM_BUTTERFLY_ELF): SRC := $(SH4ZAM_BUTTERFLY_SRC)
 $(SH4ZAM_BUTTERFLY_ELF): TARGET_CPPFLAGS := $(SH4ZAM_CPPFLAGS) $(DC_CPPFLAGS)
@@ -183,22 +174,8 @@ $(FFT_BANDS_TERRAIN_3D_DC_ELF): $(FFT_BANDS_TERRAIN_3D_DC_SRC) $(SH4ZAM_COMPLEX_
 $(DC_RUNS): | $(BIN_DIR)
 
 $(DC_ELFS): $(RAYLIB_DC_LIB)
-#	for asset in $(PC_ASSETS); do cp -f $$asset $(@D)/pc/; done
 	rm -rf $(@D)/pc && mkdir -p $(@D)/pc
-#	cp -f $(RES_DDS_FFM_FULL_WAV) $(@D)/pc/dds_ffm.wav
-#	cp -f $(RES_RAMA_FULL_WAV) $(@D)/pc/rama.wav
-#	cp -f $(RES_CT_LOR_FULL_WAV) $(@D)/pc/ct_lor.wav
-#	cp -f $(RES_AT_UNTITLED_FULL_WAV) $(@D)/pc/at.wav
-#	cp -f $(RES_TJ_SAYO_FULL_WAV) $(@D)/pc/tj_sayo.wav
-#	cp -f $(RES_KREUZSCHMERZEN_YOU_KNOW_WHY_FULL_WAV) $(@D)/pc/kreuz.wav
-#	cp -f $(RES_M4_TBH_FULL_WAV) $(@D)/pc/m4_tbh.wav
-#	cp -f $(RES_MG_NO_MONEY_FULL_WAV) $(@D)/pc/mg.wav
-	cp -f $(RES_EXPERIMENT_WAV) $(@D)/pc/experiment.wav
-	cp -f $(RES_ELECTRONEBULAE_WAV) $(@D)/pc/electronebulae.wav
-	cp -f $(RES_8BIT_WAV) $(@D)/pc/8bit.wav
-	cp -f $(RES_GEOMETRIC_PERSON_WAV) $(@D)/pc/geometric_person.wav
-	cp -f $(RES_TROPICAL_WAV) $(@D)/pc/tropical.wav
-	cp -f $(RES_XTRACK_WAV) $(@D)/pc/xtrack.wav
+	for asset in $(ASSETS); do cp -f $$asset $(@D)/pc/; done
 	rm -rf $(@D)/romdisk && mkdir -p $(@D)/romdisk
 	for asset in $(ASSETS); do cp -f $$asset $(@D)/romdisk/; done
 	$(call BUILD_ROMDISK,$(@D),$(@D)/romdisk)

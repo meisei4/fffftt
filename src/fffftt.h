@@ -106,23 +106,13 @@
 #define Y_AXIS (Vector3){0.0f, 1.0f, 0.0f}
 #define DEFAULT_SCALE (Vector3){1.0f, 1.0f, 1.0f}
 
-#define RD_SHADERTOY_EXPERIMENT_22K_WAV "/rd/shadertoy_experiment_22050hz_pcm16_mono.wav"
-#define RD_SHADERTOY_ELECTRONEBULAE_22K_WAV "/rd/shadertoy_electronebulae_22050hz_pcm16_mono.wav"
-
-#define SHADERTOY_EXPERIMENT_22K_WAV "/pc/experiment.wav"
-#define SHADERTOY_ELECTRONEBULAE_22K_WAV "/pc/electronebulae.wav"
-#define SHADERTOY_8BIT_22K_WAV "/pc/8bit.wav"
-#define SHADERTOY_GEOMETRIC_PERSON_22K_WAV "/pc/geometric_person.wav"
-#define SHADERTOY_TROPICAL_22K_WAV "/pc/tropical.wav"
-#define SHADERTOY_XTRACK_22K_WAV "/pc/xtrack.wav"
-#define KREUZSCHMERZEN_YOU_KNOW_WHY_FULL_22K_WAV "/pc/kreuz.wav"
-#define M4_TBH_FULL_22K_WAV "/pc/m4_tbh.wav"
-#define MG_NO_MONEY_FULL_22K_WAV "/pc/mg.wav"
-#define DDS_FFM_FULL_22K_WAV "/pc/dds_ffm.wav"
-#define RAMA_FULL_22K_WAV "/pc/rama.wav"
-#define CT_LOR_FULL_22K_WAV "/pc/ct_lor.wav"
-#define AT_UNTITLED_FULL_22K_WAV "/pc/at.wav"
-#define TJ_SAYO_FULL_22K_WAV "/pc/tj_sayo.wav"
+#define AUDIO_ASSET_PATH(filename) AUDIO_ASSET_PATH_PREFIX filename
+#define SHADERTOY_EXPERIMENT_22K_WAV AUDIO_ASSET_PATH("experiment_22k_mono_adpcm.wav")
+#define SHADERTOY_ELECTRONEBULAE_22K_WAV AUDIO_ASSET_PATH("electronebl_22k_mono_adpcm.wav")
+#define SHADERTOY_8BIT_22K_WAV AUDIO_ASSET_PATH("8bit_22k_mono_adpcm.wav")
+#define SHADERTOY_GEOMETRIC_PERSON_22K_WAV AUDIO_ASSET_PATH("geometric_person_22k_mono_adpcm.wav")
+#define SHADERTOY_TROPICAL_22K_WAV AUDIO_ASSET_PATH("tropical_22k_mono_adpcm.wav")
+#define SHADERTOY_XTRACK_22K_WAV AUDIO_ASSET_PATH("xtrack_22k_mono_adpcm.wav")
 
 #define RD_FONT "/rd/vga_rom_f16_0px_TIGHT.fnt" //TODO: nice 1KB...
 #define FONT_SIZE 16.0f
@@ -1165,42 +1155,19 @@ static inline float fffftt_accumulate_sound_envelope(int pos, int frame_count) {
 
 #define SHADERTOY_EXPERIMENT 0
 #define SHADERTOY_ELECTRONEBULAE 1
-#define AUDIO_TRACK_COUNT 2
-#define AUDIO_TRACK_PATH(track_index) ((track_index) == SHADERTOY_EXPERIMENT ? RD_SHADERTOY_EXPERIMENT_22K_WAV : RD_SHADERTOY_ELECTRONEBULAE_22K_WAV)
+#define SHADERTOY_8BIT 2
+#define SHADERTOY_GEOMETRIC_PERSON 3
+#define SHADERTOY_TROPICAL 4
+#define SHADERTOY_XTRACK 5
+#define AUDIO_TRACK_COUNT 6
 
-// #define SHADERTOY_8BIT 2
-// #define SHADERTOY_GEOMETRIC_PERSON 3
-// #define SHADERTOY_TROPICAL 4
-// #define SHADERTOY_XTRACK 5
-// #define AUDIO_TRACK_COUNT 6
-
-// #define DDS_FFM 6
-// #define RAMA 7
-// #define CT_LOR 8
-// #define AT_UNTITLED 9
-// #define TJ_SAYO 10
-// #define KREUZSCHMERZEN_YOU_KNOW_WHY 11
-// #define M4_TBH 12
-// #define MG_NO_MONEY 13
-// #define AUDIO_TRACK_COUNT 14
-
-// #define AUDIO_TRACK_PATH(track_index)                                                                                                                          \
-//     ((track_index) == SHADERTOY_EXPERIMENT         ? SHADERTOY_EXPERIMENT_22K_WAV                                                                              \
-//      : (track_index) == SHADERTOY_ELECTRONEBULAE   ? SHADERTOY_ELECTRONEBULAE_22K_WAV                                                                          \
-//      : (track_index) == SHADERTOY_8BIT             ? SHADERTOY_8BIT_22K_WAV                                                                                    \
-//      : (track_index) == SHADERTOY_GEOMETRIC_PERSON ? SHADERTOY_GEOMETRIC_PERSON_22K_WAV                                                                        \
-//      : (track_index) == SHADERTOY_TROPICAL         ? SHADERTOY_TROPICAL_22K_WAV                                                                                \
-//                                                    : SHADERTOY_XTRACK_22K_WAV)
-
-//  : (track_index) == DDS_FFM                     ? DDS_FFM_FULL_22K_WAV                                                                                     \
-//  : (track_index) == RAMA                        ? RAMA_FULL_22K_WAV                                                                                        \
-//  : (track_index) == CT_LOR                      ? CT_LOR_FULL_22K_WAV                                                                                      \
-//  : (track_index) == AT_UNTITLED                 ? AT_UNTITLED_FULL_22K_WAV                                                                                 \
-//  : (track_index) == TJ_SAYO                     ? TJ_SAYO_FULL_22K_WAV                                                                                     \
-//  : (track_index) == KREUZSCHMERZEN_YOU_KNOW_WHY ? KREUZSCHMERZEN_YOU_KNOW_WHY_FULL_22K_WAV                                                                 \
-//  : (track_index) == M4_TBH                      ? M4_TBH_FULL_22K_WAV                                                                                      \
-//  : (track_index) == MG_NO_MONEY                 ? MG_NO_MONEY_FULL_22K_WAV
-
+#define AUDIO_TRACK_PATH(track_index)                                                                                                                          \
+    ((track_index) == SHADERTOY_EXPERIMENT         ? SHADERTOY_EXPERIMENT_22K_WAV                                                                              \
+     : (track_index) == SHADERTOY_ELECTRONEBULAE   ? SHADERTOY_ELECTRONEBULAE_22K_WAV                                                                          \
+     : (track_index) == SHADERTOY_8BIT             ? SHADERTOY_8BIT_22K_WAV                                                                                    \
+     : (track_index) == SHADERTOY_GEOMETRIC_PERSON ? SHADERTOY_GEOMETRIC_PERSON_22K_WAV                                                                        \
+     : (track_index) == SHADERTOY_TROPICAL         ? SHADERTOY_TROPICAL_22K_WAV                                                                                \
+                                                   : SHADERTOY_XTRACK_22K_WAV)
 static int audio_track_index = SHADERTOY_EXPERIMENT;
 
 static inline void unload_audio_track(void) {
