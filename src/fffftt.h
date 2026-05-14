@@ -84,6 +84,20 @@
      YU_MU4_LAN2_ZI3,                                                                                                                                          \
      RETURN_HU3_PO4}
 
+#define HARMONIC_FIFTHS_CHROMA_LUT                                                                                                                             \
+    {CLITERAL(Color){255, 0, 0, 255},   /* C #FF0000FF */                                                                                                      \
+     CLITERAL(Color){0, 128, 255, 255}, /* C# #0080FFFF */                                                                                                     \
+     CLITERAL(Color){255, 255, 0, 255}, /* D #FFFF00FF */                                                                                                      \
+     CLITERAL(Color){128, 0, 255, 255}, /* D# #8000FFFF */                                                                                                     \
+     CLITERAL(Color){0, 255, 0, 255},   /* E #00FF00FF */                                                                                                      \
+     CLITERAL(Color){255, 0, 128, 255}, /* F #FF0080FF */                                                                                                      \
+     CLITERAL(Color){0, 255, 255, 255}, /* F# #00FFFFFF */                                                                                                     \
+     CLITERAL(Color){255, 128, 0, 255}, /* G #FF8000FF */                                                                                                      \
+     CLITERAL(Color){0, 0, 255, 255},   /* G# #0000FFFF */                                                                                                     \
+     CLITERAL(Color){128, 255, 0, 255}, /* A #80FF00FF */                                                                                                      \
+     CLITERAL(Color){255, 0, 255, 255}, /* A# #FF00FFFF */                                                                                                     \
+     CLITERAL(Color){0, 255, 128, 255}} /* B #00FF80FF */
+
 #define SRC_CHANNELS 1
 //#define AUDIO_DEVICE_CHANNELS 2
 
@@ -415,6 +429,103 @@ static inline void fill_mesh_colors(Color* colors, int point_count) {
             float g = (1.0f - u) * (1.0f - v) * MAGENTA.g + u * (1.0f - v) * BLUE.g + (1.0f - u) * v * RED.g + u * v * YELLOW.g;
             float b = (1.0f - u) * (1.0f - v) * MAGENTA.b + u * (1.0f - v) * BLUE.b + (1.0f - u) * v * RED.b + u * v * YELLOW.b;
             colors[k] = (Color){(unsigned char)r, (unsigned char)g, (unsigned char)b, DRAW_COLOR_CHANNEL_MAX};
+        }
+    }
+}
+
+static const Color JET_LUT[] = {
+    CLITERAL(Color){0, 0, 143, 255},     /* #00008FFF */
+    CLITERAL(Color){0, 0, 159, 255},     /* #00009FFF */
+    CLITERAL(Color){0, 0, 175, 255},     /* #0000AFFF */
+    CLITERAL(Color){0, 0, 191, 255},     /* #0000BFFF */
+    CLITERAL(Color){0, 0, 207, 255},     /* #0000CFFF */
+    CLITERAL(Color){0, 0, 223, 255},     /* #0000DFFF */
+    CLITERAL(Color){0, 0, 239, 255},     /* #0000EFFF */
+    CLITERAL(Color){0, 0, 255, 255},     /* #0000FFFF */
+    CLITERAL(Color){0, 16, 255, 255},    /* #0010FFFF */
+    CLITERAL(Color){0, 32, 255, 255},    /* #0020FFFF */
+    CLITERAL(Color){0, 48, 255, 255},    /* #0030FFFF */
+    CLITERAL(Color){0, 64, 255, 255},    /* #0040FFFF */
+    CLITERAL(Color){0, 80, 255, 255},    /* #0050FFFF */
+    CLITERAL(Color){0, 96, 255, 255},    /* #0060FFFF */
+    CLITERAL(Color){0, 112, 255, 255},   /* #0070FFFF */
+    CLITERAL(Color){0, 128, 255, 255},   /* #0080FFFF */
+    CLITERAL(Color){0, 143, 255, 255},   /* #008FFFFF */
+    CLITERAL(Color){0, 159, 255, 255},   /* #009FFFFF */
+    CLITERAL(Color){0, 175, 255, 255},   /* #00AFFFFF */
+    CLITERAL(Color){0, 191, 255, 255},   /* #00BFFFFF */
+    CLITERAL(Color){0, 207, 255, 255},   /* #00CFFFFF */
+    CLITERAL(Color){0, 223, 255, 255},   /* #00DFFFFF */
+    CLITERAL(Color){0, 239, 255, 255},   /* #00EFFFFF */
+    CLITERAL(Color){0, 255, 255, 255},   /* #00FFFFFF */
+    CLITERAL(Color){16, 255, 239, 255},  /* #10FFEFFF */
+    CLITERAL(Color){32, 255, 223, 255},  /* #20FFDFFF */
+    CLITERAL(Color){48, 255, 207, 255},  /* #30FFCFFF */
+    CLITERAL(Color){64, 255, 191, 255},  /* #40FFBFFF */
+    CLITERAL(Color){80, 255, 175, 255},  /* #50FFAFFF */
+    CLITERAL(Color){96, 255, 159, 255},  /* #60FF9FFF */
+    CLITERAL(Color){112, 255, 143, 255}, /* #70FF8FFF */
+    CLITERAL(Color){128, 255, 128, 255}, /* #80FF80FF */
+    CLITERAL(Color){143, 255, 112, 255}, /* #8FFF70FF */
+    CLITERAL(Color){159, 255, 96, 255},  /* #9FFF60FF */
+    CLITERAL(Color){175, 255, 80, 255},  /* #AFFF50FF */
+    CLITERAL(Color){191, 255, 64, 255},  /* #BFFF40FF */
+    CLITERAL(Color){207, 255, 48, 255},  /* #CFFF30FF */
+    CLITERAL(Color){223, 255, 32, 255},  /* #DFFF20FF */
+    CLITERAL(Color){239, 255, 16, 255},  /* #EFFF10FF */
+    CLITERAL(Color){255, 255, 0, 255},   /* #FFFF00FF */
+    CLITERAL(Color){255, 239, 0, 255},   /* #FFEF00FF */
+    CLITERAL(Color){255, 223, 0, 255},   /* #FFDF00FF */
+    CLITERAL(Color){255, 207, 0, 255},   /* #FFCF00FF */
+    CLITERAL(Color){255, 191, 0, 255},   /* #FFBF00FF */
+    CLITERAL(Color){255, 175, 0, 255},   /* #FFAF00FF */
+    CLITERAL(Color){255, 159, 0, 255},   /* #FF9F00FF */
+    CLITERAL(Color){255, 143, 0, 255},   /* #FF8F00FF */
+    CLITERAL(Color){255, 128, 0, 255},   /* #FF8000FF */
+    CLITERAL(Color){255, 112, 0, 255},   /* #FF7000FF */
+    CLITERAL(Color){255, 96, 0, 255},    /* #FF6000FF */
+    CLITERAL(Color){255, 80, 0, 255},    /* #FF5000FF */
+    CLITERAL(Color){255, 64, 0, 255},    /* #FF4000FF */
+    CLITERAL(Color){255, 48, 0, 255},    /* #FF3000FF */
+    CLITERAL(Color){255, 32, 0, 255},    /* #FF2000FF */
+    CLITERAL(Color){255, 16, 0, 255},    /* #FF1000FF */
+    CLITERAL(Color){255, 0, 0, 255},     /* #FF0000FF */
+    CLITERAL(Color){239, 0, 0, 255},     /* #EF0000FF */
+    CLITERAL(Color){223, 0, 0, 255},     /* #DF0000FF */
+    CLITERAL(Color){207, 0, 0, 255},     /* #CF0000FF */
+    CLITERAL(Color){191, 0, 0, 255},     /* #BF0000FF */
+    CLITERAL(Color){175, 0, 0, 255},     /* #AF0000FF */
+    CLITERAL(Color){159, 0, 0, 255},     /* #9F0000FF */
+    CLITERAL(Color){143, 0, 0, 255},     /* #8F0000FF */
+    CLITERAL(Color){128, 0, 0, 255},     /* #800000FF */
+};
+
+#define JET_LUT_COUNT ((int)(sizeof(JET_LUT) / sizeof(JET_LUT[0])))
+#define JET_SCROLL_SECONDS 60.0f
+#define JET_SCROLL_VISIBLE_SPAN 1.0f
+
+//TODO: test for jet, but need a better scroll convention thats more interesting.
+static inline void update_mesh_colors_jet_scroll(Color* colors, int point_count, int sample_cursor) {
+    float scroll_phase = FMODF((float)sample_cursor / ((float)SRC_SAMPLE_RATE * JET_SCROLL_SECONDS), 1.0f);
+    for (int i = 0; i < LANE_COUNT; i++) {
+        float lane_v = (float)i / (float)(LANE_COUNT - 1);
+        float color_phase = scroll_phase - lane_v * JET_SCROLL_VISIBLE_SPAN;
+        color_phase = FMODF(color_phase + 1.0f, 1.0f);
+        float lut_pos = color_phase * (float)(JET_LUT_COUNT - 1);
+        int lut_index = (int)FLOORF(lut_pos);
+        int lut_next_index = MINI(lut_index + 1, JET_LUT_COUNT - 1);
+        float blend = lut_pos - (float)lut_index;
+        Color color_a = JET_LUT[lut_index];
+        Color color_b = JET_LUT[lut_next_index];
+        Color color = {
+            (unsigned char)LERP((float)color_a.r, (float)color_b.r, blend),
+            (unsigned char)LERP((float)color_a.g, (float)color_b.g, blend),
+            (unsigned char)LERP((float)color_a.b, (float)color_b.b, blend),
+            DRAW_COLOR_CHANNEL_MAX,
+        };
+
+        for (int j = 0; j < point_count; j++) {
+            colors[i * point_count + j] = color;
         }
     }
 }
@@ -1465,10 +1576,13 @@ static void update_playback_controls_fft_spectrum(void) {
 #define CHROMA_INVERSE_LN_2 1.4426950408889634f
 #define ACCIDENTALS_LUT {1.0f, 0.5f, 1.0f, 0.5f, 1.0f, 1.0f, 0.5f, 1.0f, 0.5f, 1.0f, 0.5f, 1.0f}
 #define ACCIDENTAL_LOOKUP(index) (((const float[CHROMA_COUNT])ACCIDENTALS_LUT)[(index)])
-#define WUXING_COLOR_LOOKUP(index) (((const Color[CHROMA_COUNT])WUXING_CHROMA_LUT)[(index)])
+#define WUXING_CHROMA_COLOR_LOOKUP(index) (((const Color[CHROMA_COUNT])WUXING_CHROMA_LUT)[(index)])
+
+// #define HARMONIC_CHROMA_COLOR_LOOKUP(index) (((const Color[CHROMA_COUNT])HARMONIC_FIFTHS_CHROMA_LUT)[(index)])
 
 static Color sample_chroma_palette(unsigned char chroma_id, float chroma_mask) {
-    Color base_color = WUXING_COLOR_LOOKUP(chroma_id);
+    Color base_color = WUXING_CHROMA_COLOR_LOOKUP(chroma_id);
+    // Color base_color = HARMONIC_CHROMA_COLOR_LOOKUP(chroma_id);
     float adaptive_chroma_mask_floor = adaptive_chroma_mask_mean - adaptive_chroma_mask_deviation * GLOBAL_ADAPTIVE_GATE_FLOOR_DEVIATION_SCALE;
     float adaptive_chroma_mask_ceiling = adaptive_chroma_mask_mean + adaptive_chroma_mask_deviation * GLOBAL_ADAPTIVE_GATE_CEILING_DEVIATION_SCALE;
     float gate = 0.0f;

@@ -49,7 +49,7 @@ static const unsigned short HIGH_BAND_BIN_BOUNDS[HIGH_BAND_POINT_COUNT][2] = {
 
 #define ADAPTIVE_PEAK_DECAY 0.985f
 #define ADAPTIVE_DYNAMIC_RANGE_DB 40.0f
-#define LOW_BAND_Y_SCALE 1.0f
+#define LOW_BAND_Y_SCALE 1.5f
 #define MID_BAND_Y_SCALE 3.0f
 #define HIGH_BAND_Y_SCALE 1.0f
 #define LOW_BAND_ANCHOR (Vector3){0.0f, -LOW_BAND_Y_SCALE, 0.0f}
@@ -189,6 +189,7 @@ int main(void) {
     wave_cursor_model = &mid_band_model;
 
     fill_mesh_colors(low_band_colors, LOW_BAND_POINT_COUNT);
+    // update_mesh_colors_jet_scroll(low_band_colors, LOW_BAND_POINT_COUNT, wave_cursor);
     fill_mesh_colors(mid_band_colors, MID_BAND_POINT_COUNT);
     fill_mesh_colors(high_band_colors, HIGH_BAND_POINT_COUNT);
 
@@ -277,12 +278,14 @@ int main(void) {
         high_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = high_band_white_noise_texture.id;
         mid_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = mid_band_white_noise_texture.id;
         spectral_flatness_glitter_tint.a = (unsigned char)(spectral_flatness_glitter_alpha * (float)DRAW_COLOR_CHANNEL_MAX);
-        rlEnablePointMode();
-        rlDisableDepthTest();
-        DrawModelEx(high_band_model, HIGH_BAND_ANCHOR, Y_AXIS, 0.0f, DEFAULT_SCALE, spectral_flatness_glitter_tint);
-        rlEnableDepthTest();
-        rlDisablePointMode();
-        DrawModelWiresEx(mid_band_model, MID_BAND_ANCHOR, Y_AXIS, 0.0f, DEFAULT_SCALE, spectral_flatness_glitter_tint);
+        if (spectral_flatness_glitter_tint.a != 0) {
+            rlEnablePointMode();
+            rlDisableDepthTest();
+            DrawModelEx(high_band_model, HIGH_BAND_ANCHOR, Y_AXIS, 0.0f, DEFAULT_SCALE, spectral_flatness_glitter_tint);
+            rlEnableDepthTest();
+            rlDisablePointMode();
+            DrawModelWiresEx(mid_band_model, MID_BAND_ANCHOR, Y_AXIS, 0.0f, DEFAULT_SCALE, spectral_flatness_glitter_tint);
+        }
         low_band_model.meshes[0].colors = low_saved_colors;
         mid_band_model.meshes[0].colors = mid_saved_colors;
         high_band_model.meshes[0].colors = high_saved_colors;
@@ -551,6 +554,7 @@ static void inspection_step(int dir) {
 static void update_fft_bands_terrain_meshes(void) {
     update_mesh_vertices(low_band_vertices, &low_band_lane_point_values[0][0], LOW_BAND_POINT_COUNT, LOW_BAND_Y_SCALE);
     update_mesh_normals_smooth(low_band_normals, low_band_vertices, LOW_BAND_POINT_COUNT);
+    // update_mesh_colors_jet_scroll(low_band_colors, LOW_BAND_POINT_COUNT, wave_cursor);
 
     update_mesh_vertices(mid_band_vertices, &mid_band_lane_point_values[0][0], MID_BAND_POINT_COUNT, MID_BAND_Y_SCALE);
     update_mesh_normals_smooth(mid_band_normals, mid_band_vertices, MID_BAND_POINT_COUNT);

@@ -98,6 +98,7 @@ int main(void) {
     flat_model = LoadModelFromMesh(flat_mesh);
 
     fill_mesh_colors(colors, LANE_POINT_COUNT);
+    // update_mesh_colors_jet_scroll(colors, LANE_POINT_COUNT, wave_cursor);
     expand_mesh_colors_flat(flat_colors, colors, mesh_a.indices, FLAT_VERTEX_COUNT);
     init_hilbert_filter();
     rebase_waveform_history();
@@ -515,6 +516,7 @@ static void update_waveform_terrain_meshes(void) {
     update_mesh_normals_smooth(normals, vertices, LANE_POINT_COUNT);
     update_mesh_normals_hilbert(hilbert_normals, normals, &hilbert_normal_field[0][0], vertices);
     update_mesh_colors_rms(rms_colors);
+    // update_mesh_colors_jet_scroll(colors, LANE_POINT_COUNT, wave_cursor);
 
     update_mesh_vertices_flat(flat_vertices, vertices, mesh_a.indices, FLAT_VERTEX_COUNT);
     update_mesh_normals_flat(flat_normals, flat_vertices, TERRAIN_TRIANGLE_COUNT);

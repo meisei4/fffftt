@@ -94,6 +94,7 @@ int main(void) {
     flat_model = LoadModelFromMesh(flat_mesh);
 
     fill_mesh_colors(colors, LANE_POINT_COUNT);
+    // update_mesh_colors_jet_scroll(colors, LANE_POINT_COUNT, wave_cursor);
     update_fft_terrain_meshes();
     update_mesh_normals_smooth(normals, vertices, LANE_POINT_COUNT);
 
@@ -338,6 +339,7 @@ static void inspection_step(int dir) {
 
 static void update_fft_terrain_meshes(void) {
     update_mesh_vertices(vertices, &lane_point_values[0][0], LANE_POINT_COUNT, AMPLITUDE_Y_SCALE);
+    // update_mesh_colors_jet_scroll(colors, LANE_POINT_COUNT, wave_cursor);
     update_mesh_colors_chroma(chroma_colors, lane_chroma_id, &chroma_mask_field[0][0], LANE_POINT_COUNT);
     update_mesh_normals_smooth(normals, vertices, LANE_POINT_COUNT);
     //NOTE: by pure accident i was forgetting to update the normals here. This lead me to an intersting finding... position lights actually shade faces based on:

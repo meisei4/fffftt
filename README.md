@@ -204,6 +204,7 @@ make waveform-terrain-3d-dc       # run: ./bin/waveform_terrain_3d_dc
 
 
 <samp>[todo]<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;add polygon mode for QUAD wire frame in GLdc<br>
   &nbsp;&nbsp;&nbsp;&nbsp;add gates for OpenGL 1.1 raylib desktop builds
 </samp>
 
