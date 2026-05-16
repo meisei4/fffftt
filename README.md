@@ -25,8 +25,8 @@
 <table width="1056">
   <tr>
     <td width="464" rowspan="2" align="left">
-      <video src="https://github.com/user-attachments/assets/1b565324-2215-4617-b18e-c2b5907ca511" autoplay loop muted playsinline width="464" height="348"></video>
-      <sub><samp>audio should work^^^ otherwise: <a href="https://github.com/user-attachments/assets/1b565324-2215-4617-b18e-c2b5907ca511">fft-bands-terrain-3d-dc.webm</a>)</samp></sub>
+      <video src="https://github.com/user-attachments/assets/3523a775-f174-4ba3-92e6-8fc39faacb32" autoplay loop muted playsinline width="464" height="348"></video>
+      <sub><samp>audio should work^^^ otherwise: <a href="https://github.com/user-attachments/assets/3523a775-f174-4ba3-92e6-8fc39faacb32">fft-bands-terrain-3d-dc.webm</a>)</samp></sub>
     </td>
     <td width="296" rowspan="2" align="center">
       <img src="https://github.com/user-attachments/assets/87971a00-daf0-4e57-a2cc-70d343af97dd" alt="fft_bands_terrain.png" width="292"><br>
@@ -62,8 +62,8 @@
 <table width="1056">
   <tr>
     <td width="464" rowspan="2" align="left">
-      <video src="https://github.com/user-attachments/assets/ad3e7dea-b1f2-4c4e-a2ea-4c5d2851af92" autoplay loop muted playsinline width="464" height="348"></video>
-      <sub><samp>audio should work^^^ otherwise: <a href="https://github.com/user-attachments/assets/ad3e7dea-b1f2-4c4e-a2ea-4c5d2851af92">waveform-terrain-3d-dc.webm</a>)</samp></sub>
+      <video src="https://github.com/user-attachments/assets/d13351b8-2867-495a-a53f-82f97047bd62" autoplay loop muted playsinline width="464" height="348"></video>
+      <sub><samp>audio should work^^^ otherwise: <a href="https://github.com/user-attachments/assets/d13351b8-2867-495a-a53f-82f97047bd62">waveform-terrain-3d-dc.webm</a>)</samp></sub>
     </td>
     <td width="296" rowspan="2" align="center">
       <img src="https://github.com/user-attachments/assets/fea18140-8d4c-4117-9283-74b7b15742d1" alt="waveform_terrain.png" width="292"><br>
@@ -99,8 +99,8 @@
 <table width="1056">
   <tr>
     <td width="464" rowspan="2" align="left">
-      <video src="https://github.com/user-attachments/assets/cd5b79e5-c9be-4a00-a65d-65dc8482569c" autoplay loop muted playsinline width="464" height="348"></video>
-      <sub><samp>audio should work^^^ otherwise: <a href="https://github.com/user-attachments/assets/cd5b79e5-c9be-4a00-a65d-65dc8482569c">fft-terrain-3d-dc.webm</a>)</samp></sub>
+      <video src="https://github.com/user-attachments/assets/fb570c32-689a-4234-ad4b-731058060f1c" autoplay loop muted playsinline width="464" height="348"></video>
+      <sub><samp>audio should work^^^ otherwise: <a href="https://github.com/user-attachments/assets/fb570c32-689a-4234-ad4b-731058060f1c">fft-terrain-3d-dc.webm</a>)</samp></sub>
     </td>
     <td width="296" rowspan="2" align="center">
       <img src="https://github.com/user-attachments/assets/5a220009-1159-43a5-9bc0-177c611bc6a4" alt="fft_terrain.png" width="292"><br>
