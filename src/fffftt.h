@@ -1076,7 +1076,7 @@ static int src_file = 0;
 static int src_file_data_offset = 0;
 static int src_file_chunk_size = 0;
 static int src_file_fact_frame_count = 0;
-static int src_file_format_tag = 0;
+static uint16_t src_file_format_tag = 0;
 static int adpcm_decode_frame = 0;
 static int16_t adpcm_decode_history = 0;
 static int16_t adpcm_step_size = YAMAHA_ADPCM_MIN_STEP_SIZE;
@@ -1304,7 +1304,9 @@ static inline void set_audio_track(int track_index) {
     }
     audio_track_index = track_index;
     src_file = fs_open(AUDIO_TRACK_PATH(audio_track_index), O_RDONLY);
-    wav_probe_data_chunk();
+    // TODO: alternative encodings could involve checking src_file_format_tag here to distinguish beyond ADPCM
+    int for_now_just_adpcm = wav_probe_data_chunk();
+    (void)for_now_just_adpcm; // ignore explicitely for now
     wave = (Wave){
         .frameCount = src_file_fact_frame_count ? src_file_fact_frame_count : src_file_chunk_size * 2,
         .sampleRate = SRC_SAMPLE_RATE,

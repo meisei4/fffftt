@@ -28,6 +28,8 @@ DC_KOS_CFLAGS := $(filter-out -I$(KOS_PORTS)/include,$(KOS_CFLAGS)) -I$(abspath 
 
 DC_CPPFLAGS := -I$(RAYLIB_DC_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/include -I$(abspath $(GLDC_DIR))/include -DPLATFORM_DREAMCAST -DGRAPHICS_API_OPENGL_11
 
+# prevention of Windows only issue of MSYS2 test builds expanding the romdisk paths to have a drive prefix
+export MSYS2_ARG_CONV_EXCL := $(if $(MSYS2_ARG_CONV_EXCL),$(MSYS2_ARG_CONV_EXCL);)-DAUDIO_ASSET_PATH_PREFIX=
 AUDIO_ASSET_PATH_PREFIX := /rd/
 # toggle below comment on and off for release .cdi vs direct romdisk packing
 # AUDIO_ASSET_PATH_PREFIX := /pc/
