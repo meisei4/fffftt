@@ -4,12 +4,14 @@
 #include "raylib.h"
 #include "raymath.h"
 #include "rlgl.h"
-#include "../sh4zam/include/sh4zam/shz_sh4zam.h"
 #include <math.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef PLATFORM_DREAMCAST
+#include "../sh4zam/include/sh4zam/shz_sh4zam.h"
 #include <dc/perfctr.h>
 #include <kos/fs.h>
 #include <fcntl.h>
@@ -35,15 +37,90 @@
 #define MEMCPY4(dst, src, size) shz_memcpy4((dst), (src), (size))
 #define CLAMP(x, min, max) shz_clampf((x), (min), (max))
 #define LERP(a, b, t) shz_lerpf((a), (b), (t))
+
+#define AUDIO_ASSET_PATH(filename) AUDIO_ASSET_PATH_PREFIX filename
+#define FONT_ASSET_PATH(filename) "/rd/" filename
+
+#define FOPEN(path) fs_open((path), O_RDONLY)
+#define FREAD(file, dst, size) fs_read((file), (dst), (size))
+#define FSEEK(file, offset, whence) fs_seek((file), (offset), (whence))
+#define FTOTAL(file) fs_total((file))
+#define FCLOSE(file) fs_close((file))
+#define FFT() shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)ANALYSIS_WINDOW_SIZE_IN_FRAMES)
+
+static int src_file = 0;
+#endif
+
+#ifdef PLATFORM_DESKTOP
+#include <fftw3.h>
+#include <stdio.h>
+
+#define SINF(x) sinf((x))
+#define COSF(x) cosf((x))
+#define TANF(x) tanf((x))
+#define SQRTF(x) sqrtf((x))
+#define ATAN2F(y, x) atan2f((y), (x))
+#define ACOSF(x) acosf((x))
+#define POWF(x, y) powf((x), (y))
+#define EXPF(x) expf((x))
+#define FLOORF(x) floorf((x))
+#define CEILF(x) ceilf((x))
+#define FMODF(x, y) fmodf((x), (y))
+#define LOGF(x) logf((x))
+#define FMAXF(x, y) fmaxf((x), (y))
+#define FMINF(x, y) fminf((x), (y))
+#define FABSF(x) fabsf((x))
+#define MEMSET(dst, value, size) memset((dst), (value), (size))
+#define MEMCPY(dst, src, size) memcpy((dst), (src), (size))
+#define MEMCPY4(dst, src, size) memcpy((dst), (src), (size))
+#define CLAMP(x, min, max) ((x) < (min) ? (min) : ((x) > (max) ? (max) : (x)))
+#define LERP(a, b, t) ((a) + ((b) - (a)) * (t))
+
+#define AUDIO_ASSET_PATH(filename) "src/resources/" filename
+#define FONT_ASSET_PATH(filename) "src/resources/" filename
+
+static inline int file_total(FILE* file) {
+    long prev_pos = ftell(file);
+    fseek(file, 0, SEEK_END);
+    long total = ftell(file);
+    fseek(file, prev_pos, SEEK_SET);
+    return (int)total;
+}
+
+#define FOPEN(path) fopen((path), "rb")
+#define FREAD(file, dst, size) ((int)fread((dst), 1, (size_t)(size), (file)))
+#define FSEEK(file, offset, whence) fseek((file), (offset), (whence))
+#define FTOTAL(file) file_total((file))
+#define FCLOSE(file) fclose((file))
+#define FFT()                                                                                                                                                  \
+    do {                                                                                                                                                       \
+        fftw_complex in[ANALYSIS_WINDOW_SIZE_IN_FRAMES];                                                                                                       \
+        fftw_complex out[ANALYSIS_WINDOW_SIZE_IN_FRAMES];                                                                                                      \
+        for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {                                                                                             \
+            in[i][0] = fft_data.work_buffer[i].real;                                                                                                           \
+            in[i][1] = fft_data.work_buffer[i].imaginary;                                                                                                      \
+        }                                                                                                                                                      \
+        fftw_plan plan = fftw_plan_dft_1d(ANALYSIS_WINDOW_SIZE_IN_FRAMES, in, out, FFTW_FORWARD, FFTW_ESTIMATE);                                               \
+        fftw_execute(plan);                                                                                                                                    \
+        fftw_destroy_plan(plan);                                                                                                                               \
+        for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {                                                                                             \
+            fft_data.work_buffer[i].real = (float)out[i][0];                                                                                                   \
+            fft_data.work_buffer[i].imaginary = (float)out[i][1];                                                                                              \
+        }                                                                                                                                                      \
+    } while (0)
+
+static FILE* src_file = NULL;
+#endif
+
 #define MAXI(x, y) ((x) > (y) ? (x) : (y))
 #define MINI(x, y) ((x) < (y) ? (x) : (y))
-#define WRAP(pos, size)                                                                                                                                        \
-    ({                                                                                                                                                         \
-        int p_ = (pos);                                                                                                                                        \
-        int s_ = (size);                                                                                                                                       \
-        int w_ = p_ % s_;                                                                                                                                      \
-        (w_ < 0) ? w_ + s_ : w_;                                                                                                                               \
-    })
+
+static inline int wrap(int pos, int size) {
+    int wrapped = pos % size;
+    return (wrapped < 0) ? wrapped + size : wrapped;
+}
+
+#define WRAP(pos, size) wrap((pos), (size))
 
 #define WRAP_PLUS(pos, amount, size) WRAP((pos) + (amount), (size))
 #define WRAP_MINUS(pos, amount, size) WRAP((pos) - (amount), (size))
@@ -120,7 +197,6 @@
 #define Y_AXIS (Vector3){0.0f, 1.0f, 0.0f}
 #define DEFAULT_SCALE (Vector3){1.0f, 1.0f, 1.0f}
 
-#define AUDIO_ASSET_PATH(filename) AUDIO_ASSET_PATH_PREFIX filename
 #define SHADERTOY_EXPERIMENT_22K_WAV AUDIO_ASSET_PATH("experiment_22k_mono_adpcm.wav")
 #define SHADERTOY_ELECTRONEBULAE_22K_WAV AUDIO_ASSET_PATH("electronebl_22k_mono_adpcm.wav")
 #define SHADERTOY_8BIT_22K_WAV AUDIO_ASSET_PATH("8bit_22k_mono_adpcm.wav")
@@ -128,7 +204,7 @@
 #define SHADERTOY_TROPICAL_22K_WAV AUDIO_ASSET_PATH("tropical_22k_mono_adpcm.wav")
 #define SHADERTOY_XTRACK_22K_WAV AUDIO_ASSET_PATH("xtrack_22k_mono_adpcm.wav")
 
-#define RD_FONT "/rd/vga.fnt" //TODO: nice 1KB...
+#define VGA_FONT FONT_ASSET_PATH("vga.fnt") //TODO: nice 1KB...
 #define FONT_SIZE 16.0f
 
 typedef struct FFTComplex {
@@ -434,70 +510,70 @@ static inline void fill_mesh_colors(Color* colors, int point_count) {
 }
 
 static const Color JET_LUT[] = {
-    CLITERAL(Color){0, 0, 143, 255},     /* #00008FFF */
-    CLITERAL(Color){0, 0, 159, 255},     /* #00009FFF */
-    CLITERAL(Color){0, 0, 175, 255},     /* #0000AFFF */
-    CLITERAL(Color){0, 0, 191, 255},     /* #0000BFFF */
-    CLITERAL(Color){0, 0, 207, 255},     /* #0000CFFF */
-    CLITERAL(Color){0, 0, 223, 255},     /* #0000DFFF */
-    CLITERAL(Color){0, 0, 239, 255},     /* #0000EFFF */
-    CLITERAL(Color){0, 0, 255, 255},     /* #0000FFFF */
-    CLITERAL(Color){0, 16, 255, 255},    /* #0010FFFF */
-    CLITERAL(Color){0, 32, 255, 255},    /* #0020FFFF */
-    CLITERAL(Color){0, 48, 255, 255},    /* #0030FFFF */
-    CLITERAL(Color){0, 64, 255, 255},    /* #0040FFFF */
-    CLITERAL(Color){0, 80, 255, 255},    /* #0050FFFF */
-    CLITERAL(Color){0, 96, 255, 255},    /* #0060FFFF */
-    CLITERAL(Color){0, 112, 255, 255},   /* #0070FFFF */
-    CLITERAL(Color){0, 128, 255, 255},   /* #0080FFFF */
-    CLITERAL(Color){0, 143, 255, 255},   /* #008FFFFF */
-    CLITERAL(Color){0, 159, 255, 255},   /* #009FFFFF */
-    CLITERAL(Color){0, 175, 255, 255},   /* #00AFFFFF */
-    CLITERAL(Color){0, 191, 255, 255},   /* #00BFFFFF */
-    CLITERAL(Color){0, 207, 255, 255},   /* #00CFFFFF */
-    CLITERAL(Color){0, 223, 255, 255},   /* #00DFFFFF */
-    CLITERAL(Color){0, 239, 255, 255},   /* #00EFFFFF */
-    CLITERAL(Color){0, 255, 255, 255},   /* #00FFFFFF */
-    CLITERAL(Color){16, 255, 239, 255},  /* #10FFEFFF */
-    CLITERAL(Color){32, 255, 223, 255},  /* #20FFDFFF */
-    CLITERAL(Color){48, 255, 207, 255},  /* #30FFCFFF */
-    CLITERAL(Color){64, 255, 191, 255},  /* #40FFBFFF */
-    CLITERAL(Color){80, 255, 175, 255},  /* #50FFAFFF */
-    CLITERAL(Color){96, 255, 159, 255},  /* #60FF9FFF */
-    CLITERAL(Color){112, 255, 143, 255}, /* #70FF8FFF */
-    CLITERAL(Color){128, 255, 128, 255}, /* #80FF80FF */
-    CLITERAL(Color){143, 255, 112, 255}, /* #8FFF70FF */
-    CLITERAL(Color){159, 255, 96, 255},  /* #9FFF60FF */
-    CLITERAL(Color){175, 255, 80, 255},  /* #AFFF50FF */
-    CLITERAL(Color){191, 255, 64, 255},  /* #BFFF40FF */
-    CLITERAL(Color){207, 255, 48, 255},  /* #CFFF30FF */
-    CLITERAL(Color){223, 255, 32, 255},  /* #DFFF20FF */
-    CLITERAL(Color){239, 255, 16, 255},  /* #EFFF10FF */
-    CLITERAL(Color){255, 255, 0, 255},   /* #FFFF00FF */
-    CLITERAL(Color){255, 239, 0, 255},   /* #FFEF00FF */
-    CLITERAL(Color){255, 223, 0, 255},   /* #FFDF00FF */
-    CLITERAL(Color){255, 207, 0, 255},   /* #FFCF00FF */
-    CLITERAL(Color){255, 191, 0, 255},   /* #FFBF00FF */
-    CLITERAL(Color){255, 175, 0, 255},   /* #FFAF00FF */
-    CLITERAL(Color){255, 159, 0, 255},   /* #FF9F00FF */
-    CLITERAL(Color){255, 143, 0, 255},   /* #FF8F00FF */
-    CLITERAL(Color){255, 128, 0, 255},   /* #FF8000FF */
-    CLITERAL(Color){255, 112, 0, 255},   /* #FF7000FF */
-    CLITERAL(Color){255, 96, 0, 255},    /* #FF6000FF */
-    CLITERAL(Color){255, 80, 0, 255},    /* #FF5000FF */
-    CLITERAL(Color){255, 64, 0, 255},    /* #FF4000FF */
-    CLITERAL(Color){255, 48, 0, 255},    /* #FF3000FF */
-    CLITERAL(Color){255, 32, 0, 255},    /* #FF2000FF */
-    CLITERAL(Color){255, 16, 0, 255},    /* #FF1000FF */
-    CLITERAL(Color){255, 0, 0, 255},     /* #FF0000FF */
-    CLITERAL(Color){239, 0, 0, 255},     /* #EF0000FF */
-    CLITERAL(Color){223, 0, 0, 255},     /* #DF0000FF */
-    CLITERAL(Color){207, 0, 0, 255},     /* #CF0000FF */
-    CLITERAL(Color){191, 0, 0, 255},     /* #BF0000FF */
-    CLITERAL(Color){175, 0, 0, 255},     /* #AF0000FF */
-    CLITERAL(Color){159, 0, 0, 255},     /* #9F0000FF */
-    CLITERAL(Color){143, 0, 0, 255},     /* #8F0000FF */
-    CLITERAL(Color){128, 0, 0, 255},     /* #800000FF */
+    {0, 0, 143, 255},     /* #00008FFF */
+    {0, 0, 159, 255},     /* #00009FFF */
+    {0, 0, 175, 255},     /* #0000AFFF */
+    {0, 0, 191, 255},     /* #0000BFFF */
+    {0, 0, 207, 255},     /* #0000CFFF */
+    {0, 0, 223, 255},     /* #0000DFFF */
+    {0, 0, 239, 255},     /* #0000EFFF */
+    {0, 0, 255, 255},     /* #0000FFFF */
+    {0, 16, 255, 255},    /* #0010FFFF */
+    {0, 32, 255, 255},    /* #0020FFFF */
+    {0, 48, 255, 255},    /* #0030FFFF */
+    {0, 64, 255, 255},    /* #0040FFFF */
+    {0, 80, 255, 255},    /* #0050FFFF */
+    {0, 96, 255, 255},    /* #0060FFFF */
+    {0, 112, 255, 255},   /* #0070FFFF */
+    {0, 128, 255, 255},   /* #0080FFFF */
+    {0, 143, 255, 255},   /* #008FFFFF */
+    {0, 159, 255, 255},   /* #009FFFFF */
+    {0, 175, 255, 255},   /* #00AFFFFF */
+    {0, 191, 255, 255},   /* #00BFFFFF */
+    {0, 207, 255, 255},   /* #00CFFFFF */
+    {0, 223, 255, 255},   /* #00DFFFFF */
+    {0, 239, 255, 255},   /* #00EFFFFF */
+    {0, 255, 255, 255},   /* #00FFFFFF */
+    {16, 255, 239, 255},  /* #10FFEFFF */
+    {32, 255, 223, 255},  /* #20FFDFFF */
+    {48, 255, 207, 255},  /* #30FFCFFF */
+    {64, 255, 191, 255},  /* #40FFBFFF */
+    {80, 255, 175, 255},  /* #50FFAFFF */
+    {96, 255, 159, 255},  /* #60FF9FFF */
+    {112, 255, 143, 255}, /* #70FF8FFF */
+    {128, 255, 128, 255}, /* #80FF80FF */
+    {143, 255, 112, 255}, /* #8FFF70FF */
+    {159, 255, 96, 255},  /* #9FFF60FF */
+    {175, 255, 80, 255},  /* #AFFF50FF */
+    {191, 255, 64, 255},  /* #BFFF40FF */
+    {207, 255, 48, 255},  /* #CFFF30FF */
+    {223, 255, 32, 255},  /* #DFFF20FF */
+    {239, 255, 16, 255},  /* #EFFF10FF */
+    {255, 255, 0, 255},   /* #FFFF00FF */
+    {255, 239, 0, 255},   /* #FFEF00FF */
+    {255, 223, 0, 255},   /* #FFDF00FF */
+    {255, 207, 0, 255},   /* #FFCF00FF */
+    {255, 191, 0, 255},   /* #FFBF00FF */
+    {255, 175, 0, 255},   /* #FFAF00FF */
+    {255, 159, 0, 255},   /* #FF9F00FF */
+    {255, 143, 0, 255},   /* #FF8F00FF */
+    {255, 128, 0, 255},   /* #FF8000FF */
+    {255, 112, 0, 255},   /* #FF7000FF */
+    {255, 96, 0, 255},    /* #FF6000FF */
+    {255, 80, 0, 255},    /* #FF5000FF */
+    {255, 64, 0, 255},    /* #FF4000FF */
+    {255, 48, 0, 255},    /* #FF3000FF */
+    {255, 32, 0, 255},    /* #FF2000FF */
+    {255, 16, 0, 255},    /* #FF1000FF */
+    {255, 0, 0, 255},     /* #FF0000FF */
+    {239, 0, 0, 255},     /* #EF0000FF */
+    {223, 0, 0, 255},     /* #DF0000FF */
+    {207, 0, 0, 255},     /* #CF0000FF */
+    {191, 0, 0, 255},     /* #BF0000FF */
+    {175, 0, 0, 255},     /* #AF0000FF */
+    {159, 0, 0, 255},     /* #9F0000FF */
+    {143, 0, 0, 255},     /* #8F0000FF */
+    {128, 0, 0, 255},     /* #800000FF */
 };
 
 #define JET_LUT_COUNT ((int)(sizeof(JET_LUT) / sizeof(JET_LUT[0])))
@@ -1072,7 +1148,6 @@ static inline int sticky_nav(int button) {
 #define ADPCM_CLAMP_STEP_SIZE(value) ((int16_t)ADPCM_CLAMP((value), YAMAHA_ADPCM_MIN_STEP_SIZE, YAMAHA_ADPCM_MAX_STEP_SIZE))
 static const int YAMAHA_ADPCM_STEP_TABLE[8] = {230, 230, 230, 230, 307, 409, 512, 614};
 
-static int src_file = 0;
 static int src_file_data_offset = 0;
 static int src_file_chunk_size = 0;
 static int src_file_fact_frame_count = 0;
@@ -1096,19 +1171,19 @@ static inline int wav_probe_data_chunk(void) {
     src_file_fact_frame_count = 0;
     src_file_format_tag = 0;
     uint32_t header[3];
-    fs_seek(src_file, 0, SEEK_SET);
-    if (fs_read(src_file, header, 12) != 12) {
+    FSEEK(src_file, 0, SEEK_SET);
+    if (FREAD(src_file, header, 12) != 12) {
         return 0;
     }
     if (header[0] != 0x46464952 || header[2] != 0x45564157) {
         return 0;
     }
-    unsigned int file_size = (unsigned int)fs_total(src_file);
+    unsigned int file_size = (unsigned int)FTOTAL(src_file);
     unsigned int pos = 12;
     while (pos + 8 <= file_size) {
         uint32_t chunk[2];
-        fs_seek(src_file, pos, SEEK_SET);
-        if (fs_read(src_file, chunk, 8) != 8) {
+        FSEEK(src_file, pos, SEEK_SET);
+        if (FREAD(src_file, chunk, 8) != 8) {
             return 0;
         }
         int chunk_data_pos = pos + 8;
@@ -1116,11 +1191,11 @@ static inline int wav_probe_data_chunk(void) {
             return 0;
         }
         if (chunk[0] == 0x20746D66) {
-            fs_seek(src_file, chunk_data_pos, SEEK_SET);
-            fs_read(src_file, &src_file_format_tag, sizeof(src_file_format_tag));
+            FSEEK(src_file, chunk_data_pos, SEEK_SET);
+            FREAD(src_file, &src_file_format_tag, sizeof(src_file_format_tag));
         } else if (chunk[0] == 0x74636166) {
-            fs_seek(src_file, chunk_data_pos, SEEK_SET);
-            fs_read(src_file, &src_file_fact_frame_count, sizeof(src_file_fact_frame_count));
+            FSEEK(src_file, chunk_data_pos, SEEK_SET);
+            FREAD(src_file, &src_file_fact_frame_count, sizeof(src_file_fact_frame_count));
         } else if (chunk[0] == 0x61746164) {
             src_file_data_offset = chunk_data_pos;
             src_file_chunk_size = chunk[1];
@@ -1141,9 +1216,9 @@ static inline void reset_adpcm_decoder(void) {
 
 static inline unsigned char adpcm_read_byte(int byte_index) {
     if (byte_index < adpcm_start_pos || byte_index >= adpcm_start_pos + adpcm_read_count) {
-        fs_seek(src_file, src_file_data_offset + byte_index, SEEK_SET);
+        FSEEK(src_file, src_file_data_offset + byte_index, SEEK_SET);
         adpcm_start_pos = byte_index;
-        adpcm_read_count = fs_read(src_file, adpcm_read_buffer, YAMAHA_ADPCM_READ_BUFFER_SIZE);
+        adpcm_read_count = FREAD(src_file, adpcm_read_buffer, YAMAHA_ADPCM_READ_BUFFER_SIZE);
         if (adpcm_read_count <= 0) {
             adpcm_start_pos = -1;
             adpcm_read_count = 0;
@@ -1287,7 +1362,7 @@ static inline void unload_audio_track(void) {
     adpcm_checkpoint_count = 0;
     adpcm_checkpoint_filled_count = 0;
     if (src_file) {
-        fs_close(src_file);
+        FCLOSE(src_file);
     }
     src_file = 0;
     src_file_data_offset = 0;
@@ -1303,7 +1378,7 @@ static inline void set_audio_track(int track_index) {
         unload_audio_track();
     }
     audio_track_index = track_index;
-    src_file = fs_open(AUDIO_TRACK_PATH(audio_track_index), O_RDONLY);
+    src_file = FOPEN(AUDIO_TRACK_PATH(audio_track_index));
     // TODO: alternative encodings could involve checking src_file_format_tag here to distinguish beyond ADPCM
     int for_now_just_adpcm = wav_probe_data_chunk();
     (void)for_now_just_adpcm; // ignore explicitely for now
@@ -1401,7 +1476,7 @@ static inline void fffftt_inspection_step_sound_envelope(int dir) {
 
 static void draw_paused_wave_cursor_lane_marker(int point_count) {
     int mesh_vertex_count = LANE_COUNT * point_count;
-    Color wave_cursor_colors[mesh_vertex_count];
+    Color wave_cursor_colors[LANE_COUNT * LANE_POINT_COUNT];
     int lane_index = seek_delta_chunks;
     float z_offset = 0.0f;
     Color blink_color = fffftt_wave_cursor_blink_color();

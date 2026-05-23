@@ -4,7 +4,7 @@
 
 #define LINE_WIDTH_RASTER_PIXELS 1.0f
 #define POINT_SIZE_RASTER_PIXELS 3.0f
-static const char* domain = "FFT-TERRAIN-3D-DC";
+static const char* domain = "FFT-TERRAIN-3D";
 
 static Mesh mesh_a = {0};
 static Mesh mesh_b = {0};
@@ -40,7 +40,7 @@ static void rebase_fft_history(void);
 int main(void) {
     // SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
-    font = LoadFont(RD_FONT);
+    font = LoadFont(VGA_FONT);
     fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;
     fft_data.work_buffer = RL_CALLOC(ANALYSIS_WINDOW_SIZE_IN_FRAMES, sizeof(FFTComplex));
     fft_data.smoothed_spectrum_magnitudes = RL_CALLOC(ANALYSIS_SPECTRUM_BIN_COUNT, sizeof(float));
@@ -111,7 +111,7 @@ int main(void) {
         int audio_dirty = 0;
         while (fffftt_audio_process(chunk_samples)) {
             apply_blackman_window();
-            shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)ANALYSIS_WINDOW_SIZE_IN_FRAMES);
+            FFT();
             build_spectrum();
             consume_current_fft_frame();
             audio_dirty = 1;
@@ -234,7 +234,7 @@ static void update_playback_controls_fft(void) {
             PlayAudioStream(audio_stream);
             while (fffftt_audio_process(resume_chunk_samples)) {
                 apply_blackman_window();
-                shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)ANALYSIS_WINDOW_SIZE_IN_FRAMES);
+                FFT();
                 build_spectrum();
                 consume_current_fft_frame();
                 analysis_dirty = 1;
@@ -265,7 +265,7 @@ static void update_playback_controls_fft(void) {
             fffftt_inspection_fill_analysis_window(wave_cursor);
 
             apply_blackman_window();
-            shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)ANALYSIS_WINDOW_SIZE_IN_FRAMES);
+            FFT();
             build_spectrum();
             int frame_pos = fft_data.frame_pos - 1;
             update_onset_gate_fft(&fft_data, 0);
@@ -377,7 +377,7 @@ static void rebase_fft_history(void) {
         int chunk_start_frame = WRAP_MINUS(wave_cursor, replay_frame_offset, wave.frameCount);
         fffftt_inspection_fill_analysis_window(chunk_start_frame);
         apply_blackman_window();
-        shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)ANALYSIS_WINDOW_SIZE_IN_FRAMES);
+        FFT();
         build_spectrum();
         consume_current_fft_frame();
     }

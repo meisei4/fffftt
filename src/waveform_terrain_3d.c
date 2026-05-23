@@ -5,7 +5,7 @@
 #define LINE_WIDTH_RASTER_PIXELS 1.0f
 #define POINT_SIZE_RASTER_PIXELS 3.0f
 
-static const char* domain = "WAVEFORM-TERRAIN-3D-DC";
+static const char* domain = "WAVEFORM-TERRAIN-3D";
 
 static Mesh mesh_a = {0};
 static Mesh mesh_b = {0};
@@ -54,7 +54,7 @@ static int adaptive_waveform_onset_power_ready = 0;
 int main(void) {
     // SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
-    font = LoadFont(RD_FONT);
+    font = LoadFont(VGA_FONT);
 
     InitAudioDevice();
     SetAudioStreamBufferSizeDefault(AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES);
@@ -153,7 +153,7 @@ int main(void) {
         glLightfv(GL_LIGHT0, GL_AMBIENT, (const GLfloat[]){0.0f, 0.0f, 0.0f, 1.0f});
         glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
         glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){light0_pos.x, light0_pos.y, light0_pos.z, 1.0f});
-        DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE); //TODO: too powerful...
+        DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         glDisable(GL_LIGHTING);
         draw_lantern(light0_pos);
         draw_lantern_glow(light0_pos);

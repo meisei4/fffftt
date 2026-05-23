@@ -13,13 +13,14 @@
   &nbsp;&nbsp;&nbsp;&nbsp;audio terrain demos ............... see <a href="#audio-terrain">[audio terrain]</a><br>
   &nbsp;&nbsp;&nbsp;&nbsp;Shadertoy ports ................... see <a href="#shadertoy-ports">[shadertoy ports]</a><br>
   &nbsp;&nbsp;&nbsp;&nbsp;proxy plots ....................... MathWorks-like audio analysis plots in <a href="https://github.com/meisei4/fffftt/tree/main/mathworks">mathworks/</a> directory<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;desktop ports ..................... see <a href="#desktop-ports">[desktop ports]</a><br>
 <br>
 </samp>
 
 ### <samp>[audio terrain]</samp>
 <samp>
   &nbsp;&nbsp;&nbsp;&nbsp;[fft bands terrain]<br>
-  &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://github.com/meisei4/fffftt/blob/main/src/fft_bands_terrain_3d_dc.c">src/fft_bands_terrain_3d_dc.c</a> ..... FFT bands; mid: <b>chroma</b>, low: <b>onset strength</b>, high: <b>spectral flatness</b><br>
+  &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://github.com/meisei4/fffftt/blob/main/src/fft_bands_terrain_3d.c">src/fft_bands_terrain_3d.c</a> ........ FFT bands; mid: <b>chroma</b>, low: <b>onset strength</b>, high: <b>spectral flatness</b><br>
 </samp>
 
 <table width="1056">
@@ -56,7 +57,7 @@
 
 <samp>
   &nbsp;&nbsp;&nbsp;&nbsp;[waveform terrain]<br>
-  &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://github.com/meisei4/fffftt/blob/main/src/waveform_terrain_3d_dc.c">src/waveform_terrain_3d_dc.c</a> ...... <b>Hilbert envelope</b>, <b>RMS</b>, and <b>onset strength</b><br>
+  &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://github.com/meisei4/fffftt/blob/main/src/waveform_terrain_3d.c">src/waveform_terrain_3d.c</a> ......... <b>Hilbert envelope</b>, <b>RMS</b>, and <b>onset strength</b><br>
 </samp>
 
 <table width="1056">
@@ -93,7 +94,7 @@
 
 <samp>
   &nbsp;&nbsp;&nbsp;&nbsp;[fft terrain]<br>
-  &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://github.com/meisei4/fffftt/blob/main/src/fft_terrain_3d_dc.c">src/fft_terrain_3d_dc.c</a> ........... <b>chroma/pitch-class</b> and <b>onset strength</b><br>
+  &nbsp;&nbsp;&nbsp;&nbsp;<a href="https://github.com/meisei4/fffftt/blob/main/src/fft_terrain_3d.c">src/fft_terrain_3d.c</a> .............. <b>chroma/pitch-class</b> and <b>onset strength</b><br>
 </samp>
 
 <table width="1056">
@@ -152,7 +153,7 @@
 <samp>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Cotterzz: Visualiser - Picking out notes]<br>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Shadertoy: <a href="https://www.shadertoy.com/view/tcG3Rm">https://www.shadertoy.com/view/tcG3Rm</a><br>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;src: <a href="https://github.com/meisei4/fffftt/blob/main/src/picking_out_notes_dc.c">src/picking_out_notes_dc.c</a><br>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;src: <a href="https://github.com/meisei4/fffftt/blob/main/src/picking_out_notes.c">src/picking_out_notes.c</a><br>
 </samp>
 <table width="928">
   <tr>
@@ -173,7 +174,7 @@
 <samp>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[meisei4: basic waveform data visualizer]<br>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Shadertoy: <a href="https://www.shadertoy.com/view/tcSXRz">https://www.shadertoy.com/view/tcSXRz</a><br>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;src: <a href="https://github.com/meisei4/fffftt/blob/main/src/waveform_dc.c">src/waveform_dc.c</a><br>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;src: <a href="https://github.com/meisei4/fffftt/blob/main/src/waveform.c">src/waveform.c</a><br>
 </samp>
 <table width="928">
   <tr>
@@ -193,7 +194,7 @@
 <samp>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[meisei4: sound envelope reference]<br>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Shadertoy: <a href="https://www.shadertoy.com/view/7fXSWB">https://www.shadertoy.com/view/7fXSWB</a><br>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;src: <a href="https://github.com/meisei4/fffftt/blob/main/src/sound_envelope_2d_iso_dc.c">src/sound_envelope_2d_iso_dc.c</a> / <a href="https://github.com/meisei4/fffftt/blob/main/src/sound_envelope_3d_dc.c">src/sound_envelope_3d_dc.c</a><br>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;src: <a href="https://github.com/meisei4/fffftt/blob/main/src/sound_envelope_2d_iso.c">src/sound_envelope_2d_iso.c</a> / <a href="https://github.com/meisei4/fffftt/blob/main/src/sound_envelope_3d.c">src/sound_envelope_3d.c</a><br>
 </samp>
 <table width="927">
   <tr>
@@ -230,25 +231,37 @@ git submodule update --init --recursive
 
 ```bash
 # [fft]
-# [fft]
-make sh4zam-butterfly             # run: ./bin/sh4zam_butterfly        # elf: ./build/dc/sh4zam_butterfly/sh4zam_butterfly.elf
-make picking-out-notes-dc         # run: ./bin/picking_out_notes_dc    # elf: ./build/dc/picking_out_notes_dc/picking_out_notes_dc.elf
-make fft-terrain-3d-dc            # run: ./bin/fft_terrain_3d_dc       # elf: ./build/dc/fft_terrain_3d_dc/fft_terrain_3d_dc.elf
-make fft-bands-terrain-3d-dc      # run: ./bin/fft_bands_terrain_3d_dc # elf: ./build/dc/fft_bands_terrain_3d_dc/fft_bands_terrain_3d_dc.elf
+make dc-sh4zam-butterfly          # run: ./bin/dc/sh4zam-butterfly          # elf: ./build/dc/sh4zam-butterfly/sh4zam-butterfly.elf
+make dc-picking-out-notes         # run: ./bin/dc/picking-out-notes         # elf: ./build/dc/picking-out-notes/picking-out-notes.elf
+make dc-fft-terrain-3d            # run: ./bin/dc/fft-terrain-3d            # elf: ./build/dc/fft-terrain-3d/fft-terrain-3d.elf
+make dc-fft-bands-terrain-3d      # run: ./bin/dc/fft-bands-terrain-3d      # elf: ./build/dc/fft-bands-terrain-3d/fft-bands-terrain-3d.elf
 
 # [waveform]
-make waveform-dc                  # run: ./bin/waveform_dc             # elf: ./build/dc/waveform_dc/waveform_dc.elf
-make sound-envelope-2d-iso-dc     # run: ./bin/sound_envelope_2d_iso_dc # elf: ./build/dc/sound_envelope_2d_iso_dc/sound_envelope_2d_iso_dc.elf
-make sound-envelope-3d-dc         # run: ./bin/sound_envelope_3d_dc    # elf: ./build/dc/sound_envelope_3d_dc/sound_envelope_3d_dc.elf
-make waveform-terrain-3d-dc       # run: ./bin/waveform_terrain_3d_dc  # elf: ./build/dc/waveform_terrain_3d_dc/waveform_terrain_3d_dc.elf
+make dc-waveform                  # run: ./bin/dc/waveform                  # elf: ./build/dc/waveform/waveform.elf
+make dc-sound-envelope-2d-iso     # run: ./bin/dc/sound-envelope-2d-iso     # elf: ./build/dc/sound-envelope-2d-iso/sound-envelope-2d-iso.elf
+make dc-sound-envelope-3d         # run: ./bin/dc/sound-envelope-3d         # elf: ./build/dc/sound-envelope-3d/sound-envelope-3d.elf
+make dc-waveform-terrain-3d       # run: ./bin/dc/waveform-terrain-3d       # elf: ./build/dc/waveform-terrain-3d/waveform-terrain-3d.elf
+```
+
+<samp>[desktop ports]</samp>
+
+```Bash
+#[unix]
+./build.sh desktop # builds and runs all demos
+make desktop-<demo> # e.g.: make desktop-fft-terrain-3d -> ./bin/desktop/fft-terrain-3d
+
+#[windows]
+build.bat # builds all desktop demos
+build.bat <demo> # e.g: build.bat fft-terrain-3d -> bin/desktop/fft-terrain-3d.exe
 ```
 
 
 <samp>[run / build / clean]<br>
-  &nbsp;&nbsp;&nbsp;&nbsp;flycast_run.sh .................... <a href="https://github.com/meisei4/fffftt/blob/main/flycast_run.sh">flycast_run.sh</a> runs wrappers in ./bin/<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;flycast_run.sh .................... <a href="https://github.com/meisei4/fffftt/blob/main/flycast_run.sh">flycast_run.sh</a> runs wrappers in ./bin/dc/<br>
   &nbsp;&nbsp;&nbsp;&nbsp;.elf targets ...................... /pc assets enter CDI build via mkdcdisc<br>
-  &nbsp;&nbsp;&nbsp;&nbsp;build.sh .......................... <a href="https://github.com/meisei4/fffftt/blob/main/build.sh">build.sh</a> builds all examples<br>
-  &nbsp;&nbsp;&nbsp;&nbsp;make clean-all .................... removes build artifacts and .cdi images<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;build.sh .......................... <a href="https://github.com/meisei4/fffftt/blob/main/build.sh">build.sh</a> builds Dreamcast demos; <code>./build.sh desktop</code> for desktop<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;build.bat ......................... <a href="https://github.com/meisei4/fffftt/blob/main/build.bat">build.bat</a> builds Windows desktop demos<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;make clean-all .................... removes build artifacts, wrappers, and logs<br>
 </samp>
 
 
@@ -268,7 +281,6 @@ make waveform-terrain-3d-dc       # run: ./bin/waveform_terrain_3d_dc  # elf: ./
 
 <samp>[todo]<br>
   &nbsp;&nbsp;&nbsp;&nbsp;add polygon mode for QUAD wire frame in GLdc<br>
-  &nbsp;&nbsp;&nbsp;&nbsp;build gates for an OpenGL 1.1 desktop platform port
 </samp>
 
 

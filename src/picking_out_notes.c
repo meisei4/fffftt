@@ -1,7 +1,7 @@
 // https://www.shadertoy.com/view/tcG3Rm
 #include "fffftt.h"
 
-static const char* domain = "PICKING-OUT-NOTES-DC";
+static const char* domain = "PICKING-OUT-NOTES";
 
 #define GRID_COLUMN_COUNT 12 // #L33 vec2(12,10)
 #define GRID_ROW_COUNT 10    // #L33 vec2(12,10)
@@ -114,7 +114,7 @@ static void picking_out_the_notes(const FFTData* fft_data) {
 int main(void) {
     // SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
-    font = LoadFont(RD_FONT);
+    font = LoadFont(VGA_FONT);
 
     fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;
     fft_data.work_buffer = RL_CALLOC(ANALYSIS_WINDOW_SIZE_IN_FRAMES, sizeof(FFTComplex));
@@ -142,7 +142,7 @@ int main(void) {
         }
 
         apply_blackman_window();
-        shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)ANALYSIS_WINDOW_SIZE_IN_FRAMES);
+        FFT();
         build_spectrum();
         BeginDrawing();
         ClearBackground(BLACK);
