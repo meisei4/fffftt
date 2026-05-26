@@ -951,10 +951,10 @@ static inline Vector3 compute_buoy_rest_pos(const float* vertices, int point_cou
 }
 
 static inline void update_light_camera_strafe(const Camera3D* camera, Vector3 rest_pos, BoundingBox scene_bbox) {
-    float strafe_axis_x =
-        (FABSF(GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X)) < LIGHT_STRAFE_DEADZONE) ? 0.0f : GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
-    float strafe_axis_y =
-        (FABSF(GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y)) < LIGHT_STRAFE_DEADZONE) ? 0.0f : GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
+    float axis_x = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
+    float axis_y = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
+    float strafe_axis_x = CLAMP((FABSF(axis_x) >= LIGHT_STRAFE_DEADZONE) * axis_x + IsKeyDown(KEY_L) - IsKeyDown(KEY_J), -1.0f, 1.0f);
+    float strafe_axis_y = CLAMP((FABSF(axis_y) >= LIGHT_STRAFE_DEADZONE) * axis_y + IsKeyDown(KEY_K) - IsKeyDown(KEY_I), -1.0f, 1.0f);
 
     Vector3 cam_forward = Vector3Normalize(Vector3Subtract(camera->target, camera->position));
     Vector3 cam_right = Vector3Normalize(Vector3CrossProduct(cam_forward, camera->up));
@@ -1096,17 +1096,17 @@ static inline void update_camera_orbit(Camera3D* camera, float dt) {
     float pitch = atan2f(dist_from_target.y, ground_radius);
     float fovy = camera->fovy;
 
-    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT))
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT) || IsKeyDown(KEY_LEFT))
         yaw += CAMERA_ORBIT_VELOCITY * dt;
-    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_RIGHT))
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_RIGHT) || IsKeyDown(KEY_RIGHT))
         yaw -= CAMERA_ORBIT_VELOCITY * dt;
-    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_UP))
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_UP) || IsKeyDown(KEY_UP))
         pitch += CAMERA_ORBIT_VELOCITY * dt;
-    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_DOWN))
+    if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_DOWN) || IsKeyDown(KEY_DOWN))
         pitch -= CAMERA_ORBIT_VELOCITY * dt;
-    if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_TRIGGER) > 0.0f)
+    if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_TRIGGER) > 0.0f || IsKeyDown(KEY_V))
         fovy -= GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_TRIGGER) * CAMERA_FOVY_VELOCITY * dt;
-    if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_TRIGGER) > 0.0f)
+    if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_TRIGGER) > 0.0f || IsKeyDown(KEY_F))
         fovy += GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_TRIGGER) * CAMERA_FOVY_VELOCITY * dt;
 
     pitch = CLAMP(pitch, CAMERA_PITCH_MIN, CAMERA_PITCH_MAX);
@@ -1128,10 +1128,10 @@ static inline int sticky_nav(int button) {
     int i = (button == GAMEPAD_BUTTON_RIGHT_FACE_DOWN);
     float now = (float)GetTime();
     int nav_flag = 0;
-    if (IsGamepadButtonPressed(0, button)) {
+    if (IsGamepadButtonPressed(0, button) || IsKeyPressed(i ? KEY_X : KEY_C)) {
         sticky_nav_at[i] = now + BUTTON_DOWN_NAV_INITIAL_DELAY_SECONDS;
         nav_flag = 1;
-    } else if (!IsGamepadButtonDown(0, button)) {
+    } else if (!IsGamepadButtonDown(0, button) && !IsKeyDown(i ? KEY_X : KEY_C)) {
         sticky_nav_at[i] = 0.0f;
     } else if (now >= sticky_nav_at[i]) {
         sticky_nav_at[i] = now + BUTTON_DOWN_NAV_INTERVAL_SECONDS;
@@ -1396,9 +1396,9 @@ static inline void set_audio_track(int track_index) {
 
 static inline void update_audio_track_cycle(void) {
     int dir = 0;
-    if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_LEFT)) {
+    if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_LEFT) || IsKeyPressed(KEY_S)) {
         dir = BACKWARD;
-    } else if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_UP)) {
+    } else if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_UP) || IsKeyPressed(KEY_D)) {
         dir = FORWARD;
     }
     if (dir == 0) {
@@ -1593,7 +1593,7 @@ static void draw_playback_inspection_hud(void) {
 }
 
 static void update_playback_controls_sound_envelope(void) {
-    if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT)) {
+    if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT) || IsKeyPressed(KEY_ENTER)) {
         reset_sticky_nav();
         if (!is_paused) {
             is_paused = true;
@@ -1620,7 +1620,7 @@ static void update_playback_controls_sound_envelope(void) {
 }
 
 static void update_playback_controls_fft_spectrum(void) {
-    if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT)) {
+    if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT) || IsKeyPressed(KEY_ENTER)) {
         reset_sticky_nav();
 
         if (!is_paused) {

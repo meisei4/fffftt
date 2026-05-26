@@ -71,7 +71,7 @@ int main(void) {
         }
 
         update_audio_track_cycle();
-        if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT)) {
+        if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT) || IsKeyPressed(KEY_ENTER)) {
             reset_sticky_nav();
 
             if (!is_paused) {

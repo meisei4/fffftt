@@ -429,7 +429,7 @@ static void consume_current_fft_frame(void) {
 static void update_playback_controls_fft(void) {
     int analysis_dirty = 0;
 
-    if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT)) {
+    if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT) || IsKeyPressed(KEY_ENTER)) {
         reset_sticky_nav();
         if (!is_paused) {
             is_paused = true;

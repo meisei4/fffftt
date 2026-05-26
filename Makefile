@@ -6,6 +6,7 @@ DESKTOP_BUILD_DIR := $(BUILD_DIR)/desktop
 BIN_DIR := bin
 DC_BIN_DIR := $(BIN_DIR)/dc
 DESKTOP_BIN_DIR := $(BIN_DIR)/desktop
+LOG_DIR := logs
 SRC_DIR := src
 RES_DIR := $(SRC_DIR)/resources
 
@@ -48,7 +49,7 @@ DC_CPPFLAGS := -I$(RAYLIB_DC_DIR) -I$(SRC_DIR) -I$(KOS_PORTS)/libwav/inst/includ
 DESKTOP_CPPFLAGS := -I$(DESKTOP_BUILD_DIR) -I$(RAYLIB_DESKTOP_DIR) -I$(SRC_DIR) -I$(RAYLIB_DESKTOP_SRC_DIR)/external/glfw/include -I$(FFTW3_DIR)/api -DPLATFORM_DESKTOP -DGRAPHICS_API_OPENGL_11
 
 # prevention of Windows only issue of MSYS2 test builds expanding the romdisk paths to have a drive prefix
-export MSYS2_ARG_CONV_EXCL := $(if $(MSYS2_ARG_CONV_EXCL),$(MSYS2_ARG_CONV_EXCL);)-DAUDIO_ASSET_PATH_PREFIX=;-DRESOURCE_ASSET_PATH_PREFIX=
+export MSYS2_ARG_CONV_EXCL := $(if $(MSYS2_ARG_CONV_EXCL),$(MSYS2_ARG_CONV_EXCL);)-DAUDIO_ASSET_PATH_PREFIX=
 AUDIO_ASSET_PATH_PREFIX := /rd/
 # toggle below comment on and off for release .cdi vs direct romdisk packing
 # AUDIO_ASSET_PATH_PREFIX := /pc/
@@ -127,13 +128,13 @@ FMT ?= $(shell command -v clang-format 2>/dev/null || xcrun --find clang-format 
 FMT_STYLE ?= ./.clang-format
 FMT_SRCS := $(wildcard $(SRC_DIR)/*.c) $(wildcard $(SRC_DIR)/*.h) $(wildcard $(RES_DIR)/*.glsl)
 
-.PHONY: help all fmt clean-all gldc-lib $(PHONY_DC_TARGETS) $(PHONY_DESKTOP_TARGETS)
+.PHONY: help all fmt clean-all clean-dc clean-desktop gldc-lib $(PHONY_DC_TARGETS) $(PHONY_DESKTOP_TARGETS)
 
 help:
 ifeq ($(HOST_OS),Windows)
-	$(error PLEASE DEFINE A TARGET: make $(PHONY_DC_TARGETS) fmt clean-all, for Windows DESKTOP target use build.bat. Makefile is only for DREAMCAST target on Windows)
+	$(error PLEASE DEFINE A TARGET: make $(PHONY_DC_TARGETS) fmt clean-all clean-dc, for Windows DESKTOP target use build.bat. Makefile is only for DREAMCAST target on Windows)
 else
-	$(error PLEASE DEFINE A TARGET: make $(PHONY_DC_TARGETS) $(PHONY_DESKTOP_TARGETS) fmt clean-all)
+	$(error PLEASE DEFINE A TARGET: make $(PHONY_DC_TARGETS) $(PHONY_DESKTOP_TARGETS) fmt clean-all clean-dc clean-desktop)
 endif
 
 all: help
@@ -327,9 +328,16 @@ fmt:
 $(DC_BIN_DIR) $(DESKTOP_BIN_DIR) $(RAYLIB_DESKTOP_DIR) $(DESKTOP_BUILD_DIR):
 	mkdir -p $@
 
-clean-all:
-	rm -rf $(BUILD_DIR) $(DC_BIN_DIR) $(DESKTOP_BIN_DIR) logs/*
+clean-dc:
+	rm -rf $(DC_BUILD_DIR) $(DC_BIN_DIR)
+	rm -f $(LOG_DIR)/dc-*.log $(LOG_DIR)/flycast-dc-*.log
 	$(MAKE) -C $(RAYLIB_DC_SRC_DIR) clean || true
+
+clean-desktop:
+	rm -rf $(DESKTOP_BUILD_DIR) $(DESKTOP_BIN_DIR)
+	rm -f $(LOG_DIR)/desktop-*.log
 ifneq ($(HOST_OS),Windows)
 	$(MAKE) -C $(RAYLIB_DESKTOP_SRC_DIR) clean || true
 endif
+
+clean-all: clean-dc clean-desktop

@@ -71,7 +71,11 @@ trap cleanup EXIT
 mkdir -p "$log_directory"
 rm -f "$log_directory"/*.log
 
-make -C "$project_root" clean-all
+if [ "$desktop_build" = true ]; then
+  make -C "$project_root" clean-desktop
+else
+  make -C "$project_root" clean-dc
+fi
 make -C "$project_root" -k -j "$build_jobs" "${build_targets[@]}"
 
 for entry in "${run_targets[@]}"; do

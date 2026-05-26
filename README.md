@@ -5,14 +5,15 @@
 </samp>
 
 
-<samp>[overview]<br>
+### <samp>[overview]<samp>
+<samp>
   &nbsp;&nbsp;&nbsp;&nbsp;.h file ........................... shared state/functions in <a href="https://github.com/meisei4/fffftt/blob/main/src/fffftt.h">src/fffftt.h</a><br>
   &nbsp;&nbsp;&nbsp;&nbsp;.c files .......................... one demo per file in <a href="https://github.com/meisei4/fffftt/tree/main/src">src/</a><br>
   &nbsp;&nbsp;&nbsp;&nbsp;.wav files ........................ <a href="https://shadertoyunofficial.wordpress.com/2019/07/23/shadertoy-media-files/">Shadertoy media files</a> -> ADPCM .wavs in <a href="https://github.com/meisei4/fffftt/tree/main/src/resources">src/resources/</a><br>
-  &nbsp;&nbsp;&nbsp;&nbsp;controls .......................... cycle tracks, pause/seek/resume, move light<br><!-- TODO: add a nice control scheme for gamepad-->
   &nbsp;&nbsp;&nbsp;&nbsp;audio terrain demos ............... see <a href="#audio-terrain">[audio terrain]</a><br>
   &nbsp;&nbsp;&nbsp;&nbsp;Shadertoy ports ................... see <a href="#shadertoy-ports">[shadertoy ports]</a><br>
   &nbsp;&nbsp;&nbsp;&nbsp;proxy plots ....................... MathWorks-like audio analysis plots in <a href="https://github.com/meisei4/fffftt/tree/main/mathworks">mathworks/</a> directory<br>
+    &nbsp;&nbsp;&nbsp;&nbsp;controls .......................... see <a href="#controls">[controls]</a><br>
     &nbsp;&nbsp;&nbsp;&nbsp;desktop ports ..................... see <a href="#desktop-ports">[desktop ports]</a><br>
 <br>
 </samp>
@@ -243,8 +244,20 @@ make dc-sound-envelope-3d         # run: ./bin/dc/sound-envelope-3d         # el
 make dc-waveform-terrain-3d       # run: ./bin/dc/waveform-terrain-3d       # elf: ./build/dc/waveform-terrain-3d/waveform-terrain-3d.elf
 ```
 
-<samp>[desktop ports]</samp>
+### <samp>[controls]</samp>
+<samp>
+&nbsp;&nbsp;&nbsp;&nbsp;[dreamcast]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[desktop]<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[LT]/[RT] .................... zoom out/in&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[F]/[V] ........................ zoom in/out<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[ANALOG STICK] ............... lamp strafe&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[J]/[L] [I]/[K] ................ lamp strafe<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[X]/[Y] ...................... cycle tracks&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[S]/[D] ........................ cycle tracks<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[DPAD] ....................... orbit camera&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ARROW KEYS] ................... orbit camera<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[START] ...................... pause/resume&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ENTER] ........................ pause/resume<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[B]/[A] ...................... seek cursor&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[C]/[X] ........................ seek cursor<br>
+&nbsp;&nbsp;&nbsp;&nbsp;[START]+[A] .................. exit&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ESC] .......................... exit<br><br>
+</samp>
 
+
+### <samp>[desktop ports]</samp>
 ```Bash
 #[unix]
 ./build.sh desktop # builds and runs all demos
@@ -261,7 +274,10 @@ build.bat <demo> # e.g: build.bat fft-terrain-3d -> bin/desktop/fft-terrain-3d.e
   &nbsp;&nbsp;&nbsp;&nbsp;.elf targets ...................... /pc assets enter CDI build via mkdcdisc<br>
   &nbsp;&nbsp;&nbsp;&nbsp;build.sh .......................... <a href="https://github.com/meisei4/fffftt/blob/main/build.sh">build.sh</a> builds Dreamcast demos; <code>./build.sh desktop</code> for desktop<br>
   &nbsp;&nbsp;&nbsp;&nbsp;build.bat ......................... <a href="https://github.com/meisei4/fffftt/blob/main/build.bat">build.bat</a> builds Windows desktop demos<br>
-  &nbsp;&nbsp;&nbsp;&nbsp;make clean-all .................... removes build artifacts, wrappers, and logs<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;make clean-all .................... removes Dreamcast + desktop build artifacts and their logs<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;make clean-dc ..................... removes Dreamcast build artifacts and Dreamcast logs<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;make clean-desktop ................ removes desktop build artifacts and desktop logs<br>
+  &nbsp;&nbsp;&nbsp;&nbsp;build.bat clean ................... removes windows desktop build artifacts<br>
 </samp>
 
 

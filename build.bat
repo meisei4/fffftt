@@ -16,7 +16,7 @@ set fftw_stub=%build%\fftw3_empty_solvtab.c
 set fftw_stub_obj=%build%\fftw3_empty_solvtab.obj
 set raylib_lib=%raylib_build%\raylib.lib
 
-if "%target%"=="clean-all" (
+if "%target%"=="clean" (
   rmdir /s /q "%build%" 2>nul
   rmdir /s /q "%bin%" 2>nul
   exit /b 0
