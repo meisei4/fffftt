@@ -27,7 +27,7 @@ int main(void) {
 
     // SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
-    font = LoadFont(RD_FONT);
+    font = LoadFont(VGA_FONT);
     float start_time = (float)GetTime();
     FFT_PROFILE_DEFINE(fft_profile_data);
     fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;
@@ -57,7 +57,7 @@ int main(void) {
 
         apply_blackman_window();
         uint64_t fft_start = time_nanoseconds();
-        shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)ANALYSIS_WINDOW_SIZE_IN_FRAMES);
+        FFT();
         fft_compute_ms = elapsed_milliseconds(fft_start);
 
         build_spectrum();

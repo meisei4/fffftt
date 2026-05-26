@@ -11,3 +11,10 @@
 	path = sh4zam
 	url = https://github.com/gyrovorbis/sh4zam.git
 	branch = master
+[submodule "raylib_desktop"]
+	path = raylib_desktop
+	url = https://github.com/raysan5/raylib.git
+	branch = master
+[submodule "fftw3"]
+	path = fftw3
+	url = https://github.com/FFTW/fftw3.git

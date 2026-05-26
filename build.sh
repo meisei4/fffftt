@@ -2,33 +2,62 @@
 set -euo pipefail
 
 project_root="$(cd "$(dirname "$0")" && pwd)"
-log_directory="${1:-$project_root/logs}"
-tmux_session_prefix="${2:-fffftt}"
+log_directory="$project_root/logs"
+tmux_session_prefix="fffftt"
 tmux_start_gate="${tmux_session_prefix}-start"
-capture_seconds="${BUILD_CAPTURE_SECONDS:-15}"
-build_jobs="${BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 8)}"
+capture_seconds=15
+build_jobs=8
+
+desktop_build=false
+if [ "$#" -gt 0 ] && [ "$1" = "desktop" ]; then
+  desktop_build=true
+fi
 
 build_targets=(
-  sh4zam-butterfly
-  picking-out-notes-dc
-  waveform-dc
-  sound-envelope-2d-iso-dc
-  sound-envelope-3d-dc
-  waveform-terrain-3d-dc
-  fft-terrain-3d-dc
-  fft-bands-terrain-3d-dc
+  dc-sh4zam-butterfly
+  dc-picking-out-notes
+  dc-waveform
+  dc-sound-envelope-2d-iso
+  dc-sound-envelope-3d
+  dc-waveform-terrain-3d
+  dc-fft-terrain-3d
+  dc-fft-bands-terrain-3d
 )
 
 run_targets=(
-  "sh4zam-butterfly|$project_root/bin/sh4zam_butterfly|$log_directory/sh4zam-butterfly.log"
-  "picking-out-notes-dc|$project_root/bin/picking_out_notes_dc|$log_directory/picking-out-notes-dc.log"
-  "waveform-dc|$project_root/bin/waveform_dc|$log_directory/waveform-dc.log"
-  "sound-envelope-2d-iso-dc|$project_root/bin/sound_envelope_2d_iso_dc|$log_directory/sound-envelope-2d-iso-dc.log"
-  "sound-envelope-3d-dc|$project_root/bin/sound_envelope_3d_dc|$log_directory/sound-envelope-3d-dc.log"
-  "waveform-terrain-3d-dc|$project_root/bin/waveform_terrain_3d_dc|$log_directory/waveform-terrain-3d-dc.log"
-  "fft-terrain-3d-dc|$project_root/bin/fft_terrain_3d_dc|$log_directory/fft-terrain-3d-dc.log"
-  "fft-bands-terrain-3d-dc|$project_root/bin/fft_bands_terrain_3d_dc|$log_directory/fft-bands-terrain-3d-dc.log"
+  "dc-sh4zam-butterfly|$project_root/bin/dc/sh4zam-butterfly|$log_directory/dc-sh4zam-butterfly.log"
+  "dc-picking-out-notes|$project_root/bin/dc/picking-out-notes|$log_directory/dc-picking-out-notes.log"
+  "dc-waveform|$project_root/bin/dc/waveform|$log_directory/dc-waveform.log"
+  "dc-sound-envelope-2d-iso|$project_root/bin/dc/sound-envelope-2d-iso|$log_directory/dc-sound-envelope-2d-iso.log"
+  "dc-sound-envelope-3d|$project_root/bin/dc/sound-envelope-3d|$log_directory/dc-sound-envelope-3d.log"
+  "dc-waveform-terrain-3d|$project_root/bin/dc/waveform-terrain-3d|$log_directory/dc-waveform-terrain-3d.log"
+  "dc-fft-terrain-3d|$project_root/bin/dc/fft-terrain-3d|$log_directory/dc-fft-terrain-3d.log"
+  "dc-fft-bands-terrain-3d|$project_root/bin/dc/fft-bands-terrain-3d|$log_directory/dc-fft-bands-terrain-3d.log"
 )
+
+if [ "$desktop_build" = true ]; then
+  build_targets=(
+    desktop-sh4zam-butterfly
+    desktop-picking-out-notes
+    desktop-waveform
+    desktop-sound-envelope-2d-iso
+    desktop-sound-envelope-3d
+    desktop-waveform-terrain-3d
+    desktop-fft-terrain-3d
+    desktop-fft-bands-terrain-3d
+  )
+
+  run_targets=(
+    "desktop-sh4zam-butterfly|$project_root/bin/desktop/sh4zam-butterfly|$log_directory/desktop-sh4zam-butterfly.log"
+    "desktop-picking-out-notes|$project_root/bin/desktop/picking-out-notes|$log_directory/desktop-picking-out-notes.log"
+    "desktop-waveform|$project_root/bin/desktop/waveform|$log_directory/desktop-waveform.log"
+    "desktop-sound-envelope-2d-iso|$project_root/bin/desktop/sound-envelope-2d-iso|$log_directory/desktop-sound-envelope-2d-iso.log"
+    "desktop-sound-envelope-3d|$project_root/bin/desktop/sound-envelope-3d|$log_directory/desktop-sound-envelope-3d.log"
+    "desktop-waveform-terrain-3d|$project_root/bin/desktop/waveform-terrain-3d|$log_directory/desktop-waveform-terrain-3d.log"
+    "desktop-fft-terrain-3d|$project_root/bin/desktop/fft-terrain-3d|$log_directory/desktop-fft-terrain-3d.log"
+    "desktop-fft-bands-terrain-3d|$project_root/bin/desktop/fft-bands-terrain-3d|$log_directory/desktop-fft-bands-terrain-3d.log"
+  )
+fi
 
 cleanup() {
   for entry in "${run_targets[@]}"; do
@@ -42,7 +71,11 @@ trap cleanup EXIT
 mkdir -p "$log_directory"
 rm -f "$log_directory"/*.log
 
-make -C "$project_root" clean-all
+if [ "$desktop_build" = true ]; then
+  make -C "$project_root" clean-desktop
+else
+  make -C "$project_root" clean-dc
+fi
 make -C "$project_root" -k -j "$build_jobs" "${build_targets[@]}"
 
 for entry in "${run_targets[@]}"; do

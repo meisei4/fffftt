@@ -56,7 +56,7 @@ static const unsigned short HIGH_BAND_BIN_BOUNDS[HIGH_BAND_POINT_COUNT][2] = {
 #define MID_BAND_ANCHOR (Vector3){0.0f, 0.0f, 0.0f}
 #define HIGH_BAND_ANCHOR (Vector3){0.0f, MID_BAND_Y_SCALE, 0.0f}
 
-static const char* domain = "FFT-BANDS-TERRAIN-3D-DC";
+static const char* domain = "FFT-BANDS-TERRAIN-3D";
 
 static Mesh low_band_mesh = {0};
 static Mesh mid_band_mesh = {0};
@@ -123,7 +123,7 @@ static void rebase_fft_history(void);
 int main(void) {
     // SetTraceLogLevel(LOG_WARNING);
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
-    font = LoadFont(RD_FONT);
+    font = LoadFont(VGA_FONT);
     fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;
     fft_data.work_buffer = RL_CALLOC(ANALYSIS_WINDOW_SIZE_IN_FRAMES, sizeof(FFTComplex));
     fft_data.smoothed_spectrum_magnitudes = RL_CALLOC(ANALYSIS_SPECTRUM_BIN_COUNT, sizeof(float));
@@ -207,7 +207,7 @@ int main(void) {
         int audio_dirty = 0;
         while (fffftt_audio_process(chunk_samples)) {
             apply_blackman_window();
-            shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)ANALYSIS_WINDOW_SIZE_IN_FRAMES);
+            FFT();
             build_spectrum();
             consume_current_fft_frame();
             audio_dirty = 1;
@@ -257,7 +257,7 @@ int main(void) {
         glLightfv(GL_LIGHT0, GL_AMBIENT, (const GLfloat[]){0.0f, 0.0f, 0.0f, 1.0f});
         glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
         glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){light0_pos.x, light0_pos.y, light0_pos.z, 1.0f});
-        DrawModelEx(low_band_model, LOW_BAND_ANCHOR, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE); //TODO: too powerful...
+        DrawModelEx(low_band_model, LOW_BAND_ANCHOR, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         glDisable(GL_LIGHTING);
         draw_lantern(light0_pos);
         draw_lantern_glow(light0_pos);
@@ -268,7 +268,7 @@ int main(void) {
         glLightfv(GL_LIGHT0, GL_AMBIENT, (const GLfloat[]){0.0f, 0.0f, 0.0f, 1.0f});
         glLightfv(GL_LIGHT0, GL_DIFFUSE, (const GLfloat[]){1.0f, 1.0f, 1.0f, 1.0f});
         glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, (const GLfloat[]){0.0f, 0.0f, 0.0f, 0.0f});
-        DrawModelEx(flat_model, MID_BAND_ANCHOR, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE); //TODO: too powerful...
+        DrawModelEx(flat_model, MID_BAND_ANCHOR, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
         glShadeModel(GL_SMOOTH);
         glDisable(GL_LIGHTING);
 
@@ -429,7 +429,7 @@ static void consume_current_fft_frame(void) {
 static void update_playback_controls_fft(void) {
     int analysis_dirty = 0;
 
-    if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT)) {
+    if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT) || IsKeyPressed(KEY_ENTER)) {
         reset_sticky_nav();
         if (!is_paused) {
             is_paused = true;
@@ -446,7 +446,7 @@ static void update_playback_controls_fft(void) {
             PlayAudioStream(audio_stream);
             while (fffftt_audio_process(resume_chunk_samples)) {
                 apply_blackman_window();
-                shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)ANALYSIS_WINDOW_SIZE_IN_FRAMES);
+                FFT();
                 build_spectrum();
                 consume_current_fft_frame();
                 analysis_dirty = 1;
@@ -482,7 +482,7 @@ static void update_playback_controls_fft(void) {
             fffftt_inspection_fill_analysis_window(wave_cursor);
 
             apply_blackman_window();
-            shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)ANALYSIS_WINDOW_SIZE_IN_FRAMES);
+            FFT();
             build_spectrum();
 
             int frame_pos = fft_data.frame_pos - 1;
@@ -607,7 +607,7 @@ static void rebase_fft_history(void) {
         int chunk_start_frame = WRAP_MINUS(wave_cursor, replay_frame_offset, wave.frameCount);
         fffftt_inspection_fill_analysis_window(chunk_start_frame);
         apply_blackman_window();
-        shz_fft((shz_complex_t*)fft_data.work_buffer, (size_t)ANALYSIS_WINDOW_SIZE_IN_FRAMES);
+        FFT();
         build_spectrum();
         consume_current_fft_frame();
     }
