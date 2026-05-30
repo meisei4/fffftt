@@ -36,7 +36,7 @@
 #define FMINF(x, y) shz_fminf((x), (y))
 #define FABSF(x) shz_fabsf((x))
 #define MEMSET(dst, value, size) memset((dst), (value), (size))
-#define MEMCPY(dst, src, size) shz_memcpy((dst), (src), (size)) //TODO: Colors... hmmm
+#define MEMCPY(dst, src, size) shz_memcpy((dst), (src), (size))
 #define MEMCPY4(dst, src, size) shz_memcpy4((dst), (src), (size))
 #define CLAMP(x, min, max) shz_clampf((x), (min), (max))
 #define LERP(a, b, t) shz_lerpf((a), (b), (t))
