@@ -36,7 +36,7 @@
 #define FMINF(x, y) shz_fminf((x), (y))
 #define FABSF(x) shz_fabsf((x))
 #define MEMSET(dst, value, size) memset((dst), (value), (size))
-#define MEMCPY(dst, src, size) memcpy((dst), (src), (size)) //TODO: Colors... hmmm
+#define MEMCPY(dst, src, size) shz_memcpy((dst), (src), (size)) //TODO: Colors... hmmm
 #define MEMCPY4(dst, src, size) shz_memcpy4((dst), (src), (size))
 #define CLAMP(x, min, max) shz_clampf((x), (min), (max))
 #define LERP(a, b, t) shz_lerpf((a), (b), (t))
@@ -349,7 +349,7 @@ static bool is_paused = false;
 static inline void apply_blackman_window(void) {
     for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
         float x = (2.0f * PI * i) / (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1.0f);
-        float blackman_weight = ANALYSIS_BLACKMAN_A - ANALYSIS_BLACKMAN_B * cosf(x) + ANALYSIS_BLACKMAN_C * cosf(2.0f * x);
+        float blackman_weight = ANALYSIS_BLACKMAN_A - ANALYSIS_BLACKMAN_B * COSF(x) + ANALYSIS_BLACKMAN_C * COSF(2.0f * x);
         float sample = analysis_window_samples[i];
 
         fft_data.work_buffer[i].real = sample * blackman_weight;
