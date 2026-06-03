@@ -44,7 +44,7 @@ else
 	HOST_OS := $(shell uname -s)
 endif
 
-FFT_CFLAGS := -DFFT_ENABLE_PROFILE
+FFT_CFLAGS := -DFFT_ENABLE_PROFILE -ffast-math
 DC_FFT_CFLAGS := -O3 -fipa-pta $(FFT_CFLAGS)
 DC_BASE_CFLAGS := $(filter-out -I$(KOS_PORTS)/include,$(KOS_CFLAGS)) -std=gnu2x
 DC_KOS_CFLAGS := $(filter-out -I$(KOS_PORTS)/include,$(KOS_CFLAGS)) -I$(abspath $(GLDC_DIR))/include

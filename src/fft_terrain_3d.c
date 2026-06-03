@@ -42,7 +42,7 @@ int main(void) {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     font = LoadFont(VGA_FONT);
     fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;
-    fft_data.work_buffer = RL_CALLOC(ANALYSIS_WINDOW_SIZE_IN_FRAMES, sizeof(FFTComplex));
+    fft_data.work_buffer = ALIGNED_ALLOC(ANALYSIS_WINDOW_SIZE_IN_FRAMES * sizeof(FFTComplex));
     fft_data.smoothed_spectrum_magnitudes = RL_CALLOC(ANALYSIS_SPECTRUM_BIN_COUNT, sizeof(float));
     fft_data.raw_spectrum_magnitudes = RL_CALLOC(ANALYSIS_FFT_HISTORY_FRAME_COUNT, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]));
     fft_data.spectrum_levels = RL_CALLOC(ANALYSIS_FFT_HISTORY_FRAME_COUNT, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]));
@@ -98,7 +98,7 @@ int main(void) {
     update_fft_terrain_meshes();
     update_mesh_normals_smooth(normals, vertices, LANE_POINT_COUNT);
 
-    SetTargetFPS(60);
+    //SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
         if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_MIDDLE_RIGHT) && IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
@@ -152,7 +152,9 @@ int main(void) {
         glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){light0_pos.x, light0_pos.y, light0_pos.z, 1.0f});
         glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, LIGHT0_ATTENUATION_SMOOTH);
         // rlDisableBackfaceCulling();
+
         DrawModelEx(model_a, MIDDLE, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+        rlEnableColorBlend();
         // rlEnableBackfaceCulling();
         glDisable(GL_LIGHTING);
         draw_lantern(light0_pos);
@@ -207,10 +209,10 @@ int main(void) {
     UnloadAudioStream(audio_stream);
     unload_audio_track();
     CloseAudioDevice();
+    RL_FREE(fft_data.work_buffer);
     RL_FREE(fft_data.raw_spectrum_magnitudes);
     RL_FREE(fft_data.spectrum_levels);
     RL_FREE(fft_data.smoothed_spectrum_magnitudes);
-    RL_FREE(fft_data.work_buffer);
     UnloadFont(font);
     CloseWindow();
 #ifdef PLATFORM_DREAMCAST
@@ -261,7 +263,7 @@ static void update_playback_controls_fft(void) {
         } else {
             rebase_fft_history();
         }
-        onset_gate = onset_gate_history[WRAP(cur_frame_pos, ANALYSIS_FFT_HISTORY_FRAME_COUNT)];
+        onset_gate = onset_gate_history[(int)WRAP(cur_frame_pos, ANALYSIS_FFT_HISTORY_FRAME_COUNT)];
         update_fft_terrain_meshes();
     } else if (is_paused && sticky_nav(GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
         wave_cursor = WRAP_PLUS(wave_cursor, AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES, wave.frameCount);
@@ -288,7 +290,7 @@ static void update_playback_controls_fft(void) {
         } else {
             rebase_fft_history();
         }
-        onset_gate = onset_gate_history[WRAP(cur_frame_pos, ANALYSIS_FFT_HISTORY_FRAME_COUNT)];
+        onset_gate = onset_gate_history[(int)WRAP(cur_frame_pos, ANALYSIS_FFT_HISTORY_FRAME_COUNT)];
         update_fft_terrain_meshes();
     }
 
@@ -395,5 +397,5 @@ static void rebase_fft_history(void) {
     retention_window_max_frame_pos = fft_data.frame_pos - 1;
     retention_window_min_frame_pos = retention_window_max_frame_pos - (ANALYSIS_FFT_HISTORY_FRAME_COUNT - 1);
     cur_frame_pos = retention_window_max_frame_pos;
-    onset_gate = onset_gate_history[WRAP(cur_frame_pos, ANALYSIS_FFT_HISTORY_FRAME_COUNT)];
+    onset_gate = onset_gate_history[(int)WRAP(cur_frame_pos, ANALYSIS_FFT_HISTORY_FRAME_COUNT)];
 }

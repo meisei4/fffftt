@@ -20,26 +20,39 @@
 #include <arch/arch.h>
 
 //TODO: investigate orbital camera!!!!
+#define PI_F SHZ_F_PI
 #define SINF(x) shz_sinf((x))
 #define COSF(x) shz_cosf((x))
+#define SINCOSF(x, ss, cc) do { \
+    shz_sincos_t tmp_ = shz_sincosf((x)); \
+    ss = tmp_.sin; cc = tmp_.cos; \
+} while(0)
 #define TANF(x) shz_tanf((x))
 #define SQRTF(x) shz_sqrtf((x))
+#define INVSQRTF(x) shz_inv_sqrtf((x))
 #define ATAN2F(y, x) shz_atan2f((y), (x))
 #define ACOSF(x) shz_acosf((x))
 #define POWF(x, y) shz_powf((x), (y))
 #define EXPF(x) shz_expf((x))
+#define EXP2(x) shz_pow2f((x))
 #define FLOORF(x) shz_floorf((x))
 #define CEILF(x) shz_ceilf((x))
 #define FMODF(x, y) shz_fmodf((x), (y))
+#define INVF(x) shz_invf((x))
+#define ABSINVF(x) shz_invf_fsrra((x))
+#define DIVF(n, d) shz_divf((n), (d))
+#define ABSDIVF(n, d) shz_divf_fsrra((n), (d))
 #define LOGF(x) shz_logf((x))
 #define FMAXF(x, y) shz_fmaxf((x), (y))
 #define FMINF(x, y) shz_fminf((x), (y))
 #define FABSF(x) shz_fabsf((x))
 #define MEMSET(dst, value, size) memset((dst), (value), (size))
 #define MEMCPY(dst, src, size) shz_memcpy((dst), (src), (size))
-#define MEMCPY4(dst, src, size) shz_memcpy4((dst), (src), (size))
+#define MEMCPY4(dst, src, size) shz_memcpy((dst), (src), (size))
+#define MEMMOVE(dst, src, size) shz_memmove((dst), (src), (size))
 #define CLAMP(x, min, max) shz_clampf((x), (min), (max))
 #define LERP(a, b, t) shz_lerpf((a), (b), (t))
+#define WRAP(pos, size) wrap((pos), (size))
 
 #define AUDIO_ASSET_PATH(filename) AUDIO_ASSET_PATH_PREFIX filename
 #define FONT_ASSET_PATH(filename) "/rd/" filename
@@ -58,14 +71,19 @@ static int src_file = 0;
 #include <fftw3.h>
 #include <stdio.h>
 
+#define PI_F PI
 #define SINF(x) sinf((x))
 #define COSF(x) cosf((x))
+#define SINCOSF(x, s, c) do { \
+    s = sinf(x); c = cosf(x); \
+} while(0)
 #define TANF(x) tanf((x))
 #define SQRTF(x) sqrtf((x))
 #define ATAN2F(y, x) atan2f((y), (x))
 #define ACOSF(x) acosf((x))
 #define POWF(x, y) powf((x), (y))
 #define EXPF(x) expf((x))
+#define EXP2F(x) pow(2.0f, x)
 #define FLOORF(x) floorf((x))
 #define CEILF(x) ceilf((x))
 #define FMODF(x, y) fmodf((x), (y))
@@ -76,8 +94,10 @@ static int src_file = 0;
 #define MEMSET(dst, value, size) memset((dst), (value), (size))
 #define MEMCPY(dst, src, size) memcpy((dst), (src), (size))
 #define MEMCPY4(dst, src, size) memcpy((dst), (src), (size))
+#define MEMMOVE(dst, src, size) memmove((dst), (src), (size))
 #define CLAMP(x, min, max) ((x) < (min) ? (min) : ((x) > (max) ? (max) : (x)))
 #define LERP(a, b, t) ((a) + ((b) - (a)) * (t))
+#define WRAP(pos, size) wrap((pos), (size))
 
 #define AUDIO_ASSET_PATH(filename) "src/resources/" filename
 #define FONT_ASSET_PATH(filename) "src/resources/" filename
@@ -115,6 +135,11 @@ static inline int file_total(FILE* file) {
 static FILE* src_file = NULL;
 #endif
 
+#define ALIGNED_ALLOC(n) ({ \
+    void* ptr = aligned_alloc(32, n); \
+    ptr; \
+})
+
 #define MAXI(x, y) ((x) > (y) ? (x) : (y))
 #define MINI(x, y) ((x) < (y) ? (x) : (y))
 
@@ -122,8 +147,6 @@ static inline int wrap(int pos, int size) {
     int wrapped = pos % size;
     return (wrapped < 0) ? wrapped + size : wrapped;
 }
-
-#define WRAP(pos, size) wrap((pos), (size))
 
 #define WRAP_PLUS(pos, amount, size) WRAP((pos) + (amount), (size))
 #define WRAP_MINUS(pos, amount, size) WRAP((pos) - (amount), (size))
@@ -315,14 +338,14 @@ static AudioStream audio_stream = {0};
 static Wave wave = {0};
 static int wave_cursor = 0;
 static FFTData fft_data = {0};
-static float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
-static int16_t analysis_pcm16[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
+static alignas(32) float analysis_window_samples[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
+static alignas(32) int16_t analysis_pcm16[ANALYSIS_WINDOW_SIZE_IN_FRAMES] = {0};
 
 // TODO: current stupid trick for draining my understanding of the worst case scenario: mid-stream pause/resume of raylib/miniaudio stream + AICA buffer
 #define MAX_DRAIN_CHUNK_COUNT 3
-static int16_t drain_chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
-static int16_t resume_chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
-static int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
+static alignas(32) int16_t drain_chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
+static alignas(32) int16_t resume_chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
+static alignas(32) int16_t chunk_samples[AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES] = {0};
 static int seek_delta_chunks = 0;
 static int paused_wave_cursor = 0;
 static bool is_paused = false;
@@ -348,7 +371,7 @@ static bool is_paused = false;
 
 static inline void apply_blackman_window(void) {
     for (int i = 0; i < ANALYSIS_WINDOW_SIZE_IN_FRAMES; i++) {
-        float x = (2.0f * PI * i) / (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1.0f);
+        float x = (2.0f * PI_F * i) / (ANALYSIS_WINDOW_SIZE_IN_FRAMES - 1.0f);
         float blackman_weight = ANALYSIS_BLACKMAN_A - ANALYSIS_BLACKMAN_B * COSF(x) + ANALYSIS_BLACKMAN_C * COSF(2.0f * x);
         float sample = analysis_window_samples[i];
 
@@ -429,21 +452,29 @@ static inline void build_spectrum(void) {
 #define MIDDLE (Vector3){0.0f}
 #define BOTTOM (Vector3){0.0f, -1.0f, 0.0f}
 
-static float lane_point_values[LANE_COUNT][LANE_POINT_COUNT] = {0};
+static alignas(32) float lane_point_values[LANE_COUNT][LANE_POINT_COUNT] = {0};
 
 static inline void advance_lane_history(float* lane_point_values, int point_count) {
     for (int i = LANE_COUNT - 1; i > 0; i--) {
+#if 1
+        MEMCPY(&lane_point_values[i * point_count], &lane_point_values[(i - 1) * point_count], point_count * sizeof(float));
+#else
         for (int j = 0; j < point_count; j++) {
             lane_point_values[i * point_count + j] = lane_point_values[(i - 1) * point_count + j];
         }
+#endif
     }
 }
 
 static inline void advance_lane_history_u8(unsigned char* lane_point_values, int point_count) {
     for (int i = LANE_COUNT - 1; i > 0; i--) {
+#if 1
+        MEMCPY(&lane_point_values[i * point_count], &lane_point_values[(i - 1) * point_count], point_count * sizeof(unsigned char));
+#else
         for (int j = 0; j < point_count; j++) {
             lane_point_values[i * point_count + j] = lane_point_values[(i - 1) * point_count + j];
         }
+#endif
     }
 }
 
@@ -460,6 +491,39 @@ static inline void smooth_lane(int lane) {
 }
 
 static inline void update_envelope_mesh_vertices_isometric(Vector3* vertices) {
+#ifdef PLATFORM_DREAMCAST
+    // Pack two adjacent points per FTRV: v = [j, amp_j, amp_{j+1}, 1]
+    // col3 encodes tx/ty translation AND the +1 j-step for point j+1, updated once per lane.
+    // col0-col2 are fully constant — loaded once outside both loops via shz_xmtrx_load_4x4.
+    // No scalar adds in inner loop; only shz_xmtrx_write_col(3,...) per outer iteration.
+    alignas(32) static const shz_mat4x4_t iso_base = {.col = {
+        { ISOMETRIC_ZOOM, -0.5f * ISOMETRIC_ZOOM, ISOMETRIC_ZOOM, -0.5f * ISOMETRIC_ZOOM },
+        { 0.0f, AMPLITUDE_Y_SCALE * ISOMETRIC_ZOOM, 0.0f, 0.0f },
+        { 0.0f, 0.0f, 0.0f, AMPLITUDE_Y_SCALE * ISOMETRIC_ZOOM },
+        { 0.0f, 0.0f, ISOMETRIC_ZOOM, -0.5f * ISOMETRIC_ZOOM },
+    }};
+    shz_xmtrx_load_4x4(&iso_base);
+    for (int i = 0; i < LANE_COUNT; i++) {
+        float lane_offset = (float)i * ISOMETRIC_LANE_SPACING;
+        float tx = 0.5f * (float)SCREEN_WIDTH  - (lane_offset + ISOMETRIC_GRID_CENTER_X) * ISOMETRIC_ZOOM;
+        float ty = 0.5f * (float)SCREEN_HEIGHT - (0.5f * lane_offset - ISOMETRIC_GRID_CENTER_Y) * ISOMETRIC_ZOOM;
+        shz_xmtrx_write_col(3, shz_vec4_init(tx, ty, tx + ISOMETRIC_ZOOM, ty - 0.5f * ISOMETRIC_ZOOM));
+        int j = 0;
+        for (; j < LANE_POINT_COUNT - 1; j += 2) {
+            int k0 = i * LANE_POINT_COUNT + j;
+            shz_vec4_t r = shz_xmtrx_transform_vec4(
+                shz_vec4_init((float)j, lane_point_values[i][j], lane_point_values[i][j + 1], 1.0f));
+            vertices[k0].x = r.x;      vertices[k0].y = r.y;      vertices[k0].z = 0.0f;
+            vertices[k0 + 1].x = r.z;  vertices[k0 + 1].y = r.w;  vertices[k0 + 1].z = 0.0f;
+        }
+        if (j < LANE_POINT_COUNT) {
+            int k = i * LANE_POINT_COUNT + j;
+            shz_vec4_t r = shz_xmtrx_transform_vec4(
+                shz_vec4_init((float)j, lane_point_values[i][j], 0.0f, 1.0f));
+            vertices[k].x = r.x;  vertices[k].y = r.y;  vertices[k].z = 0.0f;
+        }
+    }
+#else
     for (int i = 0; i < LANE_COUNT; i++) {
         float lane_offset = (float)i * ISOMETRIC_LANE_SPACING;
         for (int j = 0; j < LANE_POINT_COUNT; j++) {
@@ -471,9 +535,41 @@ static inline void update_envelope_mesh_vertices_isometric(Vector3* vertices) {
             vertices[k].z = 0.0f;
         }
     }
+#endif
 }
 
 static inline void update_envelope_mesh_vertices(Vector3* vertices) {
+#ifdef PLATFORM_DREAMCAST
+    // Two adjacent points per FTRV: v = [j, amp_j, amp_{j+1}, 1]
+    // r = [x_j, y_j, x_{j+1}, y_{j+1}]; z is scalar (constant per lane, stored separately).
+    // M is fully compile-time constant — loaded once, no per-lane update needed at all.
+    alignas(32) static const shz_mat4x4_t env_base = { .col = {
+        { LINE_LENGTH_SCALE / (float)(LANE_POINT_COUNT - 1), 0.0f,
+          LINE_LENGTH_SCALE / (float)(LANE_POINT_COUNT - 1), 0.0f },
+        { 0.0f, AMPLITUDE_Y_SCALE, 0.0f, 0.0f },
+        { 0.0f, 0.0f, 0.0f, AMPLITUDE_Y_SCALE },
+        { -HALF_SPAN * LINE_LENGTH_SCALE, 0.0f,
+          LINE_LENGTH_SCALE / (float)(LANE_POINT_COUNT - 1) - HALF_SPAN * LINE_LENGTH_SCALE, 0.0f },
+    }};
+    shz_xmtrx_load_4x4(&env_base);
+    for (int i = 0; i < LANE_COUNT; i++) {
+        float z = HALF_SPAN - (float)i * (1.0f / (float)(LANE_COUNT - 1));
+        int j = 0;
+        for (; j < LANE_POINT_COUNT - 1; j += 2) {
+            int k0 = i * LANE_POINT_COUNT + j;
+            shz_vec4_t r = shz_xmtrx_transform_vec4(
+                shz_vec4_init((float)j, lane_point_values[i][j], lane_point_values[i][j + 1], 1.0f));
+            vertices[k0].x = r.x;      vertices[k0].y = r.y;      vertices[k0].z = z;
+            vertices[k0 + 1].x = r.z;  vertices[k0 + 1].y = r.w;  vertices[k0 + 1].z = z;
+        }
+        if (j < LANE_POINT_COUNT) {
+            int k = i * LANE_POINT_COUNT + j;
+            shz_vec4_t r = shz_xmtrx_transform_vec4(
+                shz_vec4_init((float)j, lane_point_values[i][j], 0.0f, 1.0f));
+            vertices[k].x = r.x;  vertices[k].y = r.y;  vertices[k].z = z;
+        }
+    }
+#else
     for (int i = 0; i < LANE_COUNT; i++) {
         float z = HALF_SPAN - ((float)i / (float)(LANE_COUNT - 1));
         for (int j = 0; j < LANE_POINT_COUNT; j++) {
@@ -484,6 +580,7 @@ static inline void update_envelope_mesh_vertices(Vector3* vertices) {
             vertices[k].z = z;
         }
     }
+#endif
 }
 
 static inline void fill_mesh_indices_lane_topology(unsigned short* indices) {
@@ -501,13 +598,19 @@ static inline void fill_mesh_indices_lane_topology(unsigned short* indices) {
 static inline void fill_mesh_colors(Color* colors, int point_count) {
     for (int i = 0; i < LANE_COUNT; i++) {
         float v = (float)i / (float)(LANE_COUNT - 1);
+        float omv = 1.0f - v;
+        float r_start = omv * MAGENTA.r + v * RED.r, r_step = (omv * BLUE.r  + v * YELLOW.r) - r_start;
+        float g_start = omv * MAGENTA.g + v * RED.g, g_step = (omv * BLUE.g  + v * YELLOW.g) - g_start;
+        float b_start = omv * MAGENTA.b + v * RED.b, b_step = (omv * BLUE.b  + v * YELLOW.b) - b_start;
+        float inv_point_count = ABSINVF((float)(point_count) - 1);
         for (int j = 0; j < point_count; j++) {
-            float u = (float)j / (float)(point_count - 1);
-            int k = i * point_count + j;
-            float r = (1.0f - u) * (1.0f - v) * MAGENTA.r + u * (1.0f - v) * BLUE.r + (1.0f - u) * v * RED.r + u * v * YELLOW.r;
-            float g = (1.0f - u) * (1.0f - v) * MAGENTA.g + u * (1.0f - v) * BLUE.g + (1.0f - u) * v * RED.g + u * v * YELLOW.g;
-            float b = (1.0f - u) * (1.0f - v) * MAGENTA.b + u * (1.0f - v) * BLUE.b + (1.0f - u) * v * RED.b + u * v * YELLOW.b;
-            colors[k] = (Color){(unsigned char)r, (unsigned char)g, (unsigned char)b, DRAW_COLOR_CHANNEL_MAX};
+            float u = (float)j * inv_point_count;
+            colors[i * point_count + j] = (Color){
+                (unsigned char)(r_start + u * r_step),
+                (unsigned char)(g_start + u * g_step),
+                (unsigned char)(b_start + u * b_step),
+                DRAW_COLOR_CHANNEL_MAX,
+            };
         }
     }
 }
@@ -614,7 +717,7 @@ static inline void update_mesh_vertices(float* vertices, const float* lane_point
         float lane_offset = ((float)i - 0.5f * (float)(LANE_COUNT - 1)) * LANE_SPACING_SCALE;
         for (int j = 0; j < point_count; j++) {
             int k = (i * point_count + j) * 3;
-            float x = (((float)j / (float)(point_count - 1)) - HALF_SPAN) * LINE_LENGTH_SCALE;
+            float x = (ABSDIVF((float)j, (float)(point_count - 1)) - HALF_SPAN) * LINE_LENGTH_SCALE;
             float y = lane_point_values[i * point_count + j] * y_scale;
             vertices[k + 0] = x;
             vertices[k + 1] = y;
@@ -643,7 +746,11 @@ static void update_mesh_normals_smooth(float* normals, const float* vertices, in
             float tangent_x_y = vertices[k_right + 1] - vertices[k_left + 1];
             float tangent_z_y = vertices[k_front + 1] - vertices[k_back + 1];
             float tangent_z_z = vertices[k_front + 2] - vertices[k_back + 2];
-            Vector3 n = Vector3Normalize((Vector3){-tangent_z_z * tangent_x_y, tangent_z_z * tangent_x_x, -tangent_z_y * tangent_x_x});
+            Vector3 n = (Vector3){-tangent_z_z * tangent_x_y, tangent_z_z * tangent_x_x, -tangent_z_y * tangent_x_x};
+            float inv_mag = INVSQRTF(n.x * n.x + n.y * n.y + n.z * n.z);
+            n.x *= inv_mag;
+            n.y *= inv_mag;
+            n.z *= inv_mag;
 
             normals[k_out + 0] = n.x;
             normals[k_out + 1] = n.y;
@@ -656,11 +763,13 @@ static inline void update_mesh_texcoords_smooth_scroll(
     int w, int h, float* texcoords, int point_count, int texels_per_quad, Vector2 scroll_direction, float scroll_speed, float time) {
     float scroll_s = FMODF(scroll_direction.x * scroll_speed * time, 1.0f);
     float scroll_t = FMODF(scroll_direction.y * scroll_speed * time, 1.0f);
+    float inv_w = ABSINVF(w);
+    float inv_h = ABSINVF(h);
     for (int i = 0; i < LANE_COUNT; i++) {
+        float t = ((float)(i * texels_per_quad) * inv_h) + scroll_t;
         for (int j = 0; j < point_count; j++) {
             int k = (i * point_count + j) * 2;
-            float s = ((float)(j * texels_per_quad) / (float)w) + scroll_s;
-            float t = ((float)(i * texels_per_quad) / (float)h) + scroll_t;
+            float s = ((float)(j * texels_per_quad) * inv_w) + scroll_s;
             texcoords[k + 0] = s;
             texcoords[k + 1] = t;
         }
@@ -693,7 +802,14 @@ static void update_mesh_normals_flat(float* normals, const float* vertices, int 
         Vector3 p2 = {vertices[tri_vertex + 6], vertices[tri_vertex + 7], vertices[tri_vertex + 8]};
         Vector3 e1 = Vector3Subtract(p1, p0);
         Vector3 e2 = Vector3Subtract(p2, p0);
-        Vector3 normal = Vector3Normalize(Vector3CrossProduct(e1, e2));
+        Vector3 normal = Vector3CrossProduct(e1, e2);
+        float mag_sqr = normal.x * normal.x + normal.y * normal.y + normal.z * normal.z;
+        if(mag_sqr != 0.0f) {
+            float inv_mag = INVSQRTF(mag_sqr);
+            normal.x *= inv_mag;
+            normal.y *= inv_mag;
+            normal.z *= inv_mag;
+        } else normal.x = normal.y = normal.z = 0.0f;
 
         for (int j = 0; j < 3; j++) {
             int normal_vertex = tri_vertex + j * 3;
@@ -776,14 +892,14 @@ static void fill_lane_mask_texcoords(float* texcoords, int point_count) {
 }
 
 static Texture2D build_lane_mask(float* texcoords, int point_count) {
+    unsigned short pixels[LANE_MASK_TEXTURE_WIDTH * LANE_MASK_TEXTURE_HEIGHT];
     Image image = {
-        .data = RL_CALLOC(LANE_MASK_TEXTURE_WIDTH * LANE_MASK_TEXTURE_HEIGHT, sizeof(unsigned short)),
+        .data = pixels,
         .width = LANE_MASK_TEXTURE_WIDTH,
         .height = LANE_MASK_TEXTURE_HEIGHT,
         .mipmaps = 1,
         .format = PIXELFORMAT_UNCOMPRESSED_R4G4B4A4,
     };
-    unsigned short* pixels = (unsigned short*)image.data;
     fill_lane_mask_texcoords(texcoords, point_count);
     for (int i = 0; i < LANE_MASK_TEXTURE_HEIGHT; i++) {
         unsigned short pixel = RGBA4444_WHITE_MASK | ALPHA_NONE;
@@ -795,19 +911,18 @@ static Texture2D build_lane_mask(float* texcoords, int point_count) {
         }
     }
     Texture2D texture = LoadTextureFromImage(image);
-    UnloadImage(image);
     return texture;
 }
 
 static Texture2D build_lane_mask_glow(float* texcoords, int point_count) {
+    unsigned short pixels[LANE_MASK_TEXTURE_WIDTH * LANE_MASK_TEXTURE_HEIGHT];
     Image image = {
-        .data = RL_CALLOC(LANE_MASK_TEXTURE_WIDTH * LANE_MASK_TEXTURE_HEIGHT, sizeof(unsigned short)),
+        .data = pixels,
         .width = LANE_MASK_TEXTURE_WIDTH,
         .height = LANE_MASK_TEXTURE_HEIGHT,
         .mipmaps = 1,
         .format = PIXELFORMAT_UNCOMPRESSED_R4G4B4A4,
     };
-    unsigned short* pixels = (unsigned short*)image.data;
     fill_lane_mask_texcoords(texcoords, point_count);
     for (int i = 0; i < LANE_MASK_TEXTURE_HEIGHT; i++) {
         unsigned short pixel = RGBA4444_WHITE_MASK | (GLOW_LUT[i] & RGBA4444_ALPHA_MASK);
@@ -816,7 +931,6 @@ static Texture2D build_lane_mask_glow(float* texcoords, int point_count) {
         }
     }
     Texture2D texture = LoadTextureFromImage(image);
-    UnloadImage(image);
     return texture;
 }
 
@@ -834,7 +948,7 @@ static Texture2D build_lane_mask_glow(float* texcoords, int point_count) {
 #define LIGHT0_ATTENUATION_FLAT 0.10f
 
 static float onset_gate = 0.0f;
-static float onset_gate_history[ANALYSIS_FFT_HISTORY_FRAME_COUNT] = {0};
+static alignas(32) float onset_gate_history[ANALYSIS_FFT_HISTORY_FRAME_COUNT] = {0};
 static float adaptive_onset_mean = 0.0f;
 static float adaptive_onset_deviation = 0.0f;
 static float adaptive_chroma_mask_mean = 0.0f;
@@ -893,7 +1007,7 @@ static void update_onset_gate_fft(FFTData* fft_data, int use_raw) {
     adaptive_onset_deviation = LERP(adaptive_onset_deviation, adaptive_onset_delta, ADAPTIVE_ONSET_RATE);
     float adaptive_onset_floor = adaptive_onset_mean + adaptive_onset_deviation * ADAPTIVE_ONSET_GATE_DEVIATION_SCALE;
     float adaptive_onset_range = adaptive_onset_deviation * ADAPTIVE_ONSET_RANGE_DEVIATION_SCALE;
-    float onset_gate_target = CLAMP((onset_flux - adaptive_onset_floor) / adaptive_onset_range, 0.0f, 1.0f);
+    float onset_gate_target = CLAMP(ABSDIVF((onset_flux - adaptive_onset_floor), adaptive_onset_range), 0.0f, 1.0f);
     if (onset_gate_target > onset_gate) {
         onset_gate = onset_gate_target;
     } else {
@@ -962,7 +1076,14 @@ static inline void update_light_camera_strafe(const Camera3D* camera, Vector3 re
     float strafe_axis_y = CLAMP((FABSF(axis_y) >= LIGHT_STRAFE_DEADZONE) * axis_y + IsKeyDown(KEY_K) - IsKeyDown(KEY_I), -1.0f, 1.0f);
 
     Vector3 cam_forward = Vector3Normalize(Vector3Subtract(camera->target, camera->position));
-    Vector3 cam_right = Vector3Normalize(Vector3CrossProduct(cam_forward, camera->up));
+    Vector3 cam_right = Vector3CrossProduct(cam_forward, camera->up);
+    float mag_sqr = cam_right.x * cam_right.x + cam_right.y * cam_right.y + cam_right.z * cam_right.z;
+    if(mag_sqr != 0.0f) {
+        float inv_mag = INVSQRTF(mag_sqr);
+        cam_right.x *= inv_mag;
+        cam_right.y *= inv_mag;
+        cam_right.z *= inv_mag;
+    } else cam_right.x = cam_right.y = cam_right.z = 0.0f;
     Vector3 cam_up = Vector3CrossProduct(cam_right, cam_forward);
     Vector3 strafe_pos_offset =
         Vector3Add(Vector3Scale(cam_right, strafe_axis_x * LIGHT_STRAFE_RANGE), Vector3Scale(cam_up, -strafe_axis_y * LIGHT_STRAFE_RANGE));
@@ -994,9 +1115,10 @@ static inline void draw_lantern(Vector3 pos) {
     float onset_burst = FMAXF(onset - prev_onset, 0.0f);
     prev_onset = onset;
     float lantern_radius = LIGHT0_LANTERN_RADIUS * 0.94f;
-    float spin_idle = 0.035f / lantern_radius;
-    float spin_max = 3.40f / lantern_radius;
-    float spin_accel = 52.0f / lantern_radius;
+    float inv_lantern_radius = ABSINVF(lantern_radius);
+    float spin_idle = 0.035f * inv_lantern_radius;
+    float spin_max = 3.40f * inv_lantern_radius;
+    float spin_accel = 52.0f * inv_lantern_radius;
     float spin_drag = 3.25f;
     float spin_drive_drag = 13.0f;
     float onset_impulse = SQRTF(onset_burst) * (0.45f + 0.55f * onset);
@@ -1005,14 +1127,15 @@ static inline void draw_lantern(Vector3 pos) {
     spin_vel = FMINF(spin_vel, spin_max);
     spin_vel = spin_idle + (spin_vel - spin_idle) * EXPF(-spin_drag * dt);
     spin_phase -= spin_vel * dt;
-    if (spin_phase < -4096.0f * PI)
-        spin_phase += 4096.0f * PI;
-    if (spin_phase > 4096.0f * PI)
-        spin_phase -= 4096.0f * PI;
+    if (spin_phase < -4096.0f * PI_F)
+        spin_phase += 4096.0f * PI_F;
+    if (spin_phase > 4096.0f * PI_F)
+        spin_phase -= 4096.0f * PI_F;
     float body_half_height = LIGHT0_LANTERN_RADIUS * 0.38f;
     int rib_count = LIGHT0_LANTERN_RIB_PAIR_COUNT * 2;
-    float rib_slice_angle_step = (2.0f * PI) / (float)rib_count;
-    float crown_arc_angle_step = (0.5f * PI) / (float)rib_count;
+    float inv_rib_count = 1.0f / rib_count;
+    float rib_slice_angle_step = (2.0f * PI_F) * inv_rib_count;
+    float crown_arc_angle_step = (0.5f * PI_F) * inv_rib_count;
     float spin_phase_offset = spin_phase;
     int crown_index = CLAMP((int)(0.82f * (float)rib_count), 1, rib_count - 1);
     float crown_angle = crown_arc_angle_step * (float)crown_index;
@@ -1021,24 +1144,28 @@ static inline void draw_lantern(Vector3 pos) {
                pos.y + (_cap_center_y) + (_cap_sign) * (_crown_sin) * lantern_radius,                                                                          \
                pos.z + (_rib_cos) * (_crown_cos) * lantern_radius})
     for (int i = 0; i < rib_count; i++) {
-        float rib_phase = ((2.0f * PI * (float)i) / (float)rib_count) + spin_phase_offset;
-        float rib_slice_sin = SINF(rib_phase);
-        float rib_slice_cos = COSF(rib_phase);
+        float rib_phase = ((2.0f * PI_F * (float)i) * inv_rib_count) + spin_phase_offset;
+        float rib_slice_sin;
+        float rib_slice_cos;
+        SINCOSF(rib_phase, rib_slice_sin, rib_slice_cos);
         DrawLine3D((Vector3){pos.x + rib_slice_sin * lantern_radius, pos.y + body_half_height, pos.z + rib_slice_cos * lantern_radius},
                    (Vector3){pos.x + rib_slice_sin * lantern_radius, pos.y - body_half_height, pos.z + rib_slice_cos * lantern_radius},
                    lantern_color);
     }
     for (int i = 0; i < rib_count; i++) {
         float rib_slice_phase = rib_slice_angle_step * (float)i + spin_phase_offset;
-        float rib_slice_sin = SINF(rib_slice_phase);
-        float rib_slice_cos = COSF(rib_slice_phase);
+        float rib_slice_sin;
+        float rib_slice_cos;
+        SINCOSF(rib_slice_phase, rib_slice_sin, rib_slice_cos);
         for (int k = 0; k < crown_index; k++) {
             float crown_arc_angle_0 = crown_arc_angle_step * (float)k;
             float crown_arc_angle_1 = crown_arc_angle_step * (float)(k + 1);
-            float crown_arc_sin_0 = SINF(crown_arc_angle_0);
-            float crown_arc_cos_0 = COSF(crown_arc_angle_0);
-            float crown_arc_sin_1 = SINF(crown_arc_angle_1);
-            float crown_arc_cos_1 = COSF(crown_arc_angle_1);
+            float crown_arc_sin_0;
+            float crown_arc_cos_0;
+            SINCOSF(crown_arc_angle_0, crown_arc_sin_0, crown_arc_cos_0);
+            float crown_arc_sin_1;
+            float crown_arc_cos_1;
+            SINCOSF(crown_arc_angle_1, crown_arc_sin_1, crown_arc_cos_1);
             DrawLine3D(LANTERN_VERTEX(-body_half_height, -1.0f, crown_arc_sin_0, crown_arc_cos_0, rib_slice_sin, rib_slice_cos),
                        LANTERN_VERTEX(-body_half_height, -1.0f, crown_arc_sin_1, crown_arc_cos_1, rib_slice_sin, rib_slice_cos),
                        lantern_color);
@@ -1050,13 +1177,18 @@ static inline void draw_lantern(Vector3 pos) {
     for (int i = 0; i < rib_count; i++) {
         float crown_phase_0 = rib_slice_angle_step * (float)i + spin_phase_offset;
         float crown_phase_1 = rib_slice_angle_step * (float)(i + 1) + spin_phase_offset;
-        float crown_sin = SINF(crown_angle);
-        float crown_cos = COSF(crown_angle);
-        DrawLine3D(LANTERN_VERTEX(-body_half_height, -1.0f, crown_sin, crown_cos, SINF(crown_phase_0), COSF(crown_phase_0)),
-                   LANTERN_VERTEX(-body_half_height, -1.0f, crown_sin, crown_cos, SINF(crown_phase_1), COSF(crown_phase_1)),
+        float crown_sin;
+        float crown_cos;
+        float crown_phase_sin_0, crown_phase_cos_0;
+        float crown_phase_sin_1, crown_phase_cos_1;
+        SINCOSF(crown_angle, crown_sin, crown_cos);
+        SINCOSF(crown_phase_0, crown_phase_sin_0, crown_phase_cos_0);
+        SINCOSF(crown_phase_1, crown_phase_sin_1, crown_phase_cos_1);
+        DrawLine3D(LANTERN_VERTEX(-body_half_height, -1.0f, crown_sin, crown_cos, crown_phase_sin_0, crown_phase_cos_0),
+                   LANTERN_VERTEX(-body_half_height, -1.0f, crown_sin, crown_cos, crown_phase_sin_1, crown_phase_cos_1),
                    lantern_color);
-        DrawLine3D(LANTERN_VERTEX(body_half_height, 1.0f, crown_sin, crown_cos, SINF(crown_phase_0), COSF(crown_phase_0)),
-                   LANTERN_VERTEX(body_half_height, 1.0f, crown_sin, crown_cos, SINF(crown_phase_1), COSF(crown_phase_1)),
+        DrawLine3D(LANTERN_VERTEX(body_half_height, 1.0f, crown_sin, crown_cos, crown_phase_sin_0, crown_phase_cos_0),
+                   LANTERN_VERTEX(body_half_height, 1.0f, crown_sin, crown_cos, crown_phase_sin_1, crown_phase_cos_1),
                    lantern_color);
     }
 #undef LANTERN_VERTEX
@@ -1086,8 +1218,8 @@ static inline void draw_lantern_glow(Vector3 pos) {
 #define CAMERA_FOVY_MAX 18.0f
 #define CAMERA_FOVY_VELOCITY 6.25f
 #define CAMERA_ORBIT_VELOCITY 2.25f
-#define CAMERA_PITCH_MIN (-PI / 2.0f + 0.001f)
-#define CAMERA_PITCH_MAX (PI / 2.0f - 0.001f)
+#define CAMERA_PITCH_MIN (-PI_F / 2.0f + 0.001f)
+#define CAMERA_PITCH_MAX (PI_F / 2.0f - 0.001f)
 #define BUTTON_DOWN_NAV_INITIAL_DELAY_SECONDS 0.35f
 // TODO: hardmode-> find the exact lane advance cadence for this value, lock it to playback rate a default,
 // then somehow allow for playback snippets to get fed to the device at player controlled update rates...??
@@ -1160,7 +1292,7 @@ static uint16_t src_file_format_tag = 0;
 static int adpcm_decode_frame = 0;
 static int16_t adpcm_decode_history = 0;
 static int16_t adpcm_step_size = YAMAHA_ADPCM_MIN_STEP_SIZE;
-static unsigned char adpcm_read_buffer[YAMAHA_ADPCM_READ_BUFFER_SIZE] = {0};
+static alignas(32) unsigned char adpcm_read_buffer[YAMAHA_ADPCM_READ_BUFFER_SIZE] = {0};
 static int adpcm_start_pos = -1;
 static int adpcm_read_count = 0;
 static int adpcm_checkpoint_count = 0;
@@ -1248,8 +1380,8 @@ static inline int16_t adpcm_decode(unsigned char nibble) {
 static inline void build_adpcm_checkpoints(void) {
     adpcm_checkpoint_count = (wave.frameCount + AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES - 1) / AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES;
     adpcm_checkpoint_filled_count = 1;
-    adpcm_checkpoint_history = RL_CALLOC(adpcm_checkpoint_count, sizeof(int16_t));
-    adpcm_checkpoint_step_size = RL_CALLOC(adpcm_checkpoint_count, sizeof(int16_t));
+    adpcm_checkpoint_history = ALIGNED_ALLOC(adpcm_checkpoint_count * sizeof(int16_t));
+    adpcm_checkpoint_step_size = ALIGNED_ALLOC(adpcm_checkpoint_count * sizeof(int16_t));
     adpcm_checkpoint_history[0] = 0;
     adpcm_checkpoint_step_size[0] = YAMAHA_ADPCM_MIN_STEP_SIZE;
     reset_adpcm_decoder(); // TODO: again... clearly im not sure..
@@ -1284,10 +1416,10 @@ static const char* cdda_hud_status_text = "NONE";
 
 static int audio_track_index = 0;
 static int cdda_track_count = 0;
-static uint32_t cdda_track_start_fads[CDDA_AUDIO_TRACK_COUNT_MAX] = {0};
-static uint32_t cdda_track_end_fads[CDDA_AUDIO_TRACK_COUNT_MAX] = {0};
-static int16_t cdda_mono_sample_cache[CDDA_MONO_FRAMES_PER_SECTOR] = {0};
-static int16_t cdrom_raw_sector_samples[CDDA_RAW_SECTOR_SAMPLE_COUNT] = {0};
+static alignas(32) uint32_t cdda_track_start_fads[CDDA_AUDIO_TRACK_COUNT_MAX] = {0};
+static alignas(32) uint32_t cdda_track_end_fads[CDDA_AUDIO_TRACK_COUNT_MAX] = {0};
+static alignas(32) int16_t cdda_mono_sample_cache[CDDA_MONO_FRAMES_PER_SECTOR] = {0};
+static alignas(32) int16_t cdrom_raw_sector_samples[CDDA_RAW_SECTOR_SAMPLE_COUNT] = {0};
 
 #ifdef PLATFORM_DREAMCAST
 static inline int cdrom_read_next_raw_sector(uint32_t* next_sector_fad) {
@@ -1730,9 +1862,7 @@ static inline void fffftt_inspection_step_sound_envelope(int dir) {
         wave_cursor = WRAP_MINUS(wave_cursor, AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES, wave.frameCount);
         seek_delta_chunks--;
         for (int lane = 0; lane < LANE_COUNT - 1; lane++) {
-            for (int point = 0; point < LANE_POINT_COUNT; point++) {
-                lane_point_values[lane][point] = lane_point_values[lane + 1][point];
-            }
+            MEMCPY(lane_point_values[lane], lane_point_values[lane + 1], LANE_POINT_COUNT * sizeof(float));
         }
         int tail_cursor = WRAP_MINUS(wave_cursor, (LANE_COUNT - 1) * AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES, wave.frameCount);
         fffftt_inspection_fill_analysis_window(tail_cursor);
@@ -1742,9 +1872,7 @@ static inline void fffftt_inspection_step_sound_envelope(int dir) {
         wave_cursor = WRAP_PLUS(wave_cursor, AUDIO_DEVICE_PERIOD_SIZE_IN_FRAMES, wave.frameCount);
         seek_delta_chunks++;
         for (int lane = LANE_COUNT - 1; lane > 0; lane--) {
-            for (int point = 0; point < LANE_POINT_COUNT; point++) {
-                lane_point_values[lane][point] = lane_point_values[lane - 1][point];
-            }
+            MEMCPY(lane_point_values[lane], lane_point_values[lane - 1], LANE_POINT_COUNT * sizeof(float));
         }
         fffftt_inspection_fill_analysis_window(wave_cursor);
         smooth_lane(0);
@@ -1960,7 +2088,7 @@ static Color sample_chroma_palette(unsigned char chroma_id, float chroma_mask) {
     float adaptive_chroma_mask_ceiling = adaptive_chroma_mask_mean + adaptive_chroma_mask_deviation * GLOBAL_ADAPTIVE_GATE_CEILING_DEVIATION_SCALE;
     float gate = 0.0f;
     if (adaptive_chroma_mask_ceiling > adaptive_chroma_mask_floor) {
-        gate = CLAMP((chroma_mask - adaptive_chroma_mask_floor) / (adaptive_chroma_mask_ceiling - adaptive_chroma_mask_floor), 0.0f, 1.0f);
+        gate = CLAMP(ABSDIVF((chroma_mask - adaptive_chroma_mask_floor), (adaptive_chroma_mask_ceiling - adaptive_chroma_mask_floor)), 0.0f, 1.0f);
     }
     gate = POWF(gate, 0.45f);
     float accidental_gain = 0.70f + 0.30f * ACCIDENTAL_LOOKUP(chroma_id);
@@ -2013,12 +2141,12 @@ static void build_chroma_fields(unsigned char* lane_chroma_id,
             float filter_chroma = (float)j + 3.0f; // 3.0 = librosa base_c=True roll offset for 12 chroma bins
             float chroma_delta = chroma_pos - filter_chroma;
             chroma_delta = FMODF(chroma_delta + 6.0f + 120.0f, 12.0f) - 6.0f; // librosa: remainder(D + n_chroma/2 + 10*n_chroma, n_chroma) - n_chroma/2
-            float chroma_filter_weight = EXPF(-0.5f * POWF((2.0f * chroma_delta) / chroma_width,
+            float chroma_filter_weight = EXPF(-0.5f * POWF(ABSDIVF((2.0f * chroma_delta), chroma_width),
                                                            2.0f));        // librosa.filters.chroma: Gaussian bumps, exp(-0.5 * (2 * D / binwidthbins) ** 2)
             filter_l2_sum += chroma_filter_weight * chroma_filter_weight; // librosa.filters.chroma(..., norm=2): util.normalize(wts, norm=norm, axis=0)
         }
 
-        float filter_l2_norm = SQRTF(filter_l2_sum);
+        float filter_l2_inv_norm = INVSQRTF(filter_l2_sum);
         float octave_delta = (octave - 5.0f) / 2.0f;                     // 5.0 = ctroct, 2.0 = octwidth, librosa.filters.chroma defaults
         float octave_weight = EXPF(-0.5f * octave_delta * octave_delta); // librosa.filters.chroma: octave
         float magnitude = spectrum_magnitudes[i];
@@ -2028,8 +2156,8 @@ static void build_chroma_fields(unsigned char* lane_chroma_id,
             float filter_chroma = (float)j + 3.0f; // 3.0 = librosa base_c=True roll offset for 12 chroma bins
             float chroma_delta = chroma_pos - filter_chroma;
             chroma_delta = FMODF(chroma_delta + 6.0f + 120.0f, 12.0f) - 6.0f; // librosa: project wrapped chroma distance into [-6, +6]
-            float chroma_filter_weight = EXPF(-0.5f * POWF((2.0f * chroma_delta) / chroma_width, 2.0f)); // librosa Gaussian bump
-            chroma_filter_weight /= filter_l2_norm;                                                      // librosa.filters.chroma(..., norm=2, axis=0)
+            float chroma_filter_weight = EXPF(-0.5f * POWF(ABSDIVF(2.0f * chroma_delta, chroma_width), 2.0f)); // librosa Gaussian bump
+            chroma_filter_weight *= filter_l2_inv_norm;                                                      // librosa.filters.chroma(..., norm=2, axis=0)
             chroma_sum[j] += power * chroma_filter_weight * octave_weight; // librosa.feature.chroma_stft: raw_chroma = chromafb @ S
         }
     }
@@ -2039,7 +2167,7 @@ static void build_chroma_fields(unsigned char* lane_chroma_id,
     for (int i = 0; i < CHROMA_COUNT; i++) {
         chroma_frame_max = FMAXF(chroma_frame_max, chroma_sum[i]);
     }
-    float inv_chroma_frame_max = 1.0f / chroma_frame_max; // librosa.feature.chroma_stft(..., norm=inf): util.normalize(raw_chroma, norm=norm, axis=-2)
+    float inv_chroma_frame_max = ABSINVF(chroma_frame_max); // librosa.feature.chroma_stft(..., norm=inf): util.normalize(raw_chroma, norm=norm, axis=-2)
     for (int i = 0; i < CHROMA_COUNT; i++) {
         chroma_frame[i] = CLAMP(chroma_sum[i] * inv_chroma_frame_max, 0.0f, 1.0f);
     }
@@ -2059,7 +2187,7 @@ static void build_chroma_fields(unsigned char* lane_chroma_id,
         chroma_mask_field[i] = ridge_value * best_chroma; // custom
         chroma_mask_sum += chroma_mask_field[i];
     }
-    float chroma_mask_mean = chroma_mask_sum / (float)point_count;
+    float chroma_mask_mean = ABSDIVF(chroma_mask_sum, (float)point_count);
     if (!adaptive_chroma_mask_ready) {
         adaptive_chroma_mask_mean = chroma_mask_mean;
         adaptive_chroma_mask_deviation = chroma_mask_mean;
@@ -2098,21 +2226,20 @@ static inline uint16_t jenkins_1997_white_noise_rgb565(uint32_t x, uint32_t y, u
 
 //TODO: bake offline ofc, and would be good chance to study pvr and vq stuff too again, just to be thorough/more practice
 static Texture2D build_white_noise_texture(int w, int h) {
+    unsigned short pixels[w * h];
     Image image = {
-        .data = RL_CALLOC(w * h, sizeof(unsigned short)),
+        .data = pixels,
         .width = w,
         .height = h,
         .mipmaps = 1,
         .format = PIXELFORMAT_UNCOMPRESSED_R5G6B5,
     };
-    unsigned short* pixels = (unsigned short*)image.data;
     for (uint32_t y = 0; y < h; y++) {
         for (uint32_t x = 0; x < w; x++) {
             pixels[y * w + x] = jenkins_1997_white_noise_rgb565(x, y, w, WHITE_NOISE_SEED);
         }
     }
     Texture2D texture = LoadTextureFromImage(image);
-    UnloadImage(image);
     return texture;
 }
 
@@ -2141,24 +2268,26 @@ static int next_power_of_two_lut(int value) {
 }
 
 static void fill_white_noise_mask_texcoords(int w, int h, float* texcoords, int point_count, int texels_per_quad) {
+    float wf = ABSINVF(w);
+    float hf = ABSINVF(h);
     for (int i = 0; i < LANE_COUNT; i++) {
         for (int j = 0; j < point_count; j++) {
             int k = (i * point_count + j) * 2;
-            texcoords[k + 0] = (float)(j * texels_per_quad) / (float)w;
-            texcoords[k + 1] = (float)(i * texels_per_quad) / (float)h;
+            texcoords[k + 0] = (float)(j * texels_per_quad) * (float)wf;
+            texcoords[k + 1] = (float)(i * texels_per_quad) * (float)hf;
         }
     }
 }
 
 static Texture2D build_white_noise_mask(int w, int h, float* texcoords, int point_count, int texels_per_quad) {
+    unsigned short pixels[w * h];
     Image image = {
-        .data = RL_CALLOC(w * h, sizeof(unsigned short)),
+        .data = pixels,
         .width = w,
         .height = h,
         .mipmaps = 1,
         .format = PIXELFORMAT_UNCOMPRESSED_R4G4B4A4,
     };
-    unsigned short* pixels = (unsigned short*)image.data;
     fill_white_noise_mask_texcoords(w, h, texcoords, point_count, texels_per_quad);
     for (uint32_t y = 0; y < (uint32_t)h; y++) {
         for (uint32_t x = 0; x < (uint32_t)w; x++) {
@@ -2166,7 +2295,6 @@ static Texture2D build_white_noise_mask(int w, int h, float* texcoords, int poin
         }
     }
     Texture2D texture = LoadTextureFromImage(image);
-    UnloadImage(image);
     return texture;
 }
 

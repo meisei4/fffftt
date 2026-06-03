@@ -68,9 +68,9 @@ static Model mid_band_model = {0};
 static Model high_band_model = {0};
 static Model flat_model = {0};
 
-static float low_band_lane_point_values[LANE_COUNT][LOW_BAND_POINT_COUNT] = {0};
-static float mid_band_lane_point_values[LANE_COUNT][MID_BAND_POINT_COUNT] = {0};
-static float high_band_lane_point_values[LANE_COUNT][HIGH_BAND_POINT_COUNT] = {0};
+static alignas(32) float low_band_lane_point_values[LANE_COUNT][LOW_BAND_POINT_COUNT] = {0};
+static alignas(32) float mid_band_lane_point_values[LANE_COUNT][MID_BAND_POINT_COUNT] = {0};
+static alignas(32) float high_band_lane_point_values[LANE_COUNT][HIGH_BAND_POINT_COUNT] = {0};
 
 static float low_band_vertices[LOW_BAND_VERTEX_COUNT * 3] = {0};
 static float low_band_normals[LOW_BAND_VERTEX_COUNT * 3] = {0};
@@ -82,7 +82,7 @@ static float mid_band_normals[MID_BAND_VERTEX_COUNT * 3] = {0};
 static Color mid_band_colors[MID_BAND_VERTEX_COUNT] = {0};
 static float mid_band_texcoords[MID_BAND_VERTEX_COUNT * 2] = {0};
 static unsigned char mid_band_lane_chroma_id[LANE_COUNT] = {0};
-static float mid_band_chroma_mask_field[LANE_COUNT][MID_BAND_POINT_COUNT] = {0};
+static alignas(32) float mid_band_chroma_mask_field[LANE_COUNT][MID_BAND_POINT_COUNT] = {0};
 
 static float high_band_vertices[HIGH_BAND_VERTEX_COUNT * 3] = {0};
 static float high_band_normals[HIGH_BAND_VERTEX_COUNT * 3] = {0};
@@ -125,7 +125,7 @@ int main(void) {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, domain);
     font = LoadFont(VGA_FONT);
     fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;
-    fft_data.work_buffer = RL_CALLOC(ANALYSIS_WINDOW_SIZE_IN_FRAMES, sizeof(FFTComplex));
+    fft_data.work_buffer = ALIGNED_ALLOC(ANALYSIS_WINDOW_SIZE_IN_FRAMES * sizeof(FFTComplex));
     fft_data.smoothed_spectrum_magnitudes = RL_CALLOC(ANALYSIS_SPECTRUM_BIN_COUNT, sizeof(float));
     fft_data.raw_spectrum_magnitudes = RL_CALLOC(ANALYSIS_FFT_HISTORY_FRAME_COUNT, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]));
     fft_data.spectrum_levels = RL_CALLOC(ANALYSIS_FFT_HISTORY_FRAME_COUNT, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]));
@@ -194,7 +194,7 @@ int main(void) {
     fill_mesh_colors(high_band_colors, HIGH_BAND_POINT_COUNT);
 
     update_fft_bands_terrain_meshes();
-    SetTargetFPS(60);
+    //SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
         if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_MIDDLE_RIGHT) && IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
@@ -258,7 +258,9 @@ int main(void) {
         glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
         glLightfv(GL_LIGHT0, GL_POSITION, (const GLfloat[]){light0_pos.x, light0_pos.y, light0_pos.z, 1.0f});
         glLightf(GL_LIGHT0, GL_QUADRATIC_ATTENUATION, LIGHT0_ATTENUATION_SMOOTH);
+        rlDisableColorBlend();
         DrawModelEx(low_band_model, LOW_BAND_ANCHOR, Y_AXIS, 0.0f, DEFAULT_SCALE, WHITE);
+        rlEnableColorBlend();
         glDisable(GL_LIGHTING);
         draw_lantern(light0_pos);
         draw_lantern_glow(light0_pos);
@@ -280,14 +282,17 @@ int main(void) {
         high_band_model.meshes[0].colors = NULL;
         high_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = high_band_white_noise_texture.id;
         mid_band_model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture.id = mid_band_white_noise_texture.id;
-        spectral_flatness_glitter_tint.a = (unsigned char)(spectral_flatness_glitter_alpha * (float)DRAW_COLOR_CHANNEL_MAX);
+         spectral_flatness_glitter_tint.a = (unsigned char)(spectral_flatness_glitter_alpha * (float)DRAW_COLOR_CHANNEL_MAX);
         if (spectral_flatness_glitter_tint.a != 0) {
+            if(spectral_flatness_glitter_tint.a > 180)
+                rlDisableColorBlend();
             rlEnablePointMode();
             rlDisableDepthTest();
             DrawModelEx(high_band_model, HIGH_BAND_ANCHOR, Y_AXIS, 0.0f, DEFAULT_SCALE, spectral_flatness_glitter_tint);
             rlEnableDepthTest();
             rlDisablePointMode();
             DrawModelWiresEx(mid_band_model, MID_BAND_ANCHOR, Y_AXIS, 0.0f, DEFAULT_SCALE, spectral_flatness_glitter_tint);
+            rlEnableColorBlend();
         }
         low_band_model.meshes[0].colors = low_saved_colors;
         mid_band_model.meshes[0].colors = mid_saved_colors;
@@ -314,10 +319,10 @@ int main(void) {
     UnloadAudioStream(audio_stream);
     unload_audio_track();
     CloseAudioDevice();
+    RL_FREE(fft_data.work_buffer);
     RL_FREE(fft_data.raw_spectrum_magnitudes);
     RL_FREE(fft_data.spectrum_levels);
     RL_FREE(fft_data.smoothed_spectrum_magnitudes);
-    RL_FREE(fft_data.work_buffer);
     UnloadFont(font);
     CloseWindow();
 #ifdef PLATFORM_DREAMCAST
@@ -341,18 +346,20 @@ build_band_terrain(float* lane_point_values, int point_count, const float* level
         for (int j = bin_min; j <= bin_max; j++) {
             magnitude_sum += levels[j];
         }
-        float avg_magnitude = magnitude_sum / (float)(bin_max - bin_min + 1);
+        float avg_magnitude = ABSDIVF(magnitude_sum, (float)(bin_max - bin_min + 1));
         lane_point_values[i] = avg_magnitude;
         band_peak = FMAXF(band_peak, avg_magnitude);
     }
 
     if (adaptive_peak) {
         *adaptive_peak = FMAXF(*adaptive_peak * ADAPTIVE_PEAK_DECAY, band_peak);
-        float inv_peak = 1.0f / *adaptive_peak;
-        float inv_range_db = 1.0f / ADAPTIVE_DYNAMIC_RANGE_DB;
-        for (int i = 0; i < point_count; i++) {
-            float db_below_peak = LOGF(lane_point_values[i] * inv_peak) * ANALYSIS_DB_TO_LINEAR_SCALE;
-            lane_point_values[i] = CLAMP(1.0f + db_below_peak * inv_range_db, 0.0f, 1.0f);
+        if(*adaptive_peak > 0.0f) {
+            float inv_peak = INVF(*adaptive_peak);
+            float inv_range_db = 1.0f / ADAPTIVE_DYNAMIC_RANGE_DB;
+            for (int i = 0; i < point_count; i++) {
+                float db_below_peak = LOGF(lane_point_values[i] * inv_peak) * ANALYSIS_DB_TO_LINEAR_SCALE;
+                lane_point_values[i] = CLAMP(1.0f + db_below_peak * inv_range_db, 0.0f, 1.0f);
+            }
         }
     } else {
         for (int i = 0; i < point_count; i++) {
@@ -376,8 +383,8 @@ static void update_spectral_flatness_glitter_alpha(const float* raw_spectrum_mag
         log_power_sum += LOGF(power);
         arithmetic_power_sum += power;
     }
-    const float geometric_mean = EXPF(log_power_sum / (float)bin_count);
-    const float arithmetic_mean = arithmetic_power_sum / (float)bin_count;
+    const float geometric_mean = EXPF(ABSDIVF(log_power_sum, (float)bin_count));
+    const float arithmetic_mean = ABSDIVF(arithmetic_power_sum, (float)bin_count);
     if (!adaptive_glitter_power_ready) {
         adaptive_glitter_power_mean = arithmetic_mean;
         adaptive_glitter_power_deviation = arithmetic_mean;
@@ -389,13 +396,13 @@ static void update_spectral_flatness_glitter_alpha(const float* raw_spectrum_mag
     }
     float adaptive_glitter_power_floor = adaptive_glitter_power_mean - adaptive_glitter_power_deviation * GLOBAL_ADAPTIVE_GATE_FLOOR_DEVIATION_SCALE;
     float adaptive_glitter_power_ceiling = adaptive_glitter_power_mean + adaptive_glitter_power_deviation * GLOBAL_ADAPTIVE_GATE_CEILING_DEVIATION_SCALE;
-    const float spectral_flatness = geometric_mean / FMAXF(arithmetic_mean, SPECTRAL_FLATNESS_AMIN);
+    const float spectral_flatness = ABSDIVF(geometric_mean, FMAXF(arithmetic_mean, SPECTRAL_FLATNESS_AMIN));
     float flatness = CLAMP(spectral_flatness, 0.0f, 1.0f);
-    float gate = CLAMP((arithmetic_mean - adaptive_glitter_power_floor) / (adaptive_glitter_power_ceiling - adaptive_glitter_power_floor), 0.0f, 1.0f);
+    float gate = CLAMP(ABSDIVF((arithmetic_mean - adaptive_glitter_power_floor), (adaptive_glitter_power_ceiling - adaptive_glitter_power_floor)), 0.0f, 1.0f);
     gate = gate * gate * (3.0f - 2.0f * gate);
     float alpha_target = CLAMP(flatness * gate, 0.0f, 1.0f);
     spectral_flatness_glitter_alpha = alpha_target;
-    spectral_flatness_glitter_alpha_history[WRAP_MINUS(fft_data.history_frame_pos, 1, ANALYSIS_FFT_HISTORY_FRAME_COUNT)] = spectral_flatness_glitter_alpha;
+    spectral_flatness_glitter_alpha_history[(int)WRAP_MINUS(fft_data.history_frame_pos, 1, ANALYSIS_FFT_HISTORY_FRAME_COUNT)] = spectral_flatness_glitter_alpha;
     //TODO: and then do this for anticipating a distributed field from a 1D signal measurement... later...
     for (int i = 0; i < HIGH_BAND_VERTEX_COUNT; i++) {
         high_band_spectral_flatness_glitter_field[i] = spectral_flatness_glitter_alpha;
@@ -498,7 +505,7 @@ static void update_playback_controls_fft(void) {
             int frame_pos = fft_data.frame_pos - 1;
             update_onset_gate_fft(&fft_data, 1);
             update_spectral_flatness_glitter_alpha(
-                fft_data.raw_spectrum_magnitudes[WRAP_MINUS(fft_data.history_frame_pos, 1, ANALYSIS_FFT_HISTORY_FRAME_COUNT)]);
+                fft_data.raw_spectrum_magnitudes[(int)WRAP_MINUS(fft_data.history_frame_pos, 1, ANALYSIS_FFT_HISTORY_FRAME_COUNT)]);
             retention_window_max_frame_pos = frame_pos;
             if (retention_window_max_frame_pos - retention_window_min_frame_pos >= ANALYSIS_FFT_HISTORY_FRAME_COUNT) {
                 retention_window_min_frame_pos = retention_window_max_frame_pos - (ANALYSIS_FFT_HISTORY_FRAME_COUNT - 1);
