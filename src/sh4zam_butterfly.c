@@ -31,7 +31,7 @@ int main(void) {
     float start_time = (float)GetTime();
     FFT_PROFILE_DEFINE(fft_profile_data);
     fft_data.tapback_pos = ANALYSIS_TAPBACK_POS_DEFAULT;
-    fft_data.work_buffer = RL_CALLOC(ANALYSIS_WINDOW_SIZE_IN_FRAMES, sizeof(FFTComplex));
+    fft_data.work_buffer = ALIGNED_ALLOC(ANALYSIS_WINDOW_SIZE_IN_FRAMES * sizeof(FFTComplex));
     fft_data.smoothed_spectrum_magnitudes = RL_CALLOC(ANALYSIS_SPECTRUM_BIN_COUNT, sizeof(float));
     fft_data.raw_spectrum_magnitudes = RL_CALLOC(ANALYSIS_FFT_HISTORY_FRAME_COUNT, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]));
     fft_data.spectrum_levels = RL_CALLOC(ANALYSIS_FFT_HISTORY_FRAME_COUNT, sizeof(float[ANALYSIS_SPECTRUM_BIN_COUNT]));
@@ -65,7 +65,9 @@ int main(void) {
         FFT_PROFILE_SAMPLE(fft_profile_data, domain, fft_compute_ms, (float)GetTime() - start_time, &fft_data);
         BeginDrawing();
         ClearBackground(BLACK);
+        rlDisableColorBlend();
         render_fft_frame();
+        rlEnableColorBlend();
         draw_hud();
         EndDrawing();
     }
@@ -73,10 +75,10 @@ int main(void) {
     UnloadAudioStream(audio_stream);
     unload_audio_track();
     CloseAudioDevice();
+    RL_FREE(fft_data.work_buffer);
     RL_FREE(fft_data.raw_spectrum_magnitudes);
     RL_FREE(fft_data.spectrum_levels);
     RL_FREE(fft_data.smoothed_spectrum_magnitudes);
-    RL_FREE(fft_data.work_buffer);
     UnloadFont(font);
     CloseWindow();
 #ifdef PLATFORM_DREAMCAST
