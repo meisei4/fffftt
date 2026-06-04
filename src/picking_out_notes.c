@@ -149,7 +149,7 @@ int main(void) {
         ClearBackground(BLACK);
         rlDisableColorBlend();
         picking_out_the_notes(&fft_data);
-        rlDisableColorBlend();
+        rlEnableColorBlend();
         draw_hud();
         EndDrawing();
     }
