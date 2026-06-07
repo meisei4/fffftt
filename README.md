@@ -1,9 +1,8 @@
 <samp><b>(f)ixed (f)unction and (f)ast (f)ourier (t)ransform (t)esting</b></samp>
 ---
 <samp>
-  fffftt is an audio-geometry exhibit for fixed-function graphics signal visualization, originally inspired by <a href="https://www.shadertoy.com/">Shadertoy</a>. It targets Dreamcast as a hardware case study using <a href="https://github.com/raysan5/raylib">raylib</a>, OpenGL 1.1 <a href="https://en.wikipedia.org/wiki/Fixed-function_(computer_graphics)">fixed-function</a> rendering, <a href="https://github.com/kazade/GLdc">GLdc</a>, and <a href="https://github.com/gyrovorbis/sh4zam">sh4zam</a>'s <code>shz_fft()</code>.<br><br>
+  fffftt is an audio-geometry exhibit for fixed-function graphics signal visualization, originally inspired by <a href="https://www.shadertoy.com/">Shadertoy</a>. It targets Dreamcast as a hardware case study using <a href="https://github.com/raysan5/raylib">raylib</a>, OpenGL 1.1 <a href="https://en.wikipedia.org/wiki/Fixed-function_(computer_graphics)">fixed-function</a> rendering, <a href="https://github.com/kazade/GLdc">GLdc</a>, and <a href="https://github.com/gyrovorbis/sh4zam">sh4zam</a>'s <code><a href="https://github.com/gyrovorbis/sh4zam/blob/master/source/sh4/shz_complex_sh4.c">shz_fft()</a></code>.<br>
 </samp>
-
 
 ### <samp>[overview]<samp>
 <samp>
@@ -15,7 +14,6 @@
   &nbsp;&nbsp;&nbsp;&nbsp;proxy plots ....................... MathWorks-like audio analysis plots in <a href="https://github.com/meisei4/fffftt/tree/main/mathworks">mathworks/</a> directory<br>
     &nbsp;&nbsp;&nbsp;&nbsp;controls .......................... see <a href="#controls">[controls]</a><br>
     &nbsp;&nbsp;&nbsp;&nbsp;desktop ports ..................... see <a href="#desktop-ports">[desktop ports]</a><br>
-<br>
 </samp>
 
 ### <samp>[audio terrain]</samp>
